@@ -141,11 +141,11 @@ test('bodyguard restriction resets after a skipped night', () => {
   assert.equal(g.s.bodyguardLast, null);
 });
 
-test('bodyguard self-protect is off by default and togglable', () => {
+test('bodyguard self-protect is on by default and can be disabled', () => {
   const g = game(R7);
-  assert.equal(act(g, { kind: 'nightPick', by: 'p3', targetId: 'p3' }).error.code, 'badTarget');
-  const g2 = game(R7, { settings: { bodyguardSelfProtect: true } });
-  assert.equal(act(g2, { kind: 'nightPick', by: 'p3', targetId: 'p3' }).error, undefined);
+  assert.equal(act(g, { kind: 'nightPick', by: 'p3', targetId: 'p3' }).error, undefined);
+  const g2 = game(R7, { settings: { bodyguardSelfProtect: false } });
+  assert.equal(act(g2, { kind: 'nightPick', by: 'p3', targetId: 'p3' }).error.code, 'badTarget');
 });
 
 test('seer learns wolf / not wolf immediately after picking', () => {

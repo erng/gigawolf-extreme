@@ -26,7 +26,7 @@ const NONCE_MEMORY = 50;
 export const DEFAULT_SETTINGS = Object.freeze({
   counts: null, // null = auto preset for current player count
   revealOnDeath: true,
-  bodyguardSelfProtect: false,
+  bodyguardSelfProtect: true,
   narration: true,
   nightSecs: 45,
   discussionSecs: 180,
