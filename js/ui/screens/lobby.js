@@ -39,9 +39,15 @@ export function lobbyScreen(view, ctx) {
     host
       ? h('section', { class: 'card settings' },
           h('h2', null, t('lobby.setup')),
-          s.randomize && h('p', { class: 'sub' }, t('lobby.randomOn')),
-          !s.randomize && h('button', { class: 'btn small', onClick: () => set({ randomize: true }) }, t('lobby.randomize')),
-          s.randomize && h('button', { class: 'btn small', onClick: () => set({ counts: null }) }, t('lobby.manual')),
+          h('div', { class: 'modeswitch', role: 'group', 'aria-label': t('lobby.mode') },
+            h('button', { class: `btn small${s.randomize ? '' : ' selected'}`, 'aria-pressed': String(!s.randomize), onClick: () => s.randomize && set({ counts: null }) }, t('lobby.modeManual')),
+            h('button', { class: `btn small${s.randomize ? ' selected' : ''}`, 'aria-pressed': String(s.randomize), onClick: () => !s.randomize && set({ randomize: true }) }, t('lobby.modeRandom'))),
+          s.randomize
+            ? h('div', { class: 'randombanner' },
+                h('strong', null, t('lobby.randomOn')),
+                h('p', null, t('lobby.randomWhat')),
+                h('p', null, t('lobby.randomHint')))
+            : h('p', { class: 'sub small' }, t('lobby.manualHint')),
           c && stepper(t('lobby.wolves'), c.wolves, (v) => setCounts('wolves', v), 0, 7),
           c && stepper(t('lobby.seer'), c.seer, (v) => setCounts('seer', v), 0, 3),
           c && stepper(t('lobby.bodyguard'), c.bodyguard, (v) => setCounts('bodyguard', v), 0, 3),
@@ -49,12 +55,13 @@ export function lobbyScreen(view, ctx) {
             stepper(t(`lobby.${k}`), c[k], (v) => setCounts(k, v), 0, 3)),
           c && h('div', { class: 'row' }, h('span', null, t('lobby.villagers')), h('span', { class: 'num' }, c.villagers)),
           !s.randomize && h('button', { class: 'btn small', onClick: () => set({ counts: null }) }, t('lobby.reset')),
+          h('h3', null, t('lobby.options')),
           toggle(t('lobby.revealOnDeath'), s.revealOnDeath, (v) => set({ revealOnDeath: v })),
           toggle(t('lobby.selfProtect'), s.bodyguardSelfProtect, (v) => set({ bodyguardSelfProtect: v })),
           toggle(t('lobby.narration'), s.narration, (v) => set({ narration: v })),
           view.setup && !view.setup.ok && h('p', { class: 'error' }, view.setup.errors.map(tr).join(' ')),
           h('button', { class: 'btn primary', disabled: !(view.setup?.ok) || n < MIN_PLAYERS, onClick: () => { unlock(); ctx.send('startGame'); } },
-            n < MIN_PLAYERS ? t('lobby.needMore', { n: MIN_PLAYERS - n, s: MIN_PLAYERS - n === 1 ? '' : 's' }) : t('lobby.start')))
+            n < MIN_PLAYERS ? t('lobby.needMore', { n: MIN_PLAYERS - n, s: MIN_PLAYERS - n === 1 ? '' : 's' }) : s.randomize ? t('lobby.startRandom') : t('lobby.start')))
       : h('p', { class: 'sub' }, t('lobby.waiting')),
   );
 }

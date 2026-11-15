@@ -86,3 +86,6 @@ button.player { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .btn.hostbtn.nudge { animation: none; } }
 /* Ending a phase early (people still pending): dull and red-edged so it is not hit by accident. */
 .btn.hostbtn.premature { background: var(--panel2); color: var(--bad); border: 2px solid var(--bad); font-weight: 500; }
+.modeswitch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.randombanner { border: 2px solid var(--wolf); background: #2a1f3a; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.randombanner p { margin: 0; color: var(--muted); font-size: .9rem; }
