@@ -20,6 +20,7 @@ h3 { margin: 12px 0 0; color: var(--muted); font-size: 1rem; text-transform: upp
 h4 { margin: 10px 0 0; font-size: .9rem; color: var(--muted); }
 .sub { color: var(--muted); margin: 0; text-align: center; }
 .sub.small { font-size: .85rem; }
+.yourole { margin-top: 20px; padding-bottom: 8px; } /* the always-on role footer: keep it clear of the action buttons */
 .error { color: var(--bad); background: #3a1a1f; padding: 10px 12px; border-radius: 10px; margin: 0; }
 label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: .9rem; }
 input[type=text] { min-height: 48px; padding: 8px 12px; border-radius: 10px; border: 2px solid var(--panel2); background: var(--panel); color: var(--text); font-size: 1.1rem; }
