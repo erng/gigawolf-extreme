@@ -11,6 +11,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.4 syst
 h1 { font-size: 2rem; margin: 8px 0 0; text-align: center; letter-spacing: .5px; }
 h2 { font-size: 1.3rem; margin: 8px 0 0; }
 h3 { margin: 12px 0 0; color: var(--muted); font-size: 1rem; text-transform: uppercase; letter-spacing: .08em; }
+h4 { margin: 10px 0 0; font-size: .9rem; color: var(--muted); }
 .sub { color: var(--muted); margin: 0; text-align: center; }
 .sub.small { font-size: .85rem; }
 .error { color: var(--bad); background: #3a1a1f; padding: 10px 12px; border-radius: 10px; margin: 0; }

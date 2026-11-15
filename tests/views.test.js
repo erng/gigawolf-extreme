@@ -203,6 +203,19 @@ test('game over reveals all roles and the winner', () => {
   assert.equal(v.players.find((p) => p.id === 'p0').role, 'werewolf');
 });
 
+test('detailed history (causes of death, roles) is hidden until game over', () => {
+  const g = game(['werewolf', 'werewolf', 'seer', 'bodyguard', 'villager']);
+  assert.equal(viewFor(g.s, 'p3', T0).history, undefined);
+  submitNight(g, { p0: 'p4', p1: 'p4', p2: 'p0', p3: 'p2' });
+  resolveNight(g);
+  const v = viewFor(g.s, 'p3', T0);
+  const text = v.history.map((e) => e.text);
+  assert.ok(text.some((x) => x.includes('Villager') && x.includes('killed by the wolves')), text.join('\n'));
+  assert.ok(text.some((x) => x.includes('checked') && x.includes('a werewolf')));
+  assert.ok(text.some((x) => x.includes('protected')));
+  assert.equal(v.history.at(-1).kind, 'end');
+});
+
 test('only the host sees progress counts, and they are aggregate only', () => {
   const g = game(R7);
   assert.deepEqual(viewFor(g.s, 'p0').progress, { done: 0, total: 7 });

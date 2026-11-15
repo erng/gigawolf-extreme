@@ -45,6 +45,7 @@ export function createState({ hostId, roomCode }) {
     lines: [],              // announcements for the current dawn / vote result
     winner: null,           // 'village' | 'wolves' | 'jester'
     log: [],                // { text }
+    history: [],            // { kind: 'night'|'day'|'end', round, text }: full detail, only shown at game over
     nonces: {},             // playerId -> recent applied nonces
   };
 }
@@ -176,6 +177,7 @@ function startGame(state, _a, isHost, rng, fx) {
   state.phase = PHASE.REVEAL;
   state.round = 0;
   state.log = [];
+  state.history = [];
   state.lines = [];
   state.seerLog = [];
   state.bodyguardLast = null;
@@ -212,6 +214,12 @@ function roleNote(state, p) {
 function say(state, text) {
   state.log.push({ text });
   state.lines.push(text);
+}
+
+// Full-detail record (roles, causes, tallies) that is only sent to players once the game is over.
+const who = (p) => `${p.name} (${ROLES[p.role].name})`;
+function hist(state, kind, text) {
+  state.history.push({ kind, round: state.round, text });
 }
 
 // After a batch of deaths: hunters shoot first, then the game carries on at `after`.
@@ -369,10 +377,42 @@ function resolveNight(state, rng, fx) {
 
   // Keep seating order so the announcement order is stable.
   const dead = state.players.filter((p) => dying.has(p.id) && p.alive);
+  recordNight(state, n, victims, protectedId, bg, healed, poisoned, dead);
   for (const p of dead) killPlayer(state, p);
   if (dead.length === 0) say(state, 'Nobody died.');
   for (const p of dead) say(state, `${p.name} was killed in the night.${roleNote(state, p)}`);
   afterDeaths(state, 'day', fx);
+}
+
+function recordNight(state, n, victims, protectedId, bg, healed, poisoned, dead) {
+  const at = (id) => who(byId(state, id));
+  for (const w of livingWolves(state)) {
+    const targets = [n.picks[w.id], n.picks2[w.id]].filter((x) => x != null);
+    hist(state, 'night', targets.length ? `${who(w)} wanted to kill ${targets.map(at).join(' and ')}.` : `${who(w)} did not pick a victim.`);
+  }
+  hist(state, 'night', victims.length ? `The wolves' victim${victims.length > 1 ? 's' : ''}: ${victims.map(at).join(' and ')}.` : 'The wolves attacked nobody.');
+  if (bg) hist(state, 'night', protectedId ? `${who(bg)} protected ${at(protectedId)}.` : `${who(bg)} protected nobody.`);
+  for (const w of state.players.filter((p) => p.role === 'witch')) {
+    const pick = n.picks[w.id];
+    const m = /^(heal|poison):(.+)$/.exec(String(pick));
+    if (m) hist(state, 'night', `${who(w)} used the ${m[1]} potion on ${at(m[2])}.`);
+    else if (w.alive) hist(state, 'night', `${who(w)} used no potion.`);
+  }
+  for (const sr of state.players.filter((p) => p.role === 'seer' && n.picks[p.id])) {
+    const t = byId(state, n.picks[sr.id]);
+    hist(state, 'night', `${who(sr)} checked ${who(t)}: ${isWolf(t.role) ? 'a werewolf' : 'not a werewolf'}.`);
+  }
+  for (const id of victims) {
+    if (id === protectedId) hist(state, 'night', `${at(id)} was attacked but the Bodyguard's protection saved them.`);
+    else if (healed.has(id)) hist(state, 'night', `${at(id)} was attacked but the Witch's heal potion saved them.`);
+  }
+  if (!dead.length) hist(state, 'night', 'Nobody died.');
+  for (const p of dead) {
+    const wolfKill = victims.includes(p.id) && p.id !== protectedId && !healed.has(p.id);
+    const poison = poisoned.has(p.id);
+    const cause = wolfKill && poison ? 'killed by the wolves and poisoned by the Witch' : poison ? 'poisoned by the Witch' : 'killed by the wolves';
+    hist(state, 'night', `${who(p)} died: ${cause}.`);
+  }
 }
 
 // ---------- day ----------
@@ -420,18 +460,26 @@ function resolveVote(state, fx) {
   if (top.length === 1 && top[0] !== 'skip') eliminatedId = top[0];
 
   state.lines = [];
+  for (const p of living(state)) {
+    const tv = votes[p.id];
+    hist(state, 'day', `${who(p)} voted ${tv === 'skip' ? 'to skip' : `for ${who(byId(state, tv))}`}${state.vote.votes[p.id] == null ? ' (no vote cast)' : ''}.`);
+  }
+  hist(state, 'day', `Tally: ${[...counts].map(([k, c]) => `${k === 'skip' ? 'Skip' : byId(state, k).name} ${c}`).join(', ')}.`);
   state.vote.stage = 'result';
   let princeId = null;
   if (!eliminatedId) {
+    hist(state, 'day', top.length > 1 && top[0] !== 'skip' ? 'Tied vote: nobody was eliminated.' : 'Nobody was eliminated.');
     say(state, 'Nobody was eliminated.');
   } else {
     const p = byId(state, eliminatedId);
     if (p.role === 'prince' && !p.revealed) {
       // The Prince survives the first vote against them, but everyone now knows who they are.
       p.revealed = true; princeId = p.id; eliminatedId = null;
+      hist(state, 'day', `${who(p)} survived the vote: the Prince is immune to the first vote against them.`);
       say(state, `${p.name} is the Prince! The village cannot eliminate them.`);
     } else {
       killPlayer(state, p);
+      hist(state, 'day', `${who(p)} died: eliminated by vote (${counts.get(p.id)} votes).`);
       say(state, `${p.name} was eliminated by vote.${roleNote(state, p)}`);
       if (p.role === 'jester') {
         state.winner = TEAM.JESTER; // announced after the result screen
@@ -452,6 +500,7 @@ function shoot(state, { targetId }, sender, fx) {
   const target = byId(state, targetId);
   if (!target || !target.alive) return { code: 'badTarget', message: 'Invalid target.' };
   killPlayer(state, target);
+  hist(state, state.afterShot === 'day' ? 'night' : 'day', `${who(target)} died: shot by the Hunter ${sender.name}.`);
   say(state, `${sender.name} shot ${target.name}.${roleNote(state, target)}`);
   nextShot(state, fx);
   return null;
@@ -473,6 +522,7 @@ function nextPhase(state, _a, isHost, rng, fx) {
     case PHASE.NIGHT: resolveNight(state, rng, fx); return null;
     case PHASE.SHOT: {
       const h = byId(state, state.shots[0]);
+      hist(state, state.afterShot === 'day' ? 'night' : 'day', `${who(h)} chose not to shoot anyone.`);
       say(state, `${h.name} lowered the gun.`);
       nextShot(state, fx);
       return null;
@@ -493,6 +543,7 @@ function endGame(state, winner, fx, lastText) {
   const line = winner === TEAM.VILLAGE ? 'The village wins!'
     : winner === TEAM.JESTER ? 'The Jester wins!' : 'The wolves win!';
   state.log.push({ text: line });
+  hist(state, 'end', line);
   fx.push({ type: 'narrate', text: `${lastText ? lastText + ' ' : ''}${line}` });
   fx.push({ type: 'haptic' });
 }
@@ -512,6 +563,7 @@ function playAgain(state, isHost) {
   state.lines = [];
   state.seerLog = [];
   state.log = [];
+  state.history = [];
   state.players.forEach((p) => { p.role = null; p.alive = true; p.ready = false; p.revealed = false; p.potions = null; });
   return null;
 }

@@ -148,6 +148,7 @@ export function viewFor(state, playerId) {
   if (state.phase === PHASE.GAMEOVER) {
     view.winner = state.winner;
     view.roles = state.players.map((p) => ({ id: p.id, role: p.role }));
+    view.history = state.history.map((e) => ({ kind: e.kind, round: e.round, text: e.text }));
   }
 
   return view;
