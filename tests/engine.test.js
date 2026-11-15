@@ -123,7 +123,7 @@ test('bodyguard cannot protect the same player two nights in a row', () => {
   resolveNight(g);
   act(g, { kind: 'startVote', by: 'p0' });
   everyoneVotes(g, {}); // all skip
-  act(g, { kind: 'tick', now: g.s.deadline }); // result -> night 2
+  act(g, { kind: 'nextPhase', by: 'p0' }); // result -> night 2
   assert.equal(g.s.round, 2);
   assert.equal(act(g, { kind: 'nightPick', by: 'p3', targetId: 'p4' }).error.code, 'badTarget');
   assert.equal(act(g, { kind: 'nightPick', by: 'p3', targetId: 'p6' }).error, undefined);
@@ -135,7 +135,7 @@ test('bodyguard restriction resets after a skipped night', () => {
   resolveNight(g);
   act(g, { kind: 'startVote', by: 'p0' });
   everyoneVotes(g, {});
-  act(g, { kind: 'tick', now: g.s.deadline });
+  act(g, { kind: 'nextPhase', by: 'p0' });
   act(g, { kind: 'tick', now: g.s.deadline }); // night 2 times out, bodyguard skips
   assert.equal(g.s.phase, PHASE.DAY);
   assert.equal(g.s.bodyguardLast, null);
@@ -233,7 +233,10 @@ test('village wins when no wolves remain (day vote)', () => {
   act(g, { kind: 'startVote', by: 'p0' });
   everyoneVotes(g, { p0: 'p1', p1: 'p0', p2: 'p0', p4: 'p0' });
   assert.equal(g.s.phase, PHASE.VOTE); // result screen first
-  act(g, { kind: 'tick', now: g.s.deadline });
+  act(g, { kind: 'tick', now: T0 + 10 * 60_000 });
+  assert.equal(g.s.phase, PHASE.VOTE, 'result waits for host');
+  assert.equal(act(g, { kind: 'nextPhase', by: 'p2' }).error.code, 'forbidden');
+  act(g, { kind: 'nextPhase', by: 'p0' });
   assert.equal(g.s.phase, PHASE.GAMEOVER);
   assert.equal(g.s.winner, 'village');
 });
@@ -245,7 +248,7 @@ test('wolves win when living wolves >= living non-wolves (after night)', () => {
   resolveNight(g);
   act(g, { kind: 'startVote', by: 'p0' });
   everyoneVotes(g, { p0: 'p1', p1: 'p2', p2: 'p1', p4: 'p1' }); // seer out: wolf + bg + vill left
-  act(g, { kind: 'tick', now: g.s.deadline });
+  act(g, { kind: 'nextPhase', by: 'p0' });
   assert.equal(g.s.phase, PHASE.NIGHT);
   submitNight(g, { p0: 'p4', p2: 'p0' });
   resolveNight(g, g.s.deadline);
@@ -321,7 +324,7 @@ test('smoke: random play always reaches game over, for every player count', () =
           const others = alive.filter((x) => x.id !== p.id);
           act(g, { kind: 'vote', by: p.id, targetId: rng() < 0.2 ? 'skip' : others[Math.floor(rng() * others.length)].id, now });
         }
-        now = g.s.deadline; act(g, { kind: 'tick', now });
+        act(g, { kind: 'nextPhase', by: g.s.hostId, now });
       }
     }
     assert.equal(g.s.phase, PHASE.GAMEOVER, `seed ${seed} (n=${n}) stalled`);

@@ -1,6 +1,6 @@
 import { PROTOCOL_VERSION } from '../config.js';
 
-export const CLIENT_ACTION_KINDS = ['ready', 'nightPick', 'vote', 'startVote', 'startGame', 'settings', 'playAgain'];
+export const CLIENT_ACTION_KINDS = ['ready', 'nightPick', 'vote', 'startVote', 'nextPhase', 'startGame', 'settings', 'playAgain'];
 // Errors after which retrying cannot help.
 export const FATAL_ERRORS = ['gameStarted', 'roomFull', 'badName', 'badVersion'];
 

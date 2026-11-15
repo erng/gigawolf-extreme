@@ -16,7 +16,7 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Bodyguard restriction** resets if they skip a night (timeout) or die.
 - **Night delay**: random 2–5s after the last submission (`night.resolveAt`, never sent to clients). A timeout resolves immediately at the deadline.
 - **Vote**: self-votes are not allowed; votes are final on confirm; a non-voter counts as Skip. Resolves immediately when everyone has voted. A tie, or Skip being among the top, = no elimination.
-- **Vote result screen**: after resolution, the phase stays `vote` (stage `result`) for 8s, then night begins, or game over if someone won. After a *night* kill that ends the game, it goes straight to game over.
+- **Vote result screen**: after resolution, the phase stays `vote` (stage `result`) with no timer until the host clicks Next, then night begins, or game over if someone won. After a *night* kill that ends the game, it goes straight to game over.
 - **Dead players**: no prompt, no actions. They keep seeing their own role. The "dead" screen is chosen by `you.alive`, not a separate phase.
 - **Host can't start the vote if dead.** The discussion timer still starts it.
 - **Role counts**: `settings.counts = null` means "auto preset for current player count"; the host overriding it sets explicit counts, validated at Start.

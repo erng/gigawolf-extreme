@@ -3,7 +3,7 @@
 //
 // Actions: { kind, by, now, ...payload, nonce? }
 //   join{name} setConnected{connected} leave settings{patch} startGame ready
-//   nightPick{targetId} startVote vote{targetId|'skip'} playAgain tick
+//   nightPick{targetId} startVote vote{targetId|'skip'} nextPhase playAgain tick
 //
 // Effects: { type:'views' }            host should resend every player's view
 //          { type:'timer', at }        wake the engine with a tick at this time
@@ -18,7 +18,6 @@ export const PHASE = Object.freeze({
 });
 
 export const REVEAL_MS = 60_000;
-export const VOTE_RESULT_MS = 8_000;
 export const NIGHT_DELAY_MS = [2000, 5000];
 const MAX_NAME = 20;
 const NONCE_MEMORY = 50;
@@ -114,6 +113,7 @@ export function reduce(prev, action, rng) {
     case 'nightPick': err = nightPick(state, action, sender, rng, fx); break;
     case 'startVote': err = startVote(state, action, sender, isHost, fx); break;
     case 'vote': err = vote(state, action, sender, fx); break;
+    case 'nextPhase': err = nextPhase(state, action, isHost, fx); break;
     case 'playAgain': err = playAgain(state, isHost); break;
     case 'tick': tick(state, action.now, rng, fx); break;
     default: err = { code: 'badAction', message: `Unknown action ${action.kind}` };
@@ -360,9 +360,19 @@ function resolveVote(state, now, fx) {
   state.log.push({ text });
   state.vote.stage = 'result';
   state.vote.result = { votes, counts: Object.fromEntries(counts), eliminatedId };
-  state.deadline = now + VOTE_RESULT_MS;
+  state.deadline = null; // result stays up until the host clicks Next
   state.winner = checkWinner(state); // announced after the result screen
   fx.push({ type: 'narrate', text });
+}
+
+function nextPhase(state, { now }, isHost, fx) {
+  if (!isHost) return { code: 'forbidden', message: 'Only the host can continue.' };
+  if (state.phase !== PHASE.VOTE || state.vote.stage !== 'result') {
+    return { code: 'badPhase', message: 'Nothing to continue.' };
+  }
+  if (state.winner) endGame(state, state.winner, fx, null);
+  else startNight(state, now, fx);
+  return null;
 }
 
 // ---------- end ----------
@@ -411,11 +421,8 @@ function tick(state, now, rng, fx) {
     case PHASE.VOTE:
       if (state.vote.stage === 'voting') {
         if (now >= state.deadline) resolveVote(state, now, fx);
-      } else if (now >= state.deadline) {
-        if (state.winner) endGame(state, state.winner, fx, null);
-        else startNight(state, now, fx);
       }
-      break;
+      break; // result stage waits for the host (nextPhase)
   }
 }
 

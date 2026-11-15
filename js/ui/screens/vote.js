@@ -10,7 +10,9 @@ export function voteScreen(view, ctx) {
       h('h2', { class: 'announce', role: 'status' }, view.log.at(-1)?.text ?? ''),
       h('ul', { class: 'tally' }, Object.entries(r.votes).map(([voter, t]) =>
         h('li', null, h('strong', null, nameOf(voter)), ' → ', nameOf(t)))),
-      h('p', { class: 'sub' }, 'Next phase starting…'),
+      view.isHost
+        ? h('button', { class: 'btn primary', onClick: () => ctx.send('nextPhase') }, 'Next')
+        : h('p', { class: 'sub' }, 'Waiting for the host to continue…'),
     );
   }
   const p = view.prompt; const done = p.done;

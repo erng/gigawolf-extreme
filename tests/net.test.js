@@ -99,6 +99,7 @@ async function fullGame(net, h, n) {
       if (v.phase === 'vote') h.client.send('vote', { targetId: 'skip' });
     }
     if (v.phase === 'day' && v.you.alive) h.client.send('startVote');
+    if (v.phase === 'vote' && v.voteResult) h.client.send('nextPhase');
   }, 5);
   try { await until(() => h.view.phase === 'gameover', 60000); } finally { clearInterval(hostPlay); }
 }

@@ -247,7 +247,7 @@ test('secrecy holds across full random games for every player count', () => {
           act(g, { kind: 'vote', by: p.id, targetId: o[Math.floor(rng() * o.length)].id, now });
           assertSecrecy(g.s, `seed ${seed} vote partial`);
         }
-        now = g.s.deadline; act(g, { kind: 'tick', now });
+        act(g, { kind: 'nextPhase', by: g.s.hostId, now });
       }
     }
   }
