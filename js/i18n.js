@@ -68,6 +68,7 @@ const TH = {
   'main.noReclaim': 'กลับเข้าห้องไม่ได้ เช็กเน็ตหน่อยแล้วลองอีกที',
   'main.noService': 'ต่อบริการจับคู่ไม่ติด เน็ตเธอโอเคไหม? เช็กแล้วลองใหม่นะ',
   'lang.button': 'English',
+  'music.mute': 'ปิดเพลง', 'music.unmute': 'เปิดเพลง', 'music.volume': 'ระดับเสียงเพลง',
   'refresh.button': 'รีเฟรชแอป', 'refresh.busy': 'กำลังโหลดใหม่…', 'refresh.hostWarn': 'เธอเป็นเจ้าของห้อง รีเฟรชแล้วเกมจะจบนะ ทำต่อไหม?',
   // extra roles
   'role.wolfcub': 'ลูกหมาป่า', 'role.hunter': 'นายพราน', 'role.prince': 'เจ้าชาย', 'role.witch': 'แม่มด', 'role.jester': 'ตัวตลก',
@@ -218,6 +219,7 @@ const EN = {
   'main.noReclaim': "Couldn't reclaim the room. Check your connection and try again.",
   'main.noService': "Can't reach the matchmaking service. Check your internet connection and try again.",
   'lang.button': 'ไทย',
+  'music.mute': 'Mute music', 'music.unmute': 'Unmute music', 'music.volume': 'Music volume',
   'refresh.button': 'Force refresh', 'refresh.busy': 'Refreshing…', 'refresh.hostWarn': 'You are hosting. Refreshing will end the game for everyone. Continue?',
   'role.wolfcub': 'Wolf Cub', 'role.hunter': 'Hunter', 'role.prince': 'Prince', 'role.witch': 'Witch', 'role.jester': 'Jester',
   'blurb.wolfcub': 'A tiny wolf with a big bite. If you die, the pack goes berserk and kills twice the next night.',

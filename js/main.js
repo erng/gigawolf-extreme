@@ -7,6 +7,7 @@ import { t, tr, getLang, setLang } from './i18n.js';
 import { storage } from './util/storage.js';
 import { keepAwake, releaseAwake } from './util/wakelock.js';
 import { speak, unlock } from './ui/narrator.js';
+import { startMusic, stopMusic, refreshMusicLabels } from './ui/music.js';
 import { APP_VERSION } from './config.js';
 import { addBots } from './dev/bots.js';
 import { homeScreen } from './ui/screens/home.js';
@@ -43,6 +44,7 @@ function resetToHome(error = null) {
   app.client = null; app.host = null; app.view = null; app.status = null; app.connecting = false;
   app.error = error;
   releaseAwake();
+  stopMusic();
   render();
 }
 
@@ -82,6 +84,7 @@ async function hostGame(name, resume = null) {
   if (app.connecting) return;
   app.connecting = true; app.error = null; render();
   unlock(); // iOS: allow speech later
+  startMusic(); // inside the tap, so autoplay is allowed
   storage.set(NAME_KEY, name);
   const hostId = resume?.hostId ?? randomId();
   const host = new Host({ Peer: window.Peer, hostPlayerId: hostId, storage, onNarrate: speak, resume });
@@ -225,7 +228,7 @@ $ver.after($refresh);
 
 // Language switch (English default). Fixed button; re-renders the current screen.
 const $lang = document.getElementById('lang');
-function syncLang() { $refresh.textContent = t('refresh.button'); $lang.textContent = t('lang.button'); $lang.setAttribute('aria-label', getLang() === 'en' ? 'ภาษาไทย' : 'English'); document.documentElement.lang = getLang(); }
+function syncLang() { $refresh.textContent = t('refresh.button'); $lang.textContent = t('lang.button'); $lang.setAttribute('aria-label', getLang() === 'en' ? 'ภาษาไทย' : 'English'); document.documentElement.lang = getLang(); refreshMusicLabels(); }
 $lang.addEventListener('click', () => { setLang(getLang() === 'en' ? 'th' : 'en'); syncLang(); render(); });
 syncLang();
 boot();
