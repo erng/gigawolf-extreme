@@ -27,7 +27,7 @@ const SPRITES = {
     ],
   },
   werewolf: {
-    pal: { g: '#7d6a9c', G: '#54456f', l: '#a99ac4', p: '#ffb3c7', y: '#ffe14d', k: '#1a1224', w: '#ffffff', n: '#2a1a35', r: '#e0556b' },
+    pal: { g: '#8a8f98', G: '#464a52', l: '#b4b9c1', p: '#7a2430', y: '#ff2b2b', k: '#1a1224', w: '#ffffff', n: '#1c1c22', r: '#a3162a' },
     grid: [
       '................',
       '..GG........GG..',
