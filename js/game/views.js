@@ -85,6 +85,8 @@ export function viewFor(state, playerId) {
       const ghosts = (state.vote.ghosts ?? []).map((id) => state.players.find((p) => p.id === id)).filter(Boolean);
       const voters = [...alive, ...ghosts];
       view.progress = { done: voters.filter((p) => p.id in state.vote.votes).length, total: voters.length };
+      // Votes are public knowledge anyway, so the host also gets the stragglers' names to hound. Not done at night: it would reveal who has a night action.
+      view.progress.waiting = voters.filter((p) => !(p.id in state.vote.votes)).map((p) => p.name);
     }
   }
 

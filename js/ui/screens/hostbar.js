@@ -17,7 +17,13 @@ export function hostAdvance(view, ctx) {
     case 'night': return go(`${t('host.endNight')}${pr(t('host.confirmedW'))}`);
     case 'day': return go(t('host.startVote'), 'startVote', true);
     case 'shot': return go(t('host.skipShot'));
-    case 'vote': return view.voteResult ? go(t('host.next')) : go(`${t('host.endVote')}${pr(t('host.votedW'))}`);
+    case 'vote': {
+      if (view.voteResult) return go(t('host.next'));
+      const btn = go(`${t('host.endVote')}${pr(t('host.votedW'))}`);
+      const waiting = view.progress?.waiting ?? [];
+      if (!waiting.length) return btn;
+      return h('div', { class: 'hostvote' }, btn, h('div', { class: 'waiting muted' }, `${t('host.waitingOn')}: ${waiting.join(', ')}`));
+    }
     default: return null;
   }
 }

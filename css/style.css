@@ -113,3 +113,7 @@ button.player { cursor: pointer; }
 .modeswitch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .randombanner { border: 2px solid var(--wolf); background: #2a1f3a; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
 .randombanner p { margin: 0; color: var(--muted); font-size: .9rem; }
+
+/* Host vote screen: who has not voted yet, so the host can chase them. */
+.hostvote { display: flex; flex-direction: column; gap: 6px; }
+.hostvote .waiting { font-size: 0.9rem; text-align: center; color: var(--bad); }

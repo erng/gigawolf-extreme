@@ -840,7 +840,9 @@ test('Graveyard Voter: auto-resolves only once the living and the ghost are done
   livingVotes(g, {});
   assert.equal(g.s.vote.stage, 'voting');
   const hv = viewFor(g.s, 'p0');
-  assert.deepEqual(hv.progress, { done: 8, total: 9 }, 'host count includes the ghost (accepted leak)');
+  assert.equal(hv.progress.done, 8);
+  assert.equal(hv.progress.total, 9, 'host count includes the ghost (accepted leak)');
+  assert.equal(hv.progress.waiting.length, 1, 'the ghost is named as a straggler');
   assert.ok(host(g, 'nextPhase').error);
   act(g, { kind: 'vote', by: 'p3', targetId: 'pass' });
   assert.equal(g.s.vote.stage, 'result');
@@ -857,9 +859,12 @@ test('Graveyard Voter: the host progress count includes the ghost (the vote is h
   const g = game(RP);
   ghostNight(g, 'p3');
   startVote(g);
-  assert.deepEqual(viewFor(g.s, 'p0').progress, { done: 0, total: 9 });
+  const p0 = viewFor(g.s, 'p0').progress;
+  assert.deepEqual([p0.done, p0.total, p0.waiting.length], [0, 9, 9]);
   act(g, { kind: 'vote', by: 'p3', targetId: 'p5' });
-  assert.deepEqual(viewFor(g.s, 'p0').progress, { done: 1, total: 9 });
+  const p1 = viewFor(g.s, 'p0').progress;
+  assert.deepEqual([p1.done, p1.total, p1.waiting.length], [1, 9, 8]);
+  assert.ok(!viewFor(g.s, 'p1').progress, 'non-hosts get no progress');
 });
 
 test('Graveyard Voter: never affects wolf parity or win checks', () => {

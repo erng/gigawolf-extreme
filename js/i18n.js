@@ -64,7 +64,7 @@ const TH = {
   // host bar
   'host.startNight': 'เริ่มกลางคืน', 'host.endNight': 'ฟ้าสางแล้ว: จบคืน', 'host.startVote': 'เริ่มโหวต',
   'host.next': 'ต่อไป', 'host.endVote': 'ปิดโหวตเลย',
-  'host.ready': 'พร้อม', 'host.confirmedW': 'ยืนยัน', 'host.votedW': 'โหวตแล้ว',
+  'host.ready': 'พร้อม', 'host.confirmedW': 'ยืนยัน', 'host.votedW': 'โหวตแล้ว', 'host.waitingOn': 'ยังไม่โหวต',
   // main
   'main.connecting': 'กำลังต่อสัญญาณ…', 'main.reconnecting': 'หลุดนิดหน่อย กำลังต่อใหม่…', 'main.cancel': 'ยกเลิก',
   'main.leave': 'ออก', 'main.leaveConfirm': 'จะหนีออกจากเกมแล้วเหรอ?', 'main.unknown': 'ไม่รู้ว่าอยู่ช่วงไหนของเกมแล้ว งงเลย',
@@ -271,7 +271,7 @@ const EN = {
   'over.happened': 'What happened', 'over.again': 'Play again', 'over.waiting': 'Waiting for the host to start another game…',
   'host.startNight': 'Start night', 'host.endNight': 'Dawn: end the night', 'host.startVote': 'Start vote',
   'host.next': 'Next', 'host.endVote': 'End vote now',
-  'host.ready': 'ready', 'host.confirmedW': 'confirmed', 'host.votedW': 'voted',
+  'host.ready': 'ready', 'host.confirmedW': 'confirmed', 'host.votedW': 'voted', 'host.waitingOn': 'Still to vote',
   'main.connecting': 'Connecting…', 'main.reconnecting': 'Reconnecting…', 'main.cancel': 'Cancel',
   'main.leave': 'Leave', 'main.leaveConfirm': 'Leave this game?', 'main.unknown': 'Unknown phase',
   'main.hostDown': 'Host disconnected, waiting…',
