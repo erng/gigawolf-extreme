@@ -7,6 +7,7 @@ import { t, tr, getLang, setLang } from './i18n.js';
 import { storage } from './util/storage.js';
 import { keepAwake, releaseAwake } from './util/wakelock.js';
 import { speak, unlock } from './ui/narrator.js';
+import { APP_VERSION } from './config.js';
 import { addBots } from './dev/bots.js';
 import { homeScreen } from './ui/screens/home.js';
 import { lobbyScreen } from './ui/screens/lobby.js';
@@ -189,6 +190,11 @@ function boot() {
   }
   render();
 }
+// Version footer. If index.html and the scripts disagree, one of them came from cache: say so.
+const $ver = document.getElementById('version');
+const htmlVer = $ver.dataset.htmlVersion;
+$ver.textContent = htmlVer === APP_VERSION ? `v${APP_VERSION}` : `v${APP_VERSION} (page v${htmlVer}) ⚠ stale cache, reload`;
+
 // Language switch (English default). Fixed button; re-renders the current screen.
 const $lang = document.getElementById('lang');
 function syncLang() { $lang.textContent = t('lang.button'); $lang.setAttribute('aria-label', getLang() === 'en' ? 'ภาษาไทย' : 'English'); document.documentElement.lang = getLang(); }
