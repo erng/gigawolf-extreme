@@ -14,21 +14,40 @@ export function addBots(host, count, { minDelay = 600, maxDelay = 2500, rand = M
       connector: async () => host.attachLoopback(),
       onView: (view) => {
         const p = view.prompt;
-        const key = `${view.phase}:${view.round}:${p?.done}:${view.you.alive}:${view.you.private?.submitted}`;
+        const key = [view.phase, view.round, p?.done, view.you.alive, view.you.private?.submitted,
+          JSON.stringify(p?.healTargets), view.shooter?.id].join(':');
         if (key === lastKey) return;
         lastKey = key;
         clearTimeout(timer);
+        const pick = (arr) => arr[Math.floor(rand() * arr.length)];
+        if (view.phase === 'shot') { // a dead hunter shoots
+          if (p?.kind === 'shoot') timer = setTimeout(() => client.send('shoot', { targetId: pick(p.targets) }), delay());
+          return;
+        }
         if (!view.you.alive) return;
         if (view.phase === 'reveal') {
           timer = setTimeout(() => client.send('ready'), delay());
         } else if ((view.phase === 'night' || view.phase === 'vote') && p && !p.done) {
+          if (p.kind === 'witch') {
+            if (p.healTargets === null) return; // wait until the wolves have chosen; the next view retriggers
+            timer = setTimeout(() => {
+              const opts = ['pass'];
+              if (p.healTargets.length) opts.push(`heal:${pick(p.healTargets)}`);
+              if (p.canPoison && p.targets.length) opts.push(`poison:${pick(p.targets)}`);
+              client.send('nightPick', { targetId: pick(opts) });
+            }, delay());
+            return;
+          }
           timer = setTimeout(() => {
             if (view.phase === 'night') {
               const t = p.targets;
-              client.send('nightPick', { targetId: p.required ? t[Math.floor(rand() * t.length)] : null });
+              if (!p.required) { client.send('nightPick', { targetId: null }); return; }
+              const first = pick(t);
+              const extra = p.picks === 2 ? { targetId2: pick(t.filter((x) => x !== first)) } : {};
+              client.send('nightPick', { targetId: first, ...extra });
             } else {
               const opts = [...p.targets, 'skip'];
-              client.send('vote', { targetId: opts[Math.floor(rand() * opts.length)] });
+              client.send('vote', { targetId: pick(opts) });
             }
           }, delay());
         }

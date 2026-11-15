@@ -134,6 +134,7 @@ export class Host {
     if (!conn.playerId) { this._send(conn, msg.error('noHello', 'Say hello first.')); return; }
     const action = { kind: data.kind, by: conn.playerId, now: this.now(), nonce: data.nonce };
     if (data.targetId !== undefined) action.targetId = data.targetId;
+    if (data.targetId2 !== undefined) action.targetId2 = data.targetId2;
     if (data.patch) action.patch = data.patch;
     this.apply(action, conn);
   }

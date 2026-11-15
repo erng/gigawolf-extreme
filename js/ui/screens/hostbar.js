@@ -11,6 +11,7 @@ export function hostAdvance(view, ctx) {
     case 'reveal': return go(`${t('host.startNight')}${pr(t('host.ready'))}`);
     case 'night': return go(`${t('host.endNight')}${pr(t('host.confirmedW'))}`);
     case 'day': return go(t('host.startVote'), 'startVote');
+    case 'shot': return go(t('host.skipShot'));
     case 'vote': return view.voteResult ? go(t('host.next')) : go(`${t('host.endVote')}${pr(t('host.votedW'))}`);
     default: return null;
   }

@@ -17,7 +17,7 @@ export function game(roles, { settings, rng = createRng(1) } = {}) {
   let s = lobby(roles.length, rng);
   if (settings) s = reduce(s, { kind: 'settings', by: 'p0', patch: settings, now: T0 }, rng).state;
   s = reduce(s, { kind: 'startGame', by: 'p0', now: T0 }, rng).state;
-  s.players.forEach((p, i) => { p.role = roles[i]; });
+  s.players.forEach((p, i) => { p.role = roles[i]; p.potions = p.role === 'witch' ? { heal: true, poison: true } : null; });
   for (const p of s.players) s = reduce(s, { kind: 'ready', by: p.id, now: T0 }, rng).state;
   s = reduce(s, { kind: 'nextPhase', by: 'p0' }, rng).state; // host starts the night
   if (s.phase !== PHASE.NIGHT) throw new Error('expected night, got ' + s.phase);
@@ -34,7 +34,7 @@ export const act = (g, action) => {
 export function submitNight(g, picks, now = T0) {
   for (const p of g.s.players.filter((x) => x.alive)) {
     if (p.id in g.s.night.picks) continue;
-    if (p.role === 'villager') { act(g, { kind: 'nightPick', by: p.id, targetId: null, now }); continue; }
+    if (['villager', 'hunter', 'prince', 'jester'].includes(p.role)) { act(g, { kind: 'nightPick', by: p.id, targetId: null, now }); continue; }
     if (!(p.id in picks)) throw new Error(`no pick for ${p.id} (${p.role})`);
     const r = act(g, { kind: 'nightPick', by: p.id, targetId: picks[p.id], now });
     if (r.error) throw new Error(`${p.id}: ${r.error.message}`);

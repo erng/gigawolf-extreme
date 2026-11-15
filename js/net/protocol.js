@@ -1,6 +1,6 @@
 import { PROTOCOL_VERSION } from '../config.js';
 
-export const CLIENT_ACTION_KINDS = ['ready', 'nightPick', 'vote', 'startVote', 'nextPhase', 'startGame', 'settings', 'playAgain'];
+export const CLIENT_ACTION_KINDS = ['ready', 'nightPick', 'shoot', 'vote', 'startVote', 'nextPhase', 'startGame', 'settings', 'playAgain'];
 // Errors after which retrying cannot help.
 export const FATAL_ERRORS = ['gameStarted', 'roomFull', 'badName', 'badVersion'];
 
@@ -37,6 +37,7 @@ export function validate(x) {
     case 'action':
       if (!CLIENT_ACTION_KINDS.includes(x.kind)) return 'bad kind';
       if (x.targetId != null && typeof x.targetId !== 'string') return 'bad target';
+      if (x.targetId2 != null && typeof x.targetId2 !== 'string') return 'bad target';
       if (x.nonce != null && typeof x.nonce !== 'string') return 'bad nonce';
       if (x.kind === 'settings' && (typeof x.patch !== 'object' || x.patch === null)) return 'bad patch';
       return null;

@@ -1,0 +1,232 @@
+// Headless random games. Every player acts only through what their own view offers (the same
+// contract a phone has), and every action must be accepted: a rejected legal move is a bug.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { reduce, createState, PHASE } from '../js/game/engine.js';
+import { viewFor } from '../js/game/views.js';
+import { presetFor, validate, COUNT_KEYS, EXTRA_KEYS } from '../js/game/setup.js';
+import { isWolf } from '../js/game/roles.js';
+import { createRng } from '../js/util/rng.js';
+
+const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
+
+function randomCounts(rng, n) {
+  if (rng() < 0.15) return null; // auto = classic preset
+  for (let tries = 0; tries < 200; tries++) {
+    const c = Object.fromEntries(COUNT_KEYS.map((k) => [k, 0]));
+    c.wolves = 1 + Math.floor(rng() * 3);
+    c.seer = Math.floor(rng() * 2); c.bodyguard = Math.floor(rng() * 2);
+    for (const k of EXTRA_KEYS) c[k] = rng() < 0.6 ? 1 + Math.floor(rng() * 2) : 0;
+    c.villagers = n - COUNT_KEYS.filter((k) => k !== 'villagers').reduce((s, k) => s + c[k], 0);
+    if (validate(c, n).ok) return c;
+  }
+  return null;
+}
+
+// Independent win-condition oracle, written from the rules and not from the engine's code.
+function oracle(players) {
+  const alive = players.filter((p) => p.alive);
+  const wolves = alive.filter((p) => p.role === 'werewolf' || p.role === 'wolfcub').length;
+  const rest = alive.length - wolves;
+  if (wolves === 0) return 'village';
+  if (wolves >= rest) return 'wolves';
+  return null;
+}
+
+class Sim {
+  constructor(seed, n) {
+    this.rng = createRng(seed);
+    this.r = createRng(seed * 7919 + 13); // decisions
+    this.n = n;
+    this.steps = 0;
+    this.stats = { deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0, jesterWins: 0 };
+    this.s = createState({ hostId: 'p0', roomCode: 'ABCD' });
+    for (let i = 0; i < n; i++) this.do({ kind: 'join', by: `p${i}`, name: `P${i}` });
+  }
+
+  do(action) {
+    const before = this.s;
+    const res = reduce(this.s, { now: 0, ...action }, this.rng);
+    assert.ok(!res.error, `step ${this.steps} ${JSON.stringify(action)} rejected: ${res.error?.message} (phase ${before.phase})`);
+    this.s = res.state;
+    this.steps++;
+    this.check();
+    return res;
+  }
+
+  // Invariants checked after every single action.
+  check() {
+    const s = this.s;
+    assert.ok(Object.values(PHASE).includes(s.phase), `bad phase ${s.phase}`);
+    JSON.stringify(s); // serialisable
+    const players = s.players;
+    if (s.phase !== PHASE.LOBBY) {
+      assert.ok(players.every((p) => p.role), 'everyone has a role');
+      assert.ok(s.shots.every((id) => !players.find((p) => p.id === id).alive), 'only dead hunters owe a shot');
+      assert.ok(s.shots.every((id) => players.find((p) => p.id === id).role === 'hunter'));
+      if (s.phase !== PHASE.SHOT) assert.equal(s.shots.length, 0, 'no unresolved shots outside the shot phase');
+      for (const p of players) {
+        if (p.role === 'witch') assert.ok(p.potions && typeof p.potions.heal === 'boolean' && typeof p.potions.poison === 'boolean');
+        else assert.equal(p.potions, null);
+      }
+    }
+    if (s.phase === PHASE.GAMEOVER) {
+      assert.ok(['village', 'wolves', 'jester'].includes(s.winner));
+      if (s.winner === 'jester') assert.ok(players.some((p) => p.role === 'jester' && !p.alive), 'jester must be dead to win');
+      else assert.equal(s.winner, oracle(players), 'winner matches the board');
+    }
+    // The game must be over the moment a side has won (the vote-result screen and a pending
+    // hunter shot are the only places the announcement is allowed to lag behind).
+    if ([PHASE.NIGHT, PHASE.DAY].includes(s.phase) || (s.phase === PHASE.VOTE && s.vote.stage === 'voting')) {
+      assert.equal(oracle(players), null, `game should already be over in ${s.phase}`);
+    }
+    // Views: no leaks, always serialisable.
+    for (const me of players) {
+      const v = viewFor(s, me.id);
+      JSON.stringify(v);
+      for (const p of v.players) {
+        if (p.id === me.id || s.phase === PHASE.GAMEOVER) continue;
+        const target = players.find((x) => x.id === p.id);
+        const allowed = (!target.alive && s.settings.revealOnDeath) || target.revealed;
+        if (!allowed) assert.equal(p.role, null, `${me.id} sees ${p.id}'s role (${target.role}) in ${s.phase}`);
+      }
+      if (v.you.private.teammates) assert.ok(isWolf(me.role));
+      if (v.prompt?.healTargets !== undefined) assert.equal(me.role, 'witch');
+      if (v.you.private.potions) assert.equal(me.role, 'witch');
+      if (v.prompt?.kind === 'shoot') assert.equal(s.shots[0], me.id);
+      if (!me.alive && s.phase !== PHASE.SHOT) assert.equal(v.prompt, null, 'dead players get no prompt');
+    }
+  }
+
+  viewOf(id) { return viewFor(this.s, id); }
+  alive() { return this.s.players.filter((p) => p.alive); }
+
+  playGame() {
+    const r = this.r;
+    const counts = randomCounts(r, this.n);
+    if (counts) this.do({ kind: 'settings', by: 'p0', patch: { counts } });
+    if (r() < 0.3) this.do({ kind: 'settings', by: 'p0', patch: { revealOnDeath: false } });
+    this.do({ kind: 'startGame', by: 'p0' });
+    for (const p of this.s.players) if (r() < 0.9) this.do({ kind: 'ready', by: p.id });
+    while (this.s.phase !== PHASE.GAMEOVER) {
+      assert.ok(this.steps < 3000, 'game did not terminate');
+      this.turn();
+    }
+    return this.s;
+  }
+
+  turn() {
+    const r = this.r; const s = this.s;
+    switch (s.phase) {
+      case PHASE.REVEAL: this.do({ kind: 'nextPhase', by: 'p0' }); break;
+      case PHASE.NIGHT: this.night(); break;
+      case PHASE.DAY: this.do({ kind: 'startVote', by: 'p0' }); break;
+      case PHASE.VOTE: this.voting(); break;
+      case PHASE.SHOT: {
+        const hunter = s.players.find((p) => p.id === s.shots[0]);
+        const v = this.viewOf(hunter.id);
+        assert.equal(v.prompt.kind, 'shoot');
+        assert.ok(v.prompt.targets.length > 0);
+        assert.ok(v.prompt.targets.every((id) => s.players.find((p) => p.id === id).alive));
+        this.stats.shots++;
+        if (r() < 0.8) this.do({ kind: 'shoot', by: hunter.id, targetId: pick(r, v.prompt.targets) });
+        else this.do({ kind: 'nextPhase', by: 'p0' }); // idle hunter, host skips
+        break;
+      }
+      default: assert.fail(`unexpected phase ${s.phase}`);
+    }
+  }
+
+  night() {
+    const r = this.r;
+    if (this.s.night.doubleKill) this.stats.doubleKills++;
+    // Wolves first so the witch has something to look at some of the time.
+    const order = [...this.alive()].sort((a, b) => (isWolf(b.role) ? 1 : 0) - (isWolf(a.role) ? 1 : 0));
+    for (const p of order) {
+      if (r() < 0.07) continue; // idle player: host moves on without them
+      const v = this.viewOf(p.id);
+      const pr = v.prompt;
+      assert.ok(pr && pr.kind, `${p.id} (${p.role}) has a night prompt`);
+      assert.equal(pr.done, false);
+      if (pr.kind === 'witch') {
+        const opts = ['pass'];
+        if (pr.canHeal && pr.healTargets?.length) opts.push(`heal:${pick(r, pr.healTargets)}`);
+        if (pr.canPoison && pr.targets.length) opts.push(`poison:${pick(r, pr.targets)}`);
+        const t = pick(r, opts);
+        if (t.startsWith('heal')) this.stats.heals++;
+        if (t.startsWith('poison')) this.stats.poisons++;
+        this.do({ kind: 'nightPick', by: p.id, targetId: t });
+      } else if (!pr.required) {
+        this.do({ kind: 'nightPick', by: p.id, targetId: r() < 0.5 ? null : pick(r, pr.targets) });
+      } else if (pr.picks === 2) {
+        const a = pick(r, pr.targets);
+        this.do({ kind: 'nightPick', by: p.id, targetId: a, targetId2: pick(r, pr.targets.filter((x) => x !== a)) });
+      } else {
+        this.do({ kind: 'nightPick', by: p.id, targetId: pick(r, pr.targets) });
+      }
+    }
+    const aliveBefore = this.alive().length;
+    const doubleKill = this.s.night.doubleKill;
+    const deadBefore = new Set(this.s.players.filter((p) => !p.alive).map((p) => p.id));
+    this.do({ kind: 'nextPhase', by: 'p0' });
+    const killed = this.s.players.filter((p) => !p.alive && !deadBefore.has(p.id)).length;
+    // wolves kill at most 1 (2 on a revenge night), the witch poison adds at most 1 per witch, a hunter at most 1 per hunter
+    const witches = this.s.players.filter((p) => p.role === 'witch').length;
+    const hunters = this.s.players.filter((p) => p.role === 'hunter').length;
+    this.stats.deaths += killed;
+    assert.ok(killed <= (doubleKill ? 2 : 1) + witches + hunters, `too many deaths in one night: ${killed}`);
+    void aliveBefore;
+  }
+
+  voting() {
+    const r = this.r; const s = this.s;
+    if (s.vote.stage === 'result') {
+      if (s.vote.result.princeId) this.stats.princeSaves++;
+      if (s.winner === 'jester') this.stats.jesterWins++;
+      return this.do({ kind: 'nextPhase', by: 'p0' });
+    }
+    for (const p of this.alive()) {
+      if (this.s.vote.stage !== 'voting') break;
+      if (r() < 0.05) continue; // abstains by being idle
+      const pr = this.viewOf(p.id).prompt;
+      assert.equal(pr.kind, 'vote');
+      const opts = [...pr.targets, 'skip'];
+      // bias toward a popular target so eliminations actually happen
+      const t = r() < 0.7 ? (this.focus && pr.targets.includes(this.focus) ? this.focus : pick(r, pr.targets)) : pick(r, opts);
+      this.do({ kind: 'vote', by: p.id, targetId: t });
+    }
+    if (this.s.phase === PHASE.VOTE && this.s.vote.stage === 'voting') this.do({ kind: 'nextPhase', by: 'p0' });
+    this.focus = pick(r, this.alive().map((p) => p.id));
+  }
+}
+
+const SEEDS = Number(process.env.SIM_SEEDS ?? 150);
+
+test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, () => {
+  const totals = { games: 0, village: 0, wolves: 0, jester: 0, deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0 };
+  for (let n = 5; n <= 15; n++) {
+    for (let seed = 1; seed <= SEEDS; seed++) {
+      const sim = new Sim(seed * 100 + n, n);
+      const end = sim.playGame();
+      totals.games++; totals[end.winner]++;
+      for (const k of ['deaths', 'shots', 'doubleKills', 'heals', 'poisons', 'princeSaves']) totals[k] += sim.stats[k];
+      // play again resets everything and a second game on the same state works
+      if (seed % 10 === 0) {
+        sim.do({ kind: 'playAgain', by: 'p0' });
+        assert.equal(sim.s.phase, PHASE.LOBBY);
+        assert.ok(sim.s.players.every((p) => p.alive && p.role === null && p.potions === null && !p.revealed));
+        assert.equal(sim.s.cubDied, false); assert.deepEqual(sim.s.shots, []);
+        sim.playGame();
+        totals.games++;
+      }
+    }
+  }
+  console.log('sim totals', JSON.stringify(totals));
+  // The sim must actually exercise the new mechanics, or it proves nothing.
+  assert.ok(totals.shots > 20, 'hunter shots happened');
+  assert.ok(totals.doubleKills > 5, 'cub revenge nights happened');
+  assert.ok(totals.heals > 5 && totals.poisons > 5, 'witch potions were used');
+  assert.ok(totals.princeSaves > 3, 'prince survived votes');
+  assert.ok(totals.jester > 3, 'jester won sometimes');
+  assert.ok(totals.village > 0 && totals.wolves > 0);
+});

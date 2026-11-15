@@ -40,3 +40,22 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Not tested here**: real iOS/Android phones, hotspot and client-isolation networks, speech synthesis and wake lock (verified only in headless Chrome and Node).
 
 - **No timers at all** (casual same-room play). The host advances with one button per phase: Start night (reveal), Dawn (night), Start vote (day), End vote now (vote, optional: it also ends by itself once everyone has voted), Next (result). The host sees aggregate progress counts only (e.g. 3/5 confirmed), never who. Night/discussion/vote length settings were removed.
+
+## Extra roles (Wolf Cub, Hunter, Witch, Prince, Jester)
+
+- **Opt-in, any player count.** The auto preset is still the classic set (wolves, Seer, Bodyguard, villagers). The host can override it with the lobby steppers even at 5 players, as long as the setup is not game-breaking.
+- **Game-breaking setups are rejected at Start** (`validate` in `setup.js`), because the outcome would be fixed before anyone can play:
+  - no wolf-side player (instant village win), or wolves ≥ everyone else (instant wolf win);
+  - wolves win after a single night kill (`2 × wolves ≥ players − 1`) and nothing reliable can stop it. A Witch counts as a reliable counter (she sees the victim and heals); a Bodyguard does not (she guesses). So 2 wolves in 5 players need a Witch;
+  - nobody on the village side except Jesters (the first vote always elects a Jester);
+  - a lone wolf against a village made only of Hunters (every shot kills someone, so the chain only ends when it hits the wolf).
+  Setups that are merely lopsided but playable (e.g. many Witches, a lone wolf vs lots of Hunters plus other roles) are allowed. This was checked by playing random games on every valid setup at 5, 6 and 7 players (about 5,600 setups) and a sample at 8: no crashes, no non-terminating games, no guaranteed outcome left.
+- **Nobody left to shoot**: if every player dies in the same night (e.g. poison, revenge kills and a hunter), the hunter's shot is dropped and the game ends (the wolves are dead, so the village wins).
+- **Wolf Cub**: wolf team, shows as a wolf to the Seer, counts as a wolf for the win check. When it dies (night, vote, shot or poison) the wolves pick **two** different victims on the next night only (`night.doubleKill`). The two best-voted targets die, ties broken randomly.
+- **Hunter**: dies → a new `shot` phase. The hunter picks one living player (`shoot`); the host can skip if the hunter is idle. Shots resolve before the win check, so a shot can end the game. A poisoned hunter still shoots. Chained shots (two hunters) are queued. Hunter shots reveal the hunter even with "reveal on death" off.
+- **Witch**: one heal and one poison, each once, at most one potion per night (`heal:<id>` / `poison:<id>` / `pass`). She sees the wolf victims only after every living wolf has confirmed (otherwise she is told to wait). The heal only works on a current victim; potions are spent when confirmed. Poison deaths are announced like any night kill so nobody can tell them apart.
+- **Prince**: the first vote against them fails, they are revealed to everyone (`revealed`), and nobody dies. After that they are an ordinary voteable player.
+- **Jester**: own team (`jester`). Wins alone the moment they are voted out (announced after the result screen, like other wins). Dying at night does nothing. A living jester counts as a non-wolf for wolf parity, and loses when village or wolves win.
+- **Decoy prompts**: Villager, Hunter, Prince and Jester all get the same optional "Who do you suspect?" night prompt so nobody can tell who has a power.
+- **Announcements**: multi-line dawn / vote results (`state.lines`, sent as `view.announce`) so several deaths in one night each get a line.
+- **Tests**: `tests/roles.test.js` (rules), `tests/sim.test.js` (thousands of random headless games, 5–15 players, with an independent win-condition oracle), `tests/e2e.test.js` (full games over the fake PeerJS network with bots).

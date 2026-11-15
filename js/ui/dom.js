@@ -34,8 +34,8 @@ export function playerList(view, { selectable = [], selected = null, onPick, tag
       h('span', { class: `dot ${p.connected ? 'on' : 'off'}`, title: p.connected ? t('connected') : t('reconnecting') }),
       h('span', { class: 'pname' }, p.name, p.id === view.you.id ? t('you') : ''),
       !p.alive && h('span', { class: 'tag' }, t('dead')),
-      p.role && (showRole || !p.alive) && roleSprite(p.role, { scale: 2 }),
-      p.role && (showRole || !p.alive) && h('span', { class: 'tag role' }, ROLE_LABEL[p.role]),
+      p.role && (showRole || !p.alive || p.revealed) && roleSprite(p.role, { scale: 2 }),
+      p.role && (showRole || !p.alive || p.revealed) && h('span', { class: 'tag role' }, ROLE_LABEL[p.role]),
       (tags[p.id] ?? []).map((t) => h('span', { class: 'tag wolf' }, t)),
     );
     return h('li', null, row);

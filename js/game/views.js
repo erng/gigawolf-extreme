@@ -1,22 +1,38 @@
 // viewFor(state, playerId) -> the only thing a client ever receives.
 // Never include another player's role/picks unless it is public.
-import { ROLES, isWolf, teamOf } from './roles.js';
-import { PHASE, nightTargets, effectiveCounts, lobbyValidation } from './engine.js';
+import { ROLES, isWolf, isDecoy, teamOf } from './roles.js';
+import { PHASE, nightTargets, effectiveCounts, lobbyValidation, wolfVictims } from './engine.js';
 
 function publicRole(state, p) {
   if (state.phase === PHASE.GAMEOVER) return p.role;
   if (!p.alive && state.settings.revealOnDeath) return p.role;
+  if (p.revealed) return p.role; // a Prince who survived a vote
   return null;
 }
 
 function nightPrompt(state, me) {
   const role = ROLES[me.role];
   const done = me.id in state.night.picks;
+  const targets = nightTargets(state, me);
+  if (me.role === 'witch') {
+    const victims = wolfVictims(state);
+    return {
+      kind: 'witch',
+      text: role.nightPrompt,
+      targets, // poison targets
+      healTargets: me.potions.heal ? victims : [], // null = the wolves have not chosen yet
+      canHeal: me.potions.heal, canPoison: me.potions.poison,
+      required: false,
+      done,
+    };
+  }
+  const picks = isWolf(me.role) && state.night.doubleKill && targets.length >= 2 ? 2 : 1;
   return {
     kind: 'night',
-    text: role.nightPrompt,
-    targets: nightTargets(state, me),
-    required: me.role !== 'villager',
+    text: picks === 2 ? 'Revenge night! Pick two victims.' : role.nightPrompt,
+    targets,
+    picks,
+    required: !isDecoy(me.role),
     done,
   };
 }
@@ -47,9 +63,11 @@ export function viewFor(state, playerId) {
       alive: p.alive,
       connected: p.connected,
       role: inGame ? (p.id === me.id ? p.role : publicRole(state, p)) : null,
+      ...(inGame && p.revealed ? { revealed: true } : {}),
       ...(state.phase === PHASE.REVEAL ? { ready: p.ready } : {}),
     })),
     prompt: null,
+    announce: state.lines.map((x) => x),
     log: state.log.map((l) => ({ text: l.text })),
   };
 
@@ -78,16 +96,18 @@ export function viewFor(state, playerId) {
         name: p.name,
         // Teammates' confirmed kill picks, only during night.
         ...(state.phase === PHASE.NIGHT && p.alive
-          ? { pick: state.night.picks[p.id] ?? null }
+          ? { pick: state.night.picks[p.id] ?? null, ...(state.night.picks2[p.id] ? { pick2: state.night.picks2[p.id] } : {}) }
           : {}),
       }));
   }
 
+  if (me.potions) priv.potions = { ...me.potions };
   if (me.role === 'seer') priv.seerLog = state.seerLog.map((r) => ({ ...r }));
 
   if (state.phase === PHASE.NIGHT) {
     priv.submitted = me.id in state.night.picks;
     priv.pick = state.night.picks[me.id] ?? null;
+    priv.pick2 = state.night.picks2[me.id] ?? null;
     if (me.role === 'seer' && state.night.seerResult) {
       priv.seerResult = { ...state.night.seerResult };
     }
@@ -109,6 +129,19 @@ export function viewFor(state, playerId) {
       }
     } else {
       view.voteResult = { ...v.result, votes: { ...v.result.votes }, counts: { ...v.result.counts } };
+    }
+  }
+
+  if (state.phase === PHASE.SHOT) {
+    const hunter = state.players.find((p) => p.id === state.shots[0]);
+    view.shooter = hunter ? { id: hunter.id, name: hunter.name } : null;
+    if (hunter && hunter.id === me.id) {
+      view.prompt = {
+        kind: 'shoot',
+        text: 'Take your last shot!',
+        targets: state.players.filter((p) => p.alive).map((p) => p.id),
+        done: false,
+      };
     }
   }
 

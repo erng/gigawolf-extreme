@@ -16,6 +16,7 @@ import { dayScreen } from './ui/screens/day.js';
 import { voteScreen } from './ui/screens/vote.js';
 import { deadScreen } from './ui/screens/dead.js';
 import { gameoverScreen } from './ui/screens/gameover.js';
+import { shotScreen } from './ui/screens/shot.js';
 
 const $app = document.getElementById('app');
 const $banner = document.getElementById('banner');
@@ -121,6 +122,7 @@ function chooseScreen(v, ctx) {
     case 'night': return alive ? nightScreen(v, ctx) : deadScreen(v, ctx);
     case 'day': return alive ? dayScreen(v, ctx) : deadScreen(v, ctx);
     case 'vote': return alive || v.voteResult ? voteScreen(v, ctx) : deadScreen(v, ctx);
+    case 'shot': return shotScreen(v, ctx);
     case 'gameover': return gameoverScreen(v, ctx);
     default: return h('main', { class: 'screen' }, t('main.unknown'));
   }
@@ -143,7 +145,7 @@ function render() {
   // Reset per-phase UI state when the phase changes.
   const v = app.view;
   const key = v ? `${v.phase}:${v.round}` : 'home';
-  if (key !== ui.key) { ui.key = key; ui.pick = null; if (v?.phase !== 'reveal') ui.holding = false; }
+  if (key !== ui.key) { ui.key = key; ui.pick = null; ui.picks = null; ui.mode = null; if (v?.phase !== 'reveal') ui.holding = false; }
 
   const scrollY = window.scrollY;
   $app.replaceChildren();

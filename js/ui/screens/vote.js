@@ -9,7 +9,7 @@ export function voteScreen(view, ctx) {
     const r = view.voteResult;
     return h('main', { class: 'screen vote' },
       h('div', { class: 'phase' }, t('vote.result')),
-      h('h2', { class: 'announce', role: 'status' }, tr(view.log.at(-1)?.text ?? '')),
+      h('div', { class: 'announce', role: 'status' }, (view.announce?.length ? view.announce : [view.log.at(-1)?.text ?? '']).map((l) => h('h2', null, tr(l)))),
       h('ul', { class: 'tally' }, Object.entries(r.votes).map(([voter, t]) =>
         h('li', null, h('strong', null, nameOf(voter)), ' → ', nameOf(t)))),
       view.isHost ? hostAdvance(view, ctx) : h('p', { class: 'sub' }, t('vote.waitHost')),

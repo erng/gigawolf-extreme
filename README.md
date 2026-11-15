@@ -11,7 +11,7 @@ Live URL: _add after enabling GitHub Pages (Settings → Pages → main branch, 
 2. Everyone else opens the site (same Wi-Fi, or join one phone's hotspot), enters name and code, taps **Join game**.
 3. Host taps **Start game** with 5+ players. Press and hold your card to see your role.
 
-Roles: Villager, Werewolf, Seer, Bodyguard. The host's phone plays like everyone else's and sees only its own secrets.
+Roles: Villager, Werewolf, Seer, Bodyguard (the default set). The host can also add Wolf Cub, Hunter, Witch, Prince and Jester from the lobby (see `DECISIONS.md` for how each works). The host's phone plays like everyone else's and sees only its own secrets.
 
 ## Run locally
 
@@ -29,7 +29,7 @@ Add `?bots=4` on the host's URL to fill the room with fake players, e.g. `http:/
 node --test tests/
 ```
 
-Engine, views (secrecy), and networking (host/client/rejoin/resume, over an in-memory fake PeerJS) — no dependencies.
+Engine, views (secrecy), the new roles, random headless games (`SIM_SEEDS=500 node --test tests/sim.test.js` for a longer run), and networking (host/client/rejoin/resume and full bot games, over an in-memory fake PeerJS) — no dependencies.
 
 ## Layout
 

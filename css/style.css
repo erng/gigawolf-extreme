@@ -52,6 +52,9 @@ button.player { cursor: pointer; }
 .rolecard { position: relative; min-height: 240px; border-radius: 18px; background: var(--panel); border: 3px solid var(--panel2); display: grid; place-items: center; text-align: center; padding: 18px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; cursor: pointer; }
 .rolecard .back { display: none; } .rolecard.shown .back { display: block; } .rolecard.shown .front { display: none; }
 .rolename { font-size: 2.2rem; font-weight: 800; margin-bottom: 6px; }
+.role-wolfcub .rolename { color: var(--wolf); } .role-hunter .rolename { color: #f59e0b; } .role-prince .rolename { color: #fbbf24; } .role-witch .rolename { color: #c084fc; } .role-jester .rolename { color: #f472b6; }
+.jesterwin { color: #f472b6; }
+.announce h2 { margin: 4px 0; }
 .role-werewolf .rolename { color: var(--wolf); } .role-seer .rolename { color: #60a5fa; } .role-bodyguard .rolename { color: var(--good); }
 .mates { color: var(--wolf); font-weight: 600; }
 .wolfwin { color: var(--wolf); } .villwin { color: var(--good); }
