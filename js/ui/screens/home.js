@@ -17,15 +17,13 @@ export function homeScreen(ctx) {
     resumeAvailable && h('button', { class: 'btn primary', onClick: () => ctx.onResume() }, t('home.resume')),
     h('label', null, t('home.name'), name),
     h('div', { class: 'card' },
-      h('button', { class: 'btn primary', onClick: () => needName() && ctx.onHost(name.value.trim()) }, t('home.host')),
-    ),
-    h('div', { class: 'card' },
       h('label', null, t('home.code'), code),
-      h('button', { class: 'btn', onClick: () => {
+      h('button', { class: 'btn primary', onClick: () => {
         const c = code.value.trim().toUpperCase();
         if (c.length !== 4) { code.focus(); code.classList.add('bad'); return; }
         needName() && ctx.onJoin(c, name.value.trim());
       } }, t('home.join')),
     ),
+    h('button', { class: 'btn', onClick: () => needName() && ctx.onHost(name.value.trim()) }, t('home.host')),
   );
 }

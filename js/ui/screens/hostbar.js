@@ -10,12 +10,12 @@ export function hostAdvance(view, ctx) {
     : view.phase === 'vote' && !!view.voteResult;
   // Cutting a phase short while people are still acting is an exception: make it look discouraging.
   const premature = !!view.progress && !blocking;
-  const go = (label, kind = 'nextPhase') =>
-    h('button', { class: `btn primary hostbtn${blocking ? ' nudge' : ''}${premature ? ' premature' : ''}`, onClick: () => ctx.send(kind) }, label);
+  const go = (label, kind = 'nextPhase', green = false) =>
+    h('button', { class: `btn primary hostbtn${green ? ' green' : ''}${blocking ? ' nudge' : ''}${premature ? ' premature' : ''}`, onClick: () => ctx.send(kind) }, label);
   switch (view.phase) {
     case 'reveal': return go(`${t('host.startNight')}${pr(t('host.ready'))}`);
     case 'night': return go(`${t('host.endNight')}${pr(t('host.confirmedW'))}`);
-    case 'day': return go(t('host.startVote'), 'startVote');
+    case 'day': return go(t('host.startVote'), 'startVote', true);
     case 'shot': return go(t('host.skipShot'));
     case 'vote': return view.voteResult ? go(t('host.next')) : go(`${t('host.endVote')}${pr(t('host.votedW'))}`);
     default: return null;

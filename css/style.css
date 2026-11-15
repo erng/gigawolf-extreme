@@ -93,6 +93,7 @@ button.player { cursor: pointer; }
 #version { text-align: center; color: var(--muted); font-size: .75rem; opacity: .7; padding: 8px 16px calc(12px + env(safe-area-inset-bottom)); user-select: none; }
 
 /* Host is the one holding things up: green button that jiggles every few seconds. */
+.btn.hostbtn.green { background: var(--good); color: #052e16; }
 .btn.hostbtn.nudge { background: var(--good); color: #052e16; animation: nudge 3s ease-in-out infinite; }
 @keyframes nudge {
   0%, 20%, 100% { transform: none; }
