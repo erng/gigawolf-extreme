@@ -83,3 +83,5 @@ button.player { cursor: pointer; }
   12% { transform: rotate(-2deg) translateX(-3px); } 16% { transform: rotate(2deg) translateX(3px); }
 }
 @media (prefers-reduced-motion: reduce) { .btn.hostbtn.nudge { animation: none; } }
+/* Ending a phase early (people still pending): dull and red-edged so it is not hit by accident. */
+.btn.hostbtn.premature { background: var(--panel2); color: var(--bad); border: 2px solid var(--bad); font-weight: 500; }
