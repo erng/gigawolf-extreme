@@ -192,7 +192,8 @@ setInterval(tickTimers, 250);
 function boot() {
   const session = storage.get(SESSION_KEY);
   // Non-host phones that reloaded mid-game rejoin automatically.
-  if (session && !session.isHost && !params.get('join')) {
+  const wanted = params.get('join')?.toUpperCase();
+  if (session && !session.isHost && (!wanted || wanted === session.roomCode)) {
     joinGame(session.roomCode, session.name, true);
     return;
   }

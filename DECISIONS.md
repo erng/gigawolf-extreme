@@ -23,3 +23,18 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Join**: allowed in lobby only (max 15). Rejoin with the same player ID is allowed any time; names are locked once the game starts. Only non-host players can `leave`.
 - **Views**: `viewFor(state, playerId, hostNow)`. `players[].role` is only filled for yourself, for dead players when `revealOnDeath` is on, and for everyone at game over. Wolves get teammates via `you.private.teammates`. Per-player "has submitted" is never shown to others (timing reveals nothing).
 - **Nonce memory**: the last 50 nonces per player, kept inside engine state (so they survive host resume).
+
+## Milestones 2–5
+
+- **No `v` mismatch handling beyond an error**: a client with a different protocol version gets a `badVersion` error.
+- **`playAgain`** was added to the client action kinds (the plan's list omitted it but "Play again" needs it).
+- **Connection abstraction**: PeerJS is injected (`Peer` constructor) so tests run the real Host/Client over an in-memory fake (`js/dev/fakepeer.js`).
+- **Initial join failure** shows the "Can't reach the host" message and stops. After the first successful join, or when auto-rejoining a saved session, the client retries forever (1s, 2s, 5s, then 5s) and shows "Host disconnected, waiting…".
+- **Ping/pong**: clients ping every 5s; no message for 15s forces a fresh connection (frozen mobile sockets often never fire `close`).
+- **Host resume**: state, RNG state and room code saved after every applied action. On resume all players start as disconnected and deadlines are pushed to at least 15s ahead so nobody is cut off by the outage. Same-ID registration retries for up to 60s.
+- **Rejoin after reload** (non-host): a saved session auto-rejoins on page load, also when the URL has `?join=` for the same room.
+- **Haptics** run client-side on every phone when its own phase/alive state changes (not as a host effect).
+- **Narration** is spoken only by the host phone, only if the toggle is on and speech was unlocked by a tap (Host game / Start game).
+- **Bots** are real Clients on host loopback connections (`?bots=N`, max 14).
+- **Idle players** don't stall anything: night/vote/reveal deadlines resolve with no pick / Skip / auto-ready.
+- **Not tested here**: real iOS/Android phones, hotspot and client-isolation networks, speech synthesis and wake lock (verified only in headless Chrome and Node).
