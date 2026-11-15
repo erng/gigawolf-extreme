@@ -10,7 +10,7 @@
 //          { type:'narrate', text }    host phone speaks this line
 //          { type:'haptic' }           phase change buzz
 import { ROLES, isWolf, isDecoy, teamOf, TEAM } from './roles.js';
-import { MAX_PLAYERS, MIN_PLAYERS, COUNT_KEYS, presetFor, validate, roleList, fullCounts, randomCounts } from './setup.js';
+import { MAX_PLAYERS, MAX_HUMANS, MAX_BOTS, isBotId, MIN_PLAYERS, COUNT_KEYS, presetFor, validate, roleList, fullCounts, randomCounts } from './setup.js';
 import { shuffle } from '../util/rng.js';
 
 export const PHASE = Object.freeze({
@@ -103,6 +103,7 @@ export function reduce(prev, action, rng) {
     case 'setConnected': if (sender) sender.connected = !!action.connected; break;
     case 'leave': err = leave(state, action); break;
     case 'settings': err = settings(state, action, isHost); break;
+    case 'setBots': err = setBots(state, action, isHost); break;
     case 'startGame': err = startGame(state, action, isHost, rng, fx); break;
     case 'ready': err = ready(state, action, sender, fx); break;
     case 'nightPick': err = nightPick(state, action, sender, rng, fx); break;
@@ -137,7 +138,7 @@ function join(state, { by, name }) {
   }
   if (state.phase !== PHASE.LOBBY) return { code: 'gameStarted', message: 'Game already started.' };
   if (!clean) return { code: 'badName', message: 'Enter a name.' };
-  if (state.players.length >= MAX_PLAYERS) return { code: 'roomFull', message: 'Room is full.' };
+  if (state.players.length >= MAX_PLAYERS || (!isBotId(by) && state.players.filter((p) => !isBotId(p.id)).length >= MAX_HUMANS)) return { code: 'roomFull', message: 'Room is full.' };
   state.players.push({ id: by, name: clean, connected: true, role: null, alive: true, ready: false, revealed: false, potions: null });
   return null;
 }
@@ -165,6 +166,19 @@ function settings(state, { patch }, isHost) {
       default: return { code: 'badSetting', message: `Unknown setting ${k}.` };
     }
   }
+  return null;
+}
+
+// Host-run bots: ids bot-1..bot-N, joined in one step so 1000 bots cost one state copy, not 1000.
+function setBots(state, { count }, isHost) {
+  if (!isHost) return { code: 'forbidden', message: 'Only the host can change bots.' };
+  if (state.phase !== PHASE.LOBBY) return { code: 'badPhase', message: 'Bots can only change in the lobby.' };
+  const n = Number(count);
+  if (!Number.isInteger(n) || n < 0 || n > MAX_BOTS) return { code: 'badBots', message: `Bots must be 0 to ${MAX_BOTS}.` };
+  const humans = state.players.filter((p) => !isBotId(p.id));
+  const bots = [];
+  for (let i = 1; i <= n; i++) bots.push({ id: `bot-${i}`, name: `Bot ${i}`, connected: true, role: null, alive: true, ready: false, revealed: false, potions: null });
+  state.players = [...humans, ...bots];
   return null;
 }
 

@@ -9,7 +9,6 @@ import { keepAwake, releaseAwake } from './util/wakelock.js';
 import { speak, unlock } from './ui/narrator.js';
 import { startMusic, stopMusic, refreshMusicLabels } from './ui/music.js';
 import { APP_VERSION } from './config.js';
-import { addBots } from './dev/bots.js';
 import { homeScreen } from './ui/screens/home.js';
 import { lobbyScreen } from './ui/screens/lobby.js';
 import { revealScreen } from './ui/screens/reveal.js';
@@ -103,7 +102,7 @@ async function hostGame(name, resume = null) {
   wire(client);
   client.start();
   const bots = parseInt(params.get('bots') ?? '0', 10);
-  if (bots > 0 && !resume) addBots(host, Math.min(bots, 14));
+  if (bots > 0 && !resume) host.setBots(bots); // same as the lobby's Bots control
 }
 
 function joinGame(code, name, retryFirst = false) {
@@ -136,6 +135,7 @@ const ctx = {
   ui,
   send: (kind, extra) => app.client?.send(kind, extra),
   rerender: () => render(),
+  setBots: (n) => app.host?.setBots(n), // host only: bots run inside the host's page
   hold(on) {
     ui.holding = on;
     document.getElementById('rolecard')?.classList.toggle('shown', on);

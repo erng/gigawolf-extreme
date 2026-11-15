@@ -20,7 +20,7 @@ python3 -m http.server 8080      # or: npx serve
 # open http://localhost:8080
 ```
 
-Add `?bots=4` on the host's URL to fill the room with fake players, e.g. `http://localhost:8080/?bots=4`.
+The host can add up to 20 bots from the lobby (Bots row), or with `?bots=4` on the host's URL, e.g. `http://localhost:8080/?bots=4`. Bots run inside the host's page.
 `localhost` and GitHub Pages (HTTPS) both work for WebRTC; plain `http://<lan-ip>` does not.
 
 ## Tests

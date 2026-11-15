@@ -18,7 +18,9 @@ test('presets by player count', () => {
   assert.deepEqual(presetFor(11), { wolves: 3, seer: 1, bodyguard: 1, villagers: 6 });
   assert.deepEqual(presetFor(15), { wolves: 3, seer: 1, bodyguard: 1, villagers: 10 });
   assert.equal(presetFor(4), null);
-  assert.equal(presetFor(16), null);
+  assert.equal(presetFor(36), null);
+  assert.deepEqual(presetFor(35), { wolves: 7, seer: 1, bodyguard: 1, villagers: 26 }); // past 15 (bots): ~1 wolf in 5
+  assert.ok(validate(presetFor(35), 35).ok);
 });
 
 test('validation rules', () => {

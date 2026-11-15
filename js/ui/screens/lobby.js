@@ -1,5 +1,5 @@
 import { h, playerList } from '../dom.js';
-import { MIN_PLAYERS, COUNT_KEYS } from '../../game/setup.js';
+import { MIN_PLAYERS, COUNT_KEYS, MAX_BOTS, isBotId } from '../../game/setup.js';
 import { t, tr } from '../../i18n.js';
 import { unlock } from '../narrator.js';
 
@@ -10,6 +10,18 @@ function stepper(label, value, onChange, min = 0, max = 15) {
       h('button', { class: 'btn small', 'aria-label': t('lobby.fewer', { label }), disabled: value <= min, onClick: () => onChange(value - 1) }, '−'),
       h('span', { class: 'num' }, value),
       h('button', { class: 'btn small', 'aria-label': t('lobby.more', { label }), disabled: value >= max, onClick: () => onChange(value + 1) }, '+'),
+    ));
+}
+// Bots (host only): a number box plus -/+, 0 to MAX_BOTS. They run inside the host's page.
+function botsRow(count, onChange) {
+  const clamp = (v) => Math.max(0, Math.min(MAX_BOTS, Math.floor(Number(v) || 0)));
+  return h('div', { class: 'row' },
+    h('span', null, t('lobby.bots')),
+    h('div', { class: 'stepper' },
+      h('button', { class: 'btn small', 'aria-label': t('lobby.fewer', { label: t('lobby.bots') }), disabled: count <= 0, onClick: () => onChange(clamp(count - 1)) }, '−'),
+      h('input', { class: 'botcount', type: 'number', inputmode: 'numeric', min: 0, max: MAX_BOTS, value: count, 'aria-label': t('lobby.bots'),
+        onChange: (e) => onChange(clamp(e.target.value)) }),
+      h('button', { class: 'btn small', 'aria-label': t('lobby.more', { label: t('lobby.bots') }), disabled: count >= MAX_BOTS, onClick: () => onChange(clamp(count + 1)) }, '+'),
     ));
 }
 function toggle(label, on, onChange) {
@@ -28,6 +40,7 @@ export function lobbyScreen(view, ctx) {
     set({ counts: next });
   };
   const host = view.isHost;
+  const bots = view.players.filter((p) => isBotId(p.id)).length;
   return h('main', { class: 'screen lobby' },
     h('p', { class: 'sub' }, t('lobby.roomCode')),
     h('div', { class: 'roomcode', 'aria-label': `${t('lobby.roomCode')} ${view.roomCode.split('').join(' ')}` }, view.roomCode),
@@ -35,7 +48,8 @@ export function lobbyScreen(view, ctx) {
       try { if (navigator.share) await navigator.share({ url: link, title: 'Gigawolf Extreme' }); else { await navigator.clipboard.writeText(link); e.target.textContent = t('lobby.copied'); } } catch { /* cancelled */ }
     } }, t('lobby.share')),
     h('h2', null, t('lobby.players', { n })),
-    playerList(view),
+    playerList(bots > 0 ? { ...view, players: view.players.filter((p) => !isBotId(p.id)) } : view),
+    bots > 0 && h('p', { class: 'sub' }, t('lobby.botsList', { n: bots })),
     host
       ? h('section', { class: 'card settings' },
           h('h2', null, t('lobby.setup')),
@@ -50,7 +64,7 @@ export function lobbyScreen(view, ctx) {
                 toggle(t('lobby.noVillagers'), !!s.noVillagers, (v) => set({ noVillagers: v })),
                 s.noVillagers && h('p', null, t('lobby.noVillagersHint')))
             : h('p', { class: 'sub small' }, t('lobby.manualHint')),
-          c && stepper(t('lobby.wolves'), c.wolves, (v) => setCounts('wolves', v), 0, 7),
+          c && stepper(t('lobby.wolves'), c.wolves, (v) => setCounts('wolves', v), 0, Math.max(7, Math.ceil(n / 2))),
           c && stepper(t('lobby.seer'), c.seer, (v) => setCounts('seer', v), c.apprentice, 3),
           c && stepper(t('lobby.bodyguard'), c.bodyguard, (v) => setCounts('bodyguard', v), 0, 3),
           c && ['wolfcub', 'hunter', 'witch', 'prince', 'diseased', 'apprentice', 'poltergeist', 'jester'].map((k) =>
@@ -58,6 +72,8 @@ export function lobbyScreen(view, ctx) {
           c && c.apprentice > 0 && h('p', { class: 'sub small' }, t('lobby.apprenticeHint')),
           c && h('div', { class: 'row' }, h('span', null, t('lobby.villagers')), h('span', { class: 'num' }, c.villagers)),
           !s.randomize && h('button', { class: 'btn small', onClick: () => set({ counts: null }) }, t('lobby.reset')),
+          botsRow(bots, (v) => ctx.setBots(v)),
+          bots > 0 && h('p', { class: 'sub small' }, t('lobby.botsHint')),
           h('h3', null, t('lobby.options')),
           toggle(t('lobby.revealOnDeath'), s.revealOnDeath, (v) => set({ revealOnDeath: v })),
           toggle(t('lobby.selfProtect'), s.bodyguardSelfProtect, (v) => set({ bodyguardSelfProtect: v })),

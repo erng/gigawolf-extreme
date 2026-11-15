@@ -1,5 +1,9 @@
 export const MIN_PLAYERS = 5;
-export const MAX_PLAYERS = 15;
+export const MAX_HUMANS = 15;   // real phones in the room
+export const MAX_BOTS = 20;     // host-run bots (they live inside the host's page). 1000 was too slow, see DECISIONS.md
+export const MAX_PLAYERS = MAX_HUMANS + MAX_BOTS;
+export const BOT_PREFIX = 'bot-';
+export const isBotId = (id) => typeof id === 'string' && id.startsWith(BOT_PREFIX);
 
 // counts key -> role id
 export const COUNT_ROLES = Object.freeze({
@@ -22,14 +26,14 @@ export const EXTRA_KEYS = ['wolfcub', 'hunter', 'witch', 'prince', 'diseased', '
 // Auto preset: the original classic set. The extra roles are opt-in from the lobby.
 export function presetFor(n) {
   if (!Number.isInteger(n) || n < MIN_PLAYERS || n > MAX_PLAYERS) return null;
-  const wolves = n <= 6 ? 1 : n <= 10 ? 2 : 3;
+  const wolves = n <= 6 ? 1 : n <= 10 ? 2 : n <= 15 ? 3 : Math.round(n / 5); // rooms past 15 (bots): about one wolf in five
   return { wolves, seer: 1, bodyguard: 1, villagers: n - wolves - 2 };
 }
 
 // Secret random mix. Weighted toward balanced games: the wolf count follows the classic preset
 // (sometimes +/-1), special roles mostly appear once (twice only in big groups), and plenty of
 // plain villagers are kept. Rejection-sampled through validate(), so it can never be invalid or
-// game-breaking. Falls back to the classic preset (always valid for 5..15).
+// game-breaking. Falls back to the classic preset (always valid for any size).
 const CHANCE = { seer: 0.85, bodyguard: 0.7, witch: 0.45, hunter: 0.4, prince: 0.25, diseased: 0.2, apprentice: 0.15, poltergeist: 0.15, jester: 0.25 };
 // MAX chaos (opt-in): no plain villagers at all. Every non-wolf seat is a special role, spread as
 // evenly as possible (each kind once before any repeats; at most one Jester, one Apprentice per Seer).

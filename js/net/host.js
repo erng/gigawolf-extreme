@@ -5,12 +5,15 @@ import { viewFor } from '../game/views.js';
 import { createRng } from '../util/rng.js';
 import { msg, validate } from './protocol.js';
 import { createLoopbackPair } from './loopback.js';
+import { HostBots } from './hostbots.js';
+import { isBotId, MAX_BOTS } from '../game/setup.js';
 import {
   PEER_ID_PREFIX, PEER_OPTIONS, ROOM_ALPHABET, ROOM_CODE_LENGTH,
   HOST_REGISTER_RETRY_MS, RESUME_MAX_AGE_MS,
 } from '../config.js';
 
 export const SAVE_KEY = 'gigawolf.hostSave';
+const BIG_ROOM = 40; // above this many players, saving and view broadcasts are throttled
 
 export function randomRoomCode(rand = Math.random) {
   let c = '';
@@ -28,7 +31,7 @@ export class Host {
    * @param {Function} [o.onNarrate]   (text) => void   (host phone speaks)
    * @param {Function} [o.now]
    */
-  constructor({ Peer, hostPlayerId, resume = null, storage = null, onNarrate = () => {}, now = Date.now, seed, peerOptions = PEER_OPTIONS }) {
+  constructor({ Peer, hostPlayerId, resume = null, storage = null, onNarrate = () => {}, now = Date.now, seed, peerOptions = PEER_OPTIONS, botDelays = {} }) {
     this.Peer = Peer;
     this.hostPlayerId = hostPlayerId;
     this.storage = storage;
@@ -41,10 +44,12 @@ export class Host {
     this.rng = createRng(seed);
     this.roomCode = resume?.roomCode ?? null;
     this.state = null;
+    this.bots = new HostBots(this, botDelays);
+    this.lazy = { save: null, broadcast: null, savedAt: 0, sentAt: 0 }; // big rooms (bots): throttle save + views
     if (resume) {
       this.state = resume.state;
       this.rng.setState(resume.rngState);
-      this.state.players.forEach((p) => { p.connected = false; });
+      this.state.players.forEach((p) => { p.connected = isBotId(p.id); }); // bots live in the host: always here
     }
   }
 
@@ -71,6 +76,7 @@ export class Host {
     if (!this.state) this.state = createState({ hostId: this.hostPlayerId, roomCode: this.roomCode });
     this._attach(this.peer);
     this._watchWake();
+    this.bots.onChange(); // a resumed game with bots: get them playing again
     return this.roomCode;
   }
 
@@ -217,8 +223,24 @@ export class Host {
     for (const e of effects) {
       if (e.type === 'narrate' && this.state.settings.narration) this.onNarrate(e.text);
     }
+    this.bots.onChange();
+    if (this.state.players.length > BIG_ROOM) { this._lazy('save', 1000, () => this._save()); this._lazy('broadcast', 150, () => this._broadcast()); return; }
     this._save();
     this._broadcast();
+  }
+
+  // Trailing throttle for big rooms: at most one run per `ms`, always reflecting the latest state.
+  _lazy(name, ms, fn) {
+    const l = this.lazy;
+    if (l[name]) return;
+    l[name] = setTimeout(() => { l[name] = null; if (!this.closed) fn(); }, ms);
+    l[name].unref?.();
+  }
+
+  // Host-only: set how many bots are in the lobby (0..MAX_BOTS).
+  setBots(count) {
+    const n = Math.max(0, Math.min(MAX_BOTS, Math.floor(Number(count) || 0)));
+    return this.apply({ kind: 'setBots', by: this.hostPlayerId, count: n, now: this.now() });
   }
 
   _sendView(playerId) {
@@ -241,6 +263,8 @@ export class Host {
   close() {
     this.closed = true;
     clearTimeout(this.relinkTimer);
+    this.bots.stop();
+    clearTimeout(this.lazy.save); clearTimeout(this.lazy.broadcast);
     if (this._wake) {
       document.removeEventListener('visibilitychange', this._wake);
       if (typeof window !== 'undefined') window.removeEventListener('online', this._wake);

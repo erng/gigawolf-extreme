@@ -75,3 +75,10 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Decoy prompts**: Villager, Hunter, Prince, Diseased, Apprentice, Graveyard Voter and Jester all get the same optional "Who do you suspect?" night prompt so nobody can tell who has a power.
 - **Announcements**: multi-line dawn / vote results (`state.lines`, sent as `view.announce`) so several deaths in one night each get a line.
 - **Tests**: `tests/roles.test.js` (rules), `tests/sim.test.js` (thousands of random headless games, 5–15 players, with an independent win-condition oracle), `tests/e2e.test.js` (full games over the fake PeerJS network with bots).
+
+## Host-run bots (v1.11.0)
+
+- **Bots live in the host's page**, as ordinary players (`bot-N`) in the engine state with no connection. `HostBots` (`js/net/hostbots.js`) gives each bot a random delay when a phase starts, then builds only that bot's view and acts through `host.apply`. The old Client-per-bot helper (`addBots`, ids `cbot-N`) remains for tests.
+- **Cap: 20 bots** (`MAX_BOTS`), on top of the 15-human limit (`MAX_PLAYERS` = 35). 1000 was tried: every player's view lists every player and each action broadcasts, so cost grows roughly with the cube of the room size, and a 1000-bot lobby did not get through its first phase in two minutes. Raising it needs batched phases (one pass per phase, not per action), slimmer views and virtualised player lists, plus an auto-advance for the host.
+- Rooms over 40 players throttle saving (1s) and view broadcasts (150ms); smaller rooms are unchanged.
+- `setBots` is one engine action (host only, lobby only), so adding bots costs one state copy.
