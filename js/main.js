@@ -1,5 +1,6 @@
 // Boot + screen routing. The UI only ever renders the view it is sent.
 import { h } from './ui/dom.js';
+import { roleSprite } from './ui/pixel.js';
 import { Client, peerConnector } from './net/client.js';
 import { Host } from './net/host.js';
 import { randomId } from './net/protocol.js';
@@ -175,7 +176,7 @@ function render() {
     $app.append(chooseScreen(v, ctx));
     // Always show your own role while a game is on (night, day, vote, shot), alive or dead.
     if (v.you.role && ['night', 'day', 'vote', 'shot'].includes(v.phase)) {
-      $app.append(h('p', { class: 'sub small yourole' }, t('night.youAre', { role: t(`role.${v.you.role}`) })));
+      $app.append(h('p', { class: 'sub small yourole' }, roleSprite(v.you.role, { scale: 1.5 }), t('night.youAre', { role: t(`role.${v.you.role}`) })));
     }
     $app.append(h('button', { class: 'btn leave', onClick: () => { if (confirm(t('main.leaveConfirm'))) leave(); } }, t('main.leave')));
     // Host only, while a game is running: stop it early (red, behind a confirmation sheet at the bottom).
