@@ -6,6 +6,12 @@
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; min-height: 100vh; min-height: 100dvh; }
+#bg { position: fixed; inset: 0; z-index: -1; background: var(--bg) url(../assets/bg-village.png) center bottom / cover no-repeat; image-rendering: pixelated; pointer-events: none; }
+#bg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(17,19,26,.55), rgba(17,19,26,.35) 40%, rgba(17,19,26,.55)); }
+@media (min-aspect-ratio: 1/1) {
+  #bg { background-size: auto 100%; background-repeat: repeat-x; }
+  #bg::before { content: ""; position: absolute; inset: 0; z-index: 1; background: radial-gradient(ellipse at center, transparent 40%, var(--bg) 100%); }
+}
 #app { max-width: 480px; margin: 0 auto; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); }
 .screen { display: flex; flex-direction: column; gap: 12px; }
 h1 { font-size: 2rem; margin: 8px 0 0; text-align: center; letter-spacing: .5px; }
