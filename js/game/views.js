@@ -26,6 +26,9 @@ function nightPrompt(state, me) {
       done,
     };
   }
+  if (isWolf(me.role) && state.night.noKill) {
+    return { kind: 'night', text: "You can't kill anyone tonight: the Diseased Villager's sickness weakens the wolves.", targets: [], picks: 1, required: false, noKill: true, blockedId: null, done };
+  }
   const picks = isWolf(me.role) && state.night.doubleKill && targets.length >= 2 ? 2 : 1;
   return {
     kind: 'night',
@@ -103,7 +106,11 @@ export function viewFor(state, playerId) {
   }
 
   if (me.potions) priv.potions = { ...me.potions };
-  if (me.role === 'seer') priv.seerLog = state.seerLog.map((r) => ({ ...r }));
+  if (me.role === 'seer') {
+    // Own checks only: a promoted Apprentice starts with an empty log.
+    priv.seerLog = state.seerLog.filter((r) => r.by === me.id || (r.by === undefined && !me.promoted)).map(({ by: _by, ...r }) => r);
+    if (me.promoted) priv.promoted = true; // told privately that the Seer died and they took over
+  }
 
   if (state.phase === PHASE.NIGHT) {
     priv.submitted = me.id in state.night.picks;
@@ -119,7 +126,17 @@ export function viewFor(state, playerId) {
     const v = state.vote;
     priv.vote = v.votes[me.id] ?? null; // own vote only
     if (v.stage === 'voting') {
-      if (me.alive) {
+      const haunting = !me.alive && (v.ghosts ?? []).includes(me.id);
+      if (haunting) {
+        view.prompt = {
+          kind: 'vote',
+          text: 'You died, but you can haunt the vote. Who do you want to eliminate?',
+          targets: state.players.filter((p) => p.alive).map((p) => p.id),
+          skippable: true,
+          haunt: true, // the UI adds a Pass button
+          done: me.id in v.votes,
+        };
+      } else if (me.alive) {
         view.prompt = {
           kind: 'vote',
           text: 'Who do you want to eliminate?',

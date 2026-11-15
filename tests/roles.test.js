@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PHASE } from '../js/game/engine.js';
 import { viewFor } from '../js/game/views.js';
-import { presetFor, validate, roleList } from '../js/game/setup.js';
+import { presetFor, validate, roleList, randomCounts } from '../js/game/setup.js';
 import { game, act, submitNight, resolveNight, everyoneVotes, lobby, T0 } from './helpers.js';
 import { reduce } from '../js/game/engine.js';
 import { createRng } from '../js/util/rng.js';
@@ -342,4 +342,546 @@ test('randomize: always valid for every player count, and the mix is never expos
   assert.equal(g.s.phase, PHASE.REVEAL);
   assert.ok(validate(Object.fromEntries(Object.entries({ wolves: 'werewolf', wolfcub: 'wolfcub', seer: 'seer', bodyguard: 'bodyguard', hunter: 'hunter', witch: 'witch', prince: 'prince', jester: 'jester', villagers: 'villager' }).map(([k, r]) => [k, g.s.players.filter((p) => p.role === r).length])), 6).ok);
   for (const p of g.s.players) assert.equal(viewFor(g.s, p.id).settings.counts, null);
+});
+
+// ---------- diseased villager ----------
+// p0,p1 wolves, p2 seer, p3 witch, p4 diseased villager, p5..p7 villagers
+const RD = ['werewolf', 'werewolf', 'seer', 'witch', 'diseased', 'villager', 'villager', 'villager'];
+
+function dayToNight(g) { startVote(g); everyoneVotes(g, {}); host(g, 'nextPhase'); }
+
+test('diseased villager: validates, is dealt, and gets the decoy prompt', () => {
+  assert.ok(validate({ wolves: 1, diseased: 2, seer: 1, villagers: 1 }, 5).ok);
+  assert.deepEqual(roleList({ wolves: 1, diseased: 1, villagers: 3 }).sort(), ['diseased', 'villager', 'villager', 'villager', 'werewolf']);
+  const g = game(RD);
+  const pr = viewFor(g.s, 'p4').prompt;
+  assert.equal(pr.text, 'Who do you suspect?');
+  assert.equal(pr.required, false);
+  assert.equal(viewFor(g.s, 'p4').you.team, 'village');
+});
+
+test('diseased: killed by the wolves, next night the wolves cannot kill but can still confirm', () => {
+  const g = game(RD);
+  quietNight(g, { victim: 'p4', extra: { p3: 'pass' } });
+  assert.equal(alive(g, 'p4'), false);
+  assert.equal(g.s.players.filter((p) => !p.alive).length, 1);
+  assert.deepEqual(viewFor(g.s, 'p5').announce, ['Player4 was killed in the night.']); // no extra hint
+  dayToNight(g);
+  assert.equal(g.s.phase, PHASE.NIGHT);
+  assert.equal(g.s.night.noKill, true);
+  const wp = viewFor(g.s, 'p0').prompt;
+  assert.equal(wp.noKill, true); assert.equal(wp.required, false); assert.deepEqual(wp.targets, []);
+  assert.match(wp.text, /can't kill/);
+  assert.equal(viewFor(g.s, 'p5').prompt.noKill, undefined);
+  // witch sees no phantom victim and is not told to wait
+  assert.deepEqual(viewFor(g.s, 'p3').prompt.healTargets, []);
+  // wolves confirm with no target (a sent target is ignored); the night does not stall
+  assert.ok(!act(g, { kind: 'nightPick', by: 'p0', targetId: null }).error);
+  assert.ok(!act(g, { kind: 'nightPick', by: 'p1', targetId: 'p5' }).error);
+  submitNight(g, { p2: 'p0', p3: 'pass' });
+  assert.ok(!resolveNight(g).error);
+  assert.equal(g.s.phase, PHASE.DAY);
+  assert.equal(g.s.players.filter((p) => !p.alive).length, 1, 'nobody died');
+  assert.deepEqual(viewFor(g.s, 'p5').announce, ['Nobody died.']);
+  // only one sick night
+  dayToNight(g);
+  assert.equal(g.s.night.noKill, false);
+  assert.ok(viewFor(g.s, 'p0').prompt.targets.length > 0);
+});
+
+test('diseased: the host can end a sick night even if nobody confirmed', () => {
+  const g = game(RD);
+  quietNight(g, { victim: 'p4', extra: { p3: 'pass' } });
+  dayToNight(g);
+  assert.ok(!resolveNight(g).error);
+  assert.equal(g.s.phase, PHASE.DAY);
+});
+
+test('diseased: vote-out, poison and hunter shot do not trigger the sickness', () => {
+  let g = game(RD);
+  quietNight(g, { victim: 'p5', extra: { p3: 'pass' } });
+  startVote(g);
+  everyoneVotes(g, Object.fromEntries(g.s.players.filter((p) => p.alive && p.id !== 'p4').map((p) => [p.id, 'p4'])));
+  assert.equal(alive(g, 'p4'), false);
+  host(g, 'nextPhase');
+  assert.equal(g.s.night.noKill, false);
+  // poison
+  g = game(RD);
+  act(g, { kind: 'nightPick', by: 'p0', targetId: 'p5' });
+  act(g, { kind: 'nightPick', by: 'p1', targetId: 'p5' });
+  act(g, { kind: 'nightPick', by: 'p3', targetId: 'poison:p4' });
+  submitNight(g, { p2: 'p0' });
+  resolveNight(g);
+  assert.equal(alive(g, 'p4'), false);
+  dayToNight(g);
+  assert.equal(g.s.night.noKill, false);
+  // hunter shot
+  g = game(['werewolf', 'werewolf', 'seer', 'hunter', 'diseased', 'villager', 'villager', 'villager']);
+  quietNight(g, { victim: 'p3', extra: { p3: 'p3' } });
+  act(g, { kind: 'shoot', by: 'p3', targetId: 'p4' });
+  assert.equal(alive(g, 'p4'), false);
+  dayToNight(g);
+  assert.equal(g.s.night.noKill, false);
+});
+
+test('diseased: healed by the witch or saved by the bodyguard means no sickness', () => {
+  let g = game(RD);
+  act(g, { kind: 'nightPick', by: 'p0', targetId: 'p4' });
+  act(g, { kind: 'nightPick', by: 'p1', targetId: 'p4' });
+  act(g, { kind: 'nightPick', by: 'p3', targetId: 'heal:p4' });
+  submitNight(g, { p2: 'p0' });
+  resolveNight(g);
+  assert.equal(alive(g, 'p4'), true);
+  dayToNight(g);
+  assert.equal(g.s.night.noKill, false);
+  g = game(['werewolf', 'werewolf', 'seer', 'bodyguard', 'diseased', 'villager', 'villager', 'villager']);
+  quietNight(g, { victim: 'p4', extra: { p3: 'p4' } });
+  assert.equal(alive(g, 'p4'), true);
+  dayToNight(g);
+  assert.equal(g.s.night.noKill, false);
+});
+
+test('diseased + cub death for the same next night: the skip wins, no kill at all', () => {
+  const g = game(['werewolf', 'wolfcub', 'witch', 'seer', 'diseased', 'villager', 'villager', 'villager', 'villager']);
+  act(g, { kind: 'nightPick', by: 'p0', targetId: 'p4' });
+  act(g, { kind: 'nightPick', by: 'p1', targetId: 'p4' });
+  act(g, { kind: 'nightPick', by: 'p2', targetId: 'poison:p1' });
+  submitNight(g, { p3: 'p0' });
+  resolveNight(g);
+  assert.equal(alive(g, 'p4'), false); assert.equal(alive(g, 'p1'), false);
+  dayToNight(g);
+  assert.equal(g.s.night.noKill, true);
+  assert.equal(g.s.night.doubleKill, false);
+  assert.equal(viewFor(g.s, 'p0').prompt.noKill, true);
+  act(g, { kind: 'nightPick', by: 'p0', targetId: null });
+  const before = g.s.players.filter((p) => p.alive).length;
+  submitNight(g, { p2: 'pass', p3: 'p0' });
+  resolveNight(g);
+  assert.equal(g.s.players.filter((p) => p.alive).length, before);
+  // the revenge is consumed, not postponed
+  dayToNight(g);
+  assert.equal(g.s.night.noKill, false); assert.equal(g.s.night.doubleKill, false);
+});
+
+test('diseased: wolf-killed and poisoned together still triggers; play again resets it', () => {
+  const g = game(RD);
+  act(g, { kind: 'nightPick', by: 'p0', targetId: 'p4' });
+  act(g, { kind: 'nightPick', by: 'p1', targetId: 'p4' });
+  act(g, { kind: 'nightPick', by: 'p3', targetId: 'poison:p4' });
+  submitNight(g, { p2: 'p0' });
+  resolveNight(g);
+  assert.equal(g.s.diseasedDied, true);
+  g.s.phase = PHASE.GAMEOVER;
+  host(g, 'playAgain');
+  assert.equal(g.s.diseasedDied, false);
+});
+
+// ---------- seer's apprentice ----------
+// p0,p1 wolves, p2 seer, p3 apprentice, p4 witch, p5 hunter, p6..p7 villagers
+const RA = ['werewolf', 'werewolf', 'seer', 'apprentice', 'witch', 'hunter', 'villager', 'villager'];
+const roleOf = (g, id) => g.s.players.find((p) => p.id === id).role;
+const apprenticeNight = (g, { victim, poison, heal, extra = {} } = {}) => {
+  const picks = { p0: victim, p1: victim, p2: 'p0', p4: poison ? `poison:${poison}` : heal ? `heal:${heal}` : 'pass', ...extra };
+  for (const id of ['p0', 'p1', 'p4']) if (g.s.players.find((p) => p.id === id).alive && !(id in g.s.night.picks)) act(g, { kind: 'nightPick', by: id, targetId: picks[id] });
+  submitNight(g, picks);
+  return resolveNight(g);
+};
+
+test("seer's apprentice: validation rejects more Apprentices than Seers, with a clear message", () => {
+  assert.ok(validate({ wolves: 1, seer: 1, apprentice: 1, villagers: 2 }, 5).ok);
+  assert.ok(validate({ wolves: 1, seer: 2, apprentice: 2, villagers: 1 }, 6).ok);
+  for (const c of [
+    { wolves: 1, seer: 0, apprentice: 1, villagers: 3 },
+    { wolves: 1, seer: 1, apprentice: 2, villagers: 1 },
+    { wolves: 2, seer: 0, apprentice: 2, villagers: 2, witch: 1 },
+  ]) {
+    const v = validate(c, c.wolves + c.seer + c.apprentice + c.villagers + (c.witch ?? 0));
+    assert.equal(v.ok, false);
+    assert.match(v.errors.join(' '), /Seer's Apprentice needs a Seer/);
+  }
+  // the secret random mix goes through validate and never yields apprentice > seer
+  let withApprentice = 0;
+  for (let n = 5; n <= 15; n++) for (let seed = 1; seed <= 300; seed++) {
+    const c = randomCounts(n, createRng(seed * 31 + n));
+    assert.ok(validate(c, n).ok, 'random mix is valid');
+    assert.ok(c.apprentice <= c.seer, `random mix gave ${c.apprentice} apprentice for ${c.seer} seer`);
+    if (c.apprentice) withApprentice++;
+  }
+  assert.ok(withApprentice > 0, 'apprentices do appear in the random mix');
+});
+
+test("seer's apprentice: the lobby surfaces the error and the host cannot start an invalid pool", () => {
+  let s = lobby(5); const rng = createRng(3);
+  s = reduce(s, { kind: 'settings', by: 'p0', patch: { counts: { wolves: 1, seer: 0, apprentice: 1, bodyguard: 1, villagers: 2 } } }, rng).state;
+  const v = viewFor(s, 'p0');
+  assert.equal(v.setup.ok, false);
+  assert.match(v.setup.errors.join(' '), /Seer's Apprentice needs a Seer/);
+  const r = reduce(s, { kind: 'startGame', by: 'p0' }, rng);
+  assert.equal(r.error.code, 'badSetup');
+  assert.equal(r.state.phase, PHASE.LOBBY);
+});
+
+test("seer's apprentice: decoy prompt, village to the Seer, no tell to anyone", () => {
+  const g = game(RA);
+  const pr = viewFor(g.s, 'p3').prompt;
+  assert.equal(pr.text, 'Who do you suspect?'); assert.equal(pr.required, false);
+  assert.equal(viewFor(g.s, 'p3').you.team, 'village');
+  assert.equal(viewFor(g.s, 'p3').you.private.seerLog, undefined);
+  for (const id of ['p0', 'p2', 'p5']) assert.equal(viewFor(g.s, id).players.find((p) => p.id === 'p3').role, null);
+  act(g, { kind: 'nightPick', by: 'p2', targetId: 'p3' });
+  assert.deepEqual(viewFor(g.s, 'p2').you.private.seerResult, { targetId: 'p3', isWolf: false });
+});
+
+test("seer's apprentice: promoted when the Seer is killed at night", () => {
+  const g = game(RA);
+  apprenticeNight(g, { victim: 'p2', extra: { p2: 'p6' } });
+  assert.equal(alive(g, 'p2'), false);
+  assert.equal(roleOf(g, 'p3'), 'seer');
+  const v = viewFor(g.s, 'p3');
+  assert.equal(v.you.role, 'seer'); assert.equal(v.you.private.promoted, true); assert.deepEqual(v.you.private.seerLog, []);
+  assert.equal(viewFor(g.s, 'p6').players.find((p) => p.id === 'p3').role, null, 'no public tell');
+  assert.deepEqual(viewFor(g.s, 'p6').announce, ['Player2 was killed in the night.']);
+  startVote(g); everyoneVotes(g, {}); host(g, 'nextPhase');
+  const pr = viewFor(g.s, 'p3').prompt;
+  assert.equal(pr.required, true); assert.ok(pr.targets.length > 0); assert.equal(pr.text, 'Who do you want to check?');
+  act(g, { kind: 'nightPick', by: 'p3', targetId: 'p0' });
+  assert.deepEqual(viewFor(g.s, 'p3').you.private.seerResult, { targetId: 'p0', isWolf: true });
+  assert.equal(viewFor(g.s, 'p3').you.private.seerLog.length, 1);
+});
+
+test("seer's apprentice: the promoted Seer gets a fresh log, not the dead Seer's", () => {
+  const g = game(RA);
+  apprenticeNight(g, { victim: 'p6' });
+  assert.equal(viewFor(g.s, 'p2').you.private.seerLog.length, 1);
+  startVote(g); everyoneVotes(g, {}); host(g, 'nextPhase');
+  apprenticeNight(g, { victim: 'p2', extra: { p2: 'p1' } });
+  assert.equal(roleOf(g, 'p3'), 'seer');
+  assert.deepEqual(viewFor(g.s, 'p3').you.private.seerLog, []);
+});
+
+test("seer's apprentice: promoted when the Seer is voted out", () => {
+  const g = game(RA);
+  apprenticeNight(g, { victim: 'p6' });
+  startVote(g);
+  everyoneVotes(g, Object.fromEntries(g.s.players.filter((p) => p.alive && p.id !== 'p2').map((p) => [p.id, 'p2'])));
+  assert.equal(alive(g, 'p2'), false);
+  assert.equal(roleOf(g, 'p3'), 'seer');
+  assert.equal(viewFor(g.s, 'p3').you.private.promoted, true);
+  host(g, 'nextPhase');
+  assert.equal(viewFor(g.s, 'p3').prompt.required, true);
+});
+
+test("seer's apprentice: promoted when the Seer is poisoned", () => {
+  const g = game(RA);
+  apprenticeNight(g, { victim: 'p6', poison: 'p2' });
+  assert.equal(alive(g, 'p2'), false);
+  assert.equal(roleOf(g, 'p3'), 'seer');
+});
+
+test("seer's apprentice: promoted when the Seer is shot by a Hunter", () => {
+  const g = game(RA);
+  apprenticeNight(g, { victim: 'p5' }); // the wolves kill the hunter
+  assert.equal(g.s.phase, PHASE.SHOT);
+  assert.equal(roleOf(g, 'p3'), 'apprentice', 'not before the shot');
+  act(g, { kind: 'shoot', by: 'p5', targetId: 'p2' });
+  assert.equal(alive(g, 'p2'), false);
+  assert.equal(roleOf(g, 'p3'), 'seer');
+  assert.equal(g.s.phase, PHASE.DAY);
+});
+
+test("seer's apprentice: Seer and Apprentice dying the same night means no promotion", () => {
+  let g = game(RA);
+  apprenticeNight(g, { victim: 'p2', poison: 'p3' });
+  assert.equal(alive(g, 'p2'), false); assert.equal(alive(g, 'p3'), false);
+  assert.equal(g.s.players.filter((p) => p.role === 'seer').length, 1, 'only the dead original Seer');
+  assert.equal(g.s.promotions, 0);
+  g = game(RA);
+  apprenticeNight(g, { victim: 'p3', poison: 'p2' });
+  assert.equal(roleOf(g, 'p3'), 'apprentice');
+});
+
+test("seer's apprentice: if the Apprentice dies first nothing happens, and a later Seer death promotes nobody", () => {
+  const g = game(RA);
+  apprenticeNight(g, { victim: 'p3' });
+  assert.equal(alive(g, 'p3'), false);
+  assert.equal(roleOf(g, 'p2'), 'seer');
+  startVote(g); everyoneVotes(g, {}); host(g, 'nextPhase');
+  apprenticeNight(g, { victim: 'p2', extra: { p2: 'p6' } });
+  assert.equal(g.s.players.filter((p) => p.alive && p.role === 'seer').length, 0);
+  assert.equal(g.s.promotions, 0);
+});
+
+test("seer's apprentice: promotion is 1:1 with two Seers and two Apprentices", () => {
+  // p2,p3 seers; p4,p5 apprentices; p6 witch
+  const R = ['werewolf', 'werewolf', 'seer', 'seer', 'apprentice', 'apprentice', 'witch', 'villager', 'villager', 'villager'];
+  const g = game(R);
+  const picks = { p0: 'p2', p1: 'p2', p2: 'p0', p3: 'p0', p6: 'pass' };
+  act(g, { kind: 'nightPick', by: 'p0', targetId: 'p2' }); act(g, { kind: 'nightPick', by: 'p1', targetId: 'p2' });
+  submitNight(g, picks); resolveNight(g);
+  assert.equal(alive(g, 'p2'), false);
+  assert.equal(g.s.players.filter((p) => p.role === 'seer' && p.alive).length, 2, 'p3 plus exactly one promoted apprentice');
+  assert.equal(g.s.players.filter((p) => p.role === 'apprentice').length, 1, 'one apprentice left');
+  assert.equal(roleOf(g, 'p4'), 'seer');
+  assert.equal(roleOf(g, 'p5'), 'apprentice');
+  // second Seer dies: the other Apprentice is promoted
+  startVote(g); everyoneVotes(g, {}); host(g, 'nextPhase');
+  act(g, { kind: 'nightPick', by: 'p0', targetId: 'p3' }); act(g, { kind: 'nightPick', by: 'p1', targetId: 'p3' });
+  submitNight(g, { p0: 'p3', p1: 'p3', p3: 'p0', p4: 'p0', p6: 'pass' }); resolveNight(g);
+  assert.equal(roleOf(g, 'p5'), 'seer');
+  // one Seer, one Apprentice: killing the Seer promotes; killing a Seer with no Apprentice left is harmless
+  const g2 = game(RA);
+  apprenticeNight(g2, { victim: 'p2' });
+  assert.equal(g2.s.players.filter((p) => p.alive && p.role === 'seer').length, 1);
+});
+
+test("seer's apprentice: play again resets promotion state", () => {
+  const g = game(RA);
+  apprenticeNight(g, { victim: 'p2' });
+  assert.equal(g.s.players.find((p) => p.id === 'p3').promoted, true);
+  g.s.phase = PHASE.GAMEOVER;
+  host(g, 'playAgain');
+  assert.equal(g.s.players.find((p) => p.id === 'p3').promoted, false);
+  assert.equal(g.s.promotions, 0);
+});
+
+// ---------- Graveyard Voter (internal id: poltergeist) ----------
+// p0,p1 wolves, p2 seer, p3 poltergeist, p4 witch, p5..p8 villagers
+const RP = ['werewolf', 'werewolf', 'seer', 'poltergeist', 'witch', 'villager', 'villager', 'villager', 'villager'];
+const ghostNight = (g, victim, extra = {}) => quietNight(g, { victim, extra: { p4: 'pass', p2: 'p0', ...extra } });
+const livingVotes = (g, votes) => { for (const p of g.s.players.filter((x) => x.alive)) { if (g.s.vote.stage !== 'voting') break; if (!(p.id in g.s.vote.votes)) act(g, { kind: 'vote', by: p.id, targetId: votes[p.id] ?? 'skip' }); } };
+const toNextVote = (g) => { host(g, 'nextPhase'); const vic = ['p8', 'p7', 'p6', 'p5'].find((id) => alive(g, id)); submitNight(g, { p0: vic, p1: vic, p2: 'p0', p4: 'pass' }); resolveNight(g); startVote(g); };
+
+test('Graveyard Voter: decoy prompt, village team, nobody can tell', () => {
+  const g = game(RP);
+  const v = viewFor(g.s, 'p3');
+  assert.equal(v.prompt.text, 'Who do you suspect?'); assert.equal(v.prompt.required, false);
+  assert.equal(v.you.team, 'village');
+  assert.ok(validate({ wolves: 1, poltergeist: 2, seer: 1, villagers: 1 }, 5).ok);
+});
+
+test('Graveyard Voter: killed at night, gets one haunt at that day\'s vote, only they see the prompt', () => {
+  const g = game(RP);
+  ghostNight(g, 'p3');
+  assert.equal(alive(g, 'p3'), false);
+  assert.equal(viewFor(g.s, 'p3').prompt, null, 'no prompt before a vote');
+  startVote(g);
+  const gv = viewFor(g.s, 'p3').prompt;
+  assert.equal(gv.haunt, true); assert.equal(gv.kind, 'vote'); assert.equal(gv.skippable, true);
+  assert.ok(gv.targets.every((id) => g.s.players.find((p) => p.id === id).alive));
+  assert.ok(!gv.targets.includes('p3'));
+  for (const p of g.s.players.filter((x) => x.id !== 'p3' && !x.alive || x.id === 'p3' ? x.id !== 'p3' : false)) assert.equal(viewFor(g.s, p.id).prompt, null);
+  for (const p of g.s.players.filter((x) => x.alive)) assert.equal(viewFor(g.s, p.id).prompt.haunt, undefined);
+  for (const p of g.s.players) {
+    const json = JSON.stringify(viewFor(g.s, p.id));
+    if (p.id !== 'p3') assert.ok(!/ghosts|haunt/.test(json), `${p.id} learns nothing about haunting`);
+    if (p.id !== 'p3') assert.equal(viewFor(g.s, p.id).players.find((q) => q.id === 'p3').role, null);
+  }
+});
+
+test('Graveyard Voter: a haunt vote is validated (living targets only, once, no pass for the living)', () => {
+  const g = game(RP);
+  ghostNight(g, 'p3');
+  startVote(g);
+  assert.equal(act(g, { kind: 'vote', by: 'p3', targetId: 'p3' }).error.code, 'badTarget');
+  assert.equal(act(g, { kind: 'vote', by: 'p3', targetId: 'p0x' }).error.code, 'badTarget');
+  assert.equal(act(g, { kind: 'vote', by: 'p5', targetId: 'pass' }).error.code, 'badTarget');
+  assert.equal(act(g, { kind: 'vote', by: 'p2', targetId: 'pass' }).error.code, 'badTarget');
+  assert.ok(!act(g, { kind: 'vote', by: 'p3', targetId: 'p5' }).error);
+  assert.equal(act(g, { kind: 'vote', by: 'p3', targetId: 'p6' }).error.code, 'alreadyActed');
+  // an ordinary dead player (not a ghost) still cannot vote
+});
+
+test('Graveyard Voter: ordinary dead players never get a haunt and cannot vote', () => {
+  const g = game(RP);
+  act(g, { kind: 'nightPick', by: 'p0', targetId: 'p3' }); act(g, { kind: 'nightPick', by: 'p1', targetId: 'p3' });
+  act(g, { kind: 'nightPick', by: 'p4', targetId: 'poison:p5' });
+  submitNight(g, { p2: 'p0' }); resolveNight(g);
+  assert.equal(alive(g, 'p5'), false); assert.equal(alive(g, 'p3'), false);
+  startVote(g);
+  assert.equal(viewFor(g.s, 'p5').prompt, null);
+  assert.equal(act(g, { kind: 'vote', by: 'p5', targetId: 'p0' }).error.code, 'dead');
+  assert.equal(viewFor(g.s, 'p3').prompt.haunt, true);
+});
+
+test('Graveyard Voter: killed by poison or a hunter shot also earns the haunt', () => {
+  const g = game(RP);
+  act(g, { kind: 'nightPick', by: 'p0', targetId: 'p5' }); act(g, { kind: 'nightPick', by: 'p1', targetId: 'p5' });
+  act(g, { kind: 'nightPick', by: 'p4', targetId: 'poison:p3' });
+  submitNight(g, { p2: 'p0' }); resolveNight(g);
+  startVote(g);
+  assert.equal(viewFor(g.s, 'p3').prompt.haunt, true);
+  const h = game(['werewolf', 'werewolf', 'seer', 'poltergeist', 'hunter', 'villager', 'villager', 'villager', 'villager']);
+  quietNight(h, { victim: 'p4', extra: { p4: 'p4', p5: null } });
+  act(h, { kind: 'shoot', by: 'p4', targetId: 'p3' });
+  assert.equal(alive(h, 'p3'), false);
+  startVote(h);
+  assert.equal(viewFor(h.s, 'p3').prompt.haunt, true);
+});
+
+test('Graveyard Voter: voted out at a vote, the haunt belongs to the NEXT vote only', () => {
+  const g = game(RP);
+  ghostNight(g, 'p5');
+  startVote(g);
+  livingVotes(g, Object.fromEntries(g.s.players.filter((p) => p.alive && p.id !== 'p3').map((p) => [p.id, 'p3'])));
+  assert.equal(alive(g, 'p3'), false);
+  assert.equal(g.s.vote.stage, 'result');
+  assert.equal(viewFor(g.s, 'p3').prompt, null, 'not in the vote they just died in');
+  assert.deepEqual(g.s.vote.ghosts, []);
+  toNextVote(g);
+  assert.equal(viewFor(g.s, 'p3').prompt.haunt, true, 'at the next vote');
+  assert.ok(!act(g, { kind: 'vote', by: 'p3', targetId: 'skip' }).error);
+  livingVotes(g, {});
+  assert.equal(g.s.vote.stage, 'result');
+  toNextVote(g);
+  assert.equal(viewFor(g.s, 'p3').prompt, null, 'one haunt only');
+});
+
+test('Graveyard Voter: an unused haunt expires and does not carry over', () => {
+  const g = game(RP);
+  ghostNight(g, 'p3');
+  startVote(g);
+  livingVotes(g, {});
+  assert.equal(g.s.vote.stage, 'voting', 'waits for the ghost');
+  host(g, 'nextPhase'); // the host ends the vote without the ghost
+  assert.equal(g.s.vote.stage, 'result');
+  assert.equal(p3in(g), false);
+  toNextVote(g);
+  assert.equal(viewFor(g.s, 'p3').prompt, null);
+  assert.deepEqual(g.s.vote.ghosts, []);
+});
+const p3in = (g) => 'p3' in g.s.vote.result.votes;
+
+test('Graveyard Voter: passing keeps them hidden and lets the vote resolve', () => {
+  const g = game(RP);
+  ghostNight(g, 'p3');
+  startVote(g);
+  livingVotes(g, Object.fromEntries(['p0', 'p1', 'p2', 'p4', 'p6'].map((id) => [id, 'p5'])));
+  assert.equal(g.s.vote.stage, 'voting');
+  assert.ok(!act(g, { kind: 'vote', by: 'p3', targetId: 'pass' }).error);
+  assert.equal(g.s.vote.stage, 'result');
+  assert.equal(p3in(g), false, 'a pass is not listed');
+  assert.equal(g.s.vote.result.counts.p5, 5);
+  assert.equal(alive(g, 'p5'), false);
+});
+
+test('Graveyard Voter: the haunt vote breaks a tie', () => {
+  const g = game(RP);
+  ghostNight(g, 'p3');
+  startVote(g);
+  livingVotes(g, { p0: 'p6', p1: 'p6', p2: 'p6', p4: 'p5', p7: 'p5', p8: 'p5', p5: 'skip', p6: 'skip' });
+  assert.equal(g.s.vote.stage, 'voting');
+  act(g, { kind: 'vote', by: 'p3', targetId: 'p5' });
+  assert.equal(g.s.vote.result.eliminatedId, 'p5');
+  assert.equal(g.s.vote.result.votes.p3, 'p5', 'public like other votes');
+  assert.deepEqual(viewFor(g.s, 'p7').voteResult.votes.p3, 'p5');
+});
+
+test('Graveyard Voter: the haunt vote can also create a tie', () => {
+  const g = game(RP);
+  ghostNight(g, 'p3');
+  startVote(g);
+  livingVotes(g, { p0: 'p6', p1: 'p6', p2: 'p6', p4: 'p6', p5: 'p4', p7: 'p4', p8: 'p4', p6: 'skip' });
+  act(g, { kind: 'vote', by: 'p3', targetId: 'p4' });
+  assert.equal(g.s.vote.result.eliminatedId, null);
+  assert.equal(alive(g, 'p6'), true);
+});
+
+test('Graveyard Voter: a Skip haunt counts as a skip vote', () => {
+  const g = game(RP);
+  ghostNight(g, 'p3');
+  startVote(g);
+  livingVotes(g, { p0: 'p6', p1: 'p6', p2: 'p6', p4: 'p5', p7: 'p5', p8: 'skip', p5: 'skip', p6: 'skip' });
+  // p6 3, p5 2, skip 3 -> already a tie with skip; ghost on p6 makes it 4
+  act(g, { kind: 'vote', by: 'p3', targetId: 'p6' });
+  assert.equal(g.s.vote.result.eliminatedId, 'p6');
+});
+
+test('Graveyard Voter: the haunt vote can elect a Jester', () => {
+  const g = game(['werewolf', 'werewolf', 'seer', 'poltergeist', 'witch', 'jester', 'villager', 'villager', 'villager']);
+  ghostNight(g, 'p3');
+  startVote(g);
+  livingVotes(g, { p0: 'p5', p1: 'p5', p2: 'p5', p4: 'p7', p6: 'p7', p7: 'skip', p8: 'p7', p5: 'skip' });
+  assert.equal(g.s.vote.stage, 'voting');
+  act(g, { kind: 'vote', by: 'p3', targetId: 'p5' });
+  assert.equal(g.s.winner, 'jester');
+  host(g, 'nextPhase');
+  assert.equal(g.s.phase, PHASE.GAMEOVER);
+});
+
+test('Graveyard Voter: the haunt vote still cannot beat a Prince\'s first-vote immunity', () => {
+  const g = game(['werewolf', 'werewolf', 'seer', 'poltergeist', 'witch', 'prince', 'villager', 'villager', 'villager']);
+  ghostNight(g, 'p3');
+  startVote(g);
+  livingVotes(g, { p0: 'p5', p1: 'p5', p2: 'p5', p4: 'p7', p6: 'p7', p7: 'skip', p8: 'p7', p5: 'skip' });
+  act(g, { kind: 'vote', by: 'p3', targetId: 'p5' });
+  assert.equal(alive(g, 'p5'), true);
+  assert.equal(g.s.vote.result.princeId, 'p5');
+});
+
+test('Graveyard Voter: no stall. Auto-resolves only once the living and the ghost are done; the host can always end it', () => {
+  const g = game(RP);
+  ghostNight(g, 'p3');
+  startVote(g);
+  livingVotes(g, {});
+  assert.equal(g.s.vote.stage, 'voting');
+  const hv = viewFor(g.s, 'p0');
+  assert.deepEqual(hv.progress, { done: 8, total: 8 }, 'host count is living voters only: no ghost leak');
+  host(g, 'nextPhase');
+  assert.equal(g.s.vote.stage, 'result');
+  // with no ghost nothing changes: resolves the moment the last living player votes
+  const g2 = game(RP);
+  ghostNight(g2, 'p5');
+  startVote(g2);
+  assert.deepEqual(g2.s.vote.ghosts, []);
+  livingVotes(g2, {});
+  assert.equal(g2.s.vote.stage, 'result');
+});
+
+test('Graveyard Voter: the host progress count never includes the ghost', () => {
+  const g = game(RP);
+  ghostNight(g, 'p3');
+  startVote(g);
+  assert.deepEqual(viewFor(g.s, 'p0').progress, { done: 0, total: 8 });
+  act(g, { kind: 'vote', by: 'p3', targetId: 'p5' });
+  assert.deepEqual(viewFor(g.s, 'p0').progress, { done: 0, total: 8 });
+});
+
+test('Graveyard Voter: never affects wolf parity or win checks', () => {
+  // 7 players: 2 wolves + poltergeist + 4 villagers. The ghost hauntings never change who is alive.
+  const g = game(['werewolf', 'werewolf', 'poltergeist', 'villager', 'villager', 'villager', 'villager']);
+  quietNight(g, { victim: 'p2', extra: { p2: null } });
+  startVote(g);
+  livingVotes(g, { p0: 'p3', p1: 'p3', p4: 'p3', p5: 'p3' });
+  act(g, { kind: 'vote', by: 'p2', targetId: 'p6' });
+  assert.equal(alive(g, 'p3'), false);
+  assert.equal(g.s.phase, PHASE.VOTE); assert.equal(g.s.winner, null);
+  host(g, 'nextPhase');
+  // 2 wolves, villagers p4 p5 p6 alive; the wolves kill p4: 2 vs 2 -> wolves win (the dead ghost is not counted)
+  act(g, { kind: 'nightPick', by: 'p0', targetId: 'p4' }); act(g, { kind: 'nightPick', by: 'p1', targetId: 'p4' });
+  submitNight(g, {}); resolveNight(g);
+  assert.equal(g.s.phase, PHASE.GAMEOVER); assert.equal(g.s.winner, 'wolves');
+  // and no haunt once the game is over
+  assert.equal(viewFor(g.s, 'p2').prompt, null);
+  assert.ok(act(g, { kind: 'vote', by: 'p2', targetId: 'p5' }).error);
+});
+
+test('Graveyard Voter: a haunt vote that eliminates the last wolf wins for the village', () => {
+  const g = game(['werewolf', 'seer', 'poltergeist', 'villager', 'villager', 'villager']);
+  quietNight(g, { victim: 'p2', extra: { p1: 'p0', p0: 'p2', p1: 'p0' } });
+  startVote(g);
+  livingVotes(g, { p0: 'p3', p1: 'p3', p3: 'p0', p4: 'skip', p5: 'p0' });
+  assert.equal(g.s.vote.stage, 'voting');
+  act(g, { kind: 'vote', by: 'p2', targetId: 'p0' });
+  assert.equal(alive(g, 'p0'), false);
+  host(g, 'nextPhase');
+  assert.equal(g.s.phase, PHASE.GAMEOVER); assert.equal(g.s.winner, 'village');
+});
+
+test('Graveyard Voter: play again resets the haunt', () => {
+  const g = game(RP);
+  ghostNight(g, 'p3');
+  assert.equal(g.s.players.find((p) => p.id === 'p3').haunt, true);
+  g.s.phase = PHASE.GAMEOVER;
+  host(g, 'playAgain');
+  assert.equal(g.s.players.find((p) => p.id === 'p3').haunt, false);
 });

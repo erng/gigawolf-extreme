@@ -17,7 +17,7 @@ export function revealScreen(view, ctx) {
     h('div', { class: `back role-${me.role}` },
       roleSprite(me.role, { scale: 8 }),
       h('div', { class: 'rolename' }, ROLE_LABEL[me.role]),
-      h('p', null, ROLE_BLURB[me.role]),
+      h('p', { class: 'roledesc' }, ROLE_BLURB[me.role]),
       mates.length > 0 && h('p', { class: 'mates' }, t('reveal.pack'), mates.map((t) => t.name).join(', ')),
     ));
   return h('main', { class: 'screen reveal' },

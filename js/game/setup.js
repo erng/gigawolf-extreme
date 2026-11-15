@@ -4,7 +4,7 @@ export const MAX_PLAYERS = 15;
 // counts key -> role id
 export const COUNT_ROLES = Object.freeze({
   wolves: 'werewolf', wolfcub: 'wolfcub', seer: 'seer', bodyguard: 'bodyguard', hunter: 'hunter',
-  witch: 'witch', prince: 'prince', jester: 'jester', villagers: 'villager',
+  witch: 'witch', prince: 'prince', diseased: 'diseased', apprentice: 'apprentice', poltergeist: 'poltergeist', jester: 'jester', villagers: 'villager',
 });
 export const COUNT_KEYS = Object.keys(COUNT_ROLES);
 
@@ -17,7 +17,7 @@ export function fullCounts(c) {
 }
 
 // The roles beyond the classic set. The host may use them at any player count.
-export const EXTRA_KEYS = ['wolfcub', 'hunter', 'witch', 'prince', 'jester'];
+export const EXTRA_KEYS = ['wolfcub', 'hunter', 'witch', 'prince', 'diseased', 'apprentice', 'poltergeist', 'jester'];
 
 // Auto preset: the original classic set. The extra roles are opt-in from the lobby.
 export function presetFor(n) {
@@ -30,7 +30,7 @@ export function presetFor(n) {
 // (sometimes +/-1), special roles mostly appear once (twice only in big groups), and plenty of
 // plain villagers are kept. Rejection-sampled through validate(), so it can never be invalid or
 // game-breaking. Falls back to the classic preset (always valid for 5..15).
-const CHANCE = { seer: 0.85, bodyguard: 0.7, witch: 0.45, hunter: 0.4, prince: 0.25, jester: 0.25 };
+const CHANCE = { seer: 0.85, bodyguard: 0.7, witch: 0.45, hunter: 0.4, prince: 0.25, diseased: 0.2, apprentice: 0.15, poltergeist: 0.15, jester: 0.25 };
 export function randomCounts(n, rng) {
   if (!Number.isInteger(n) || n < MIN_PLAYERS || n > MAX_PLAYERS) return null;
   const base = presetFor(n).wolves;
@@ -61,6 +61,8 @@ export function validate(counts, n) {
     if (!Number.isInteger(c[k]) || c[k] < 0) errors.push(`Invalid count for ${k}.`);
   }
   if (errors.length) return { ok: false, errors };
+  // A Seer's Apprentice only exists to inherit a Seer: one Seer per Apprentice (see DECISIONS.md).
+  if (c.apprentice > c.seer) errors.push(`Seer's Apprentice needs a Seer: ${c.apprentice} Apprentice${c.apprentice === 1 ? '' : 's'} but ${c.seer} Seer${c.seer === 1 ? '' : 's'}. Add a Seer or remove the Apprentice.`);
   const total = COUNT_KEYS.reduce((s, k) => s + c[k], 0);
   const wolfSide = c.wolves + c.wolfcub;
   if (n < MIN_PLAYERS) errors.push(`Need at least ${MIN_PLAYERS} players.`);

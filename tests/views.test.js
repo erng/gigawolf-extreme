@@ -284,7 +284,7 @@ test('revealOnDeath off: log, announcements and narration never name a role (ful
       const pick = (id) => alive.filter((p) => p.id !== id)[Math.floor(rng() * (alive.length - 1))].id;
       const run = (a) => { const r = reduce(g.s, { now: T0, ...a }, g.rng); if (!r.error) g.s = r.state; for (const e of r.effects ?? []) if (e.type === 'narrate') assert.ok(!leaks(e.text), `narration leaks: ${e.text}`); return r; };
       if (s.phase === PHASE.NIGHT) {
-        for (const p of alive) run({ kind: 'nightPick', by: p.id, targetId: ['villager', 'hunter', 'prince', 'jester'].includes(p.role) ? null : pick(p.id) });
+        for (const p of alive) run({ kind: 'nightPick', by: p.id, targetId: ['villager', 'hunter', 'prince', 'diseased', 'apprentice', 'poltergeist', 'jester'].includes(p.role) ? null : pick(p.id) });
         run({ kind: 'nextPhase', by: 'p0' });
       } else if (s.phase === PHASE.DAY) run({ kind: 'startVote', by: 'p0' });
       else if (s.phase === PHASE.VOTE && s.vote.stage === 'voting') for (const p of alive) run({ kind: 'vote', by: p.id, targetId: pick(p.id) });
@@ -295,4 +295,25 @@ test('revealOnDeath off: log, announcements and narration never name a role (ful
       }
     }
   }
+});
+
+test('every role has a role-card description and display name in English and Thai', async () => {
+  const { ROLES } = await import('../js/game/roles.js');
+  const { t, setLang, getLang } = await import('../js/i18n.js');
+  const orig = getLang();
+  try {
+    for (const lang of ['en', 'th']) {
+      setLang(lang);
+      for (const id of Object.keys(ROLES)) {
+        for (const k of [`blurb.${id}`, `role.${id}`, `lobby.${id}`].filter((x) => !x.startsWith('lobby.') || !['villager', 'werewolf'].includes(id))) {
+          const s = t(k);
+          assert.ok(s && s !== k, `${lang} ${k} missing`);
+        }
+        const d = t(`blurb.${id}`);
+        assert.ok(d.length <= 200, `${lang} description for ${id} too long for a phone card (${d.length})`);
+      }
+    }
+    setLang('en');
+    assert.equal(t('role.poltergeist'), 'Graveyard Voter');
+  } finally { setLang(orig); }
 });

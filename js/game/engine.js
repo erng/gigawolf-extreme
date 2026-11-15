@@ -40,6 +40,8 @@ export function createState({ hostId, roomCode }) {
     seerLog: [],            // { round, targetId, isWolf }
     vote: null,             // { votes, stage:'voting'|'result', result }
     cubDied: false,         // a wolf cub died: the wolves kill twice on the next night
+    diseasedDied: false,    // the wolves killed the Diseased: they cannot kill on the next night
+    promotions: 0,          // Seers that died and still need an Apprentice promoted
     shots: [],              // dead hunters who still owe a shot
     afterShot: null,        // 'day' | 'vote': where the game goes once the shots are done
     lines: [],              // announcements for the current dawn / vote result
@@ -173,6 +175,7 @@ function startGame(state, _a, isHost, rng, fx) {
   state.players.forEach((p, i) => {
     p.role = roles[i]; p.alive = true; p.ready = false; p.revealed = false;
     p.potions = p.role === 'witch' ? { heal: true, poison: true } : null;
+    p.promoted = false; p.haunt = false;
   });
   state.phase = PHASE.REVEAL;
   state.round = 0;
@@ -182,6 +185,8 @@ function startGame(state, _a, isHost, rng, fx) {
   state.seerLog = [];
   state.bodyguardLast = null;
   state.cubDied = false;
+  state.diseasedDied = false;
+  state.promotions = 0;
   state.shots = [];
   state.afterShot = null;
   state.winner = null;
@@ -204,6 +209,20 @@ function killPlayer(state, p) {
   p.alive = false;
   if (p.role === 'wolfcub') state.cubDied = true;
   if (p.role === 'hunter') state.shots.push(p.id);
+  if (p.role === 'seer') state.promotions += 1;
+  if (p.role === 'poltergeist') p.haunt = true; // may haunt at the next vote that starts
+}
+
+// Each dead Seer promotes at most one living Apprentice (first in seating order). Runs once a whole
+// batch of deaths is settled, so an Apprentice who died in the same batch is never promoted.
+function promoteApprentices(state) {
+  while (state.promotions > 0) {
+    state.promotions -= 1;
+    const a = living(state).find((p) => p.role === 'apprentice');
+    if (!a) continue;
+    a.role = 'seer'; a.promoted = true;
+    hist(state, state.phase === PHASE.NIGHT ? 'night' : 'day', `${a.name} (Seer's Apprentice) was promoted to Seer.`);
+  }
 }
 
 function roleNote(state, p) {
@@ -224,6 +243,7 @@ function hist(state, kind, text) {
 
 // After a batch of deaths: hunters shoot first, then the game carries on at `after`.
 function afterDeaths(state, after, fx) {
+  promoteApprentices(state);
   if (!living(state).length) state.shots = []; // everyone is dead: nobody left to shoot
   if (state.shots.length) {
     state.phase = PHASE.SHOT;
@@ -264,8 +284,11 @@ function finishAfter(state, after, fx) {
 function startNight(state, fx) {
   state.round += 1;
   state.phase = PHASE.NIGHT;
-  state.night = { picks: {}, picks2: {}, seerResult: null, doubleKill: state.cubDied, victims: null };
+  // A sick night (the wolves killed the Diseased) beats a Cub revenge night: no kill at all.
+  const noKill = state.diseasedDied;
+  state.night = { picks: {}, picks2: {}, seerResult: null, doubleKill: state.cubDied && !noKill, noKill, victims: noKill ? [] : null };
   state.cubDied = false;
+  state.diseasedDied = false;
   state.vote = null;
   state.lines = [];
   fx.push({ type: 'narrate', text: 'Night falls. Everyone, check your phone.' });
@@ -295,6 +318,7 @@ export function wolfVictims(state) {
 
 function computeVictims(state, rng) {
   const n = state.night;
+  if (n.noKill) return [];
   const counts = new Map();
   for (const w of livingWolves(state)) {
     for (const t of [n.picks[w.id], n.picks2[w.id]]) {
@@ -334,6 +358,10 @@ function nightPick(state, { targetId, targetId2 }, sender, rng) {
     return null;
   }
 
+  if (isWolf(sender.role) && n.noKill) { // too sick to kill: the wolves just confirm
+    n.picks[sender.id] = null;
+    return null;
+  }
   const targets = nightTargets(state, sender);
   if (!targets.includes(targetId)) return { code: 'badTarget', message: 'Invalid target.' };
 
@@ -351,7 +379,7 @@ function nightPick(state, { targetId, targetId2 }, sender, rng) {
   if (sender.role === 'seer') {
     const t = byId(state, targetId);
     n.seerResult = { targetId, isWolf: isWolf(t.role) };
-    state.seerLog.push({ round: state.round, ...n.seerResult });
+    state.seerLog.push({ round: state.round, by: sender.id, ...n.seerResult });
   }
   return null;
 }
@@ -379,6 +407,11 @@ function resolveNight(state, rng, fx) {
   const dead = state.players.filter((p) => dying.has(p.id) && p.alive);
   recordNight(state, n, victims, protectedId, bg, healed, poisoned, dead);
   for (const p of dead) killPlayer(state, p);
+  // Only a wolf night-kill of the Diseased makes the next night a sick one (not poison, vote or shot).
+  if (dead.some((p) => p.role === 'diseased' && victims.includes(p.id))) {
+    state.diseasedDied = true;
+    hist(state, 'night', 'The Diseased Villager was killed by the wolves: the wolves cannot kill tomorrow night.');
+  }
   if (dead.length === 0) say(state, 'Nobody died.');
   for (const p of dead) say(state, `${p.name} was killed in the night.${roleNote(state, p)}`);
   afterDeaths(state, 'day', fx);
@@ -388,9 +421,11 @@ function recordNight(state, n, victims, protectedId, bg, healed, poisoned, dead)
   const at = (id) => who(byId(state, id));
   for (const w of livingWolves(state)) {
     const targets = [n.picks[w.id], n.picks2[w.id]].filter((x) => x != null);
-    hist(state, 'night', targets.length ? `${who(w)} wanted to kill ${targets.map(at).join(' and ')}.` : `${who(w)} did not pick a victim.`);
+    if (n.noKill) hist(state, 'night', `${who(w)} could not kill tonight (the Diseased Villager died last night).`);
+    else hist(state, 'night', targets.length ? `${who(w)} wanted to kill ${targets.map(at).join(' and ')}.` : `${who(w)} did not pick a victim.`);
   }
-  hist(state, 'night', victims.length ? `The wolves' victim${victims.length > 1 ? 's' : ''}: ${victims.map(at).join(' and ')}.` : 'The wolves attacked nobody.');
+  if (n.noKill) hist(state, 'night', 'The wolves were too sick to kill.');
+  else hist(state, 'night', victims.length ? `The wolves' victim${victims.length > 1 ? 's' : ''}: ${victims.map(at).join(' and ')}.` : 'The wolves attacked nobody.');
   if (bg) hist(state, 'night', protectedId ? `${who(bg)} protected ${at(protectedId)}.` : `${who(bg)} protected nobody.`);
   for (const w of state.players.filter((p) => p.role === 'witch')) {
     const pick = n.picks[w.id];
@@ -425,7 +460,10 @@ function startVote(state, _a, _sender, isHost, fx) {
 
 function beginVote(state, fx) {
   state.phase = PHASE.VOTE;
-  state.vote = { votes: {}, stage: 'voting', result: null };
+  // Dead Poltergeists whose haunt is due get one vote now; an unused haunt expires with this vote.
+  const ghosts = state.winner ? [] : state.players.filter((p) => !p.alive && p.haunt).map((p) => p.id);
+  for (const p of state.players) p.haunt = false;
+  state.vote = { votes: {}, stage: 'voting', result: null, ghosts };
   state.lines = [];
   fx.push({ type: 'narrate', text: 'Time to vote.' });
   fx.push({ type: 'haptic' });
@@ -435,14 +473,19 @@ function vote(state, { targetId }, sender, fx) {
   if (state.phase !== PHASE.VOTE || state.vote.stage !== 'voting') {
     return { code: 'badPhase', message: 'Not voting.' };
   }
-  if (!sender || !sender.alive) return { code: 'dead', message: 'You cannot vote.' };
+  const ghost = !!sender && !sender.alive && (state.vote.ghosts ?? []).includes(sender.id);
+  if (!sender || (!sender.alive && !ghost)) return { code: 'dead', message: 'You cannot vote.' };
   if (sender.id in state.vote.votes) return { code: 'alreadyActed', message: 'Already voted.' };
-  if (targetId !== 'skip') {
+  if (targetId === 'pass' && ghost) { // the ghost keeps hidden: no vote cast
+    state.vote.votes[sender.id] = 'pass';
+  } else if (targetId !== 'skip') {
     const t = byId(state, targetId);
     if (!t || !t.alive || t.id === sender.id) return { code: 'badTarget', message: 'Invalid target.' };
   }
-  state.vote.votes[sender.id] = targetId;
-  if (living(state).every((p) => p.id in state.vote.votes)) resolveVote(state, fx);
+  if (!(sender.id in state.vote.votes)) state.vote.votes[sender.id] = targetId;
+  // Auto-resolve once every living voter AND every haunting ghost has voted or passed.
+  const v = state.vote;
+  if (living(state).every((p) => p.id in v.votes) && (v.ghosts ?? []).every((id) => id in v.votes)) resolveVote(state, fx);
   return null;
 }
 
@@ -454,15 +497,22 @@ function resolveVote(state, fx) {
     votes[p.id] = t;
     counts.set(t, (counts.get(t) ?? 0) + 1);
   }
+  // Haunt votes count like any other vote (public). A pass or no haunt adds nothing.
+  const haunters = (state.vote.ghosts ?? []).map((id) => byId(state, id)).filter((g) => g && state.vote.votes[g.id] && state.vote.votes[g.id] !== 'pass');
+  for (const g of haunters) {
+    const t = state.vote.votes[g.id];
+    votes[g.id] = t;
+    counts.set(t, (counts.get(t) ?? 0) + 1);
+  }
   const max = Math.max(...counts.values());
   const top = [...counts.keys()].filter((k) => counts.get(k) === max);
   let eliminatedId = null;
   if (top.length === 1 && top[0] !== 'skip') eliminatedId = top[0];
 
   state.lines = [];
-  for (const p of living(state)) {
+  for (const p of [...living(state), ...haunters]) {
     const tv = votes[p.id];
-    hist(state, 'day', `${who(p)} voted ${tv === 'skip' ? 'to skip' : `for ${who(byId(state, tv))}`}${state.vote.votes[p.id] == null ? ' (no vote cast)' : ''}.`);
+    hist(state, 'day', `${who(p)}${p.alive ? '' : ' (haunting)'} voted ${tv === 'skip' ? 'to skip' : `for ${who(byId(state, tv))}`}${state.vote.votes[p.id] == null ? ' (no vote cast)' : ''}.`);
   }
   hist(state, 'day', `Tally: ${[...counts].map(([k, c]) => `${k === 'skip' ? 'Skip' : byId(state, k).name} ${c}`).join(', ')}.`);
   state.vote.stage = 'result';
@@ -500,6 +550,7 @@ function shoot(state, { targetId }, sender, fx) {
   const target = byId(state, targetId);
   if (!target || !target.alive) return { code: 'badTarget', message: 'Invalid target.' };
   killPlayer(state, target);
+  promoteApprentices(state);
   hist(state, state.afterShot === 'day' ? 'night' : 'day', `${who(target)} died: shot by the Hunter ${sender.name}.`);
   say(state, `${sender.name} shot ${target.name}.${roleNote(state, target)}`);
   nextShot(state, fx);
@@ -558,13 +609,15 @@ function playAgain(state, isHost) {
   state.winner = null;
   state.bodyguardLast = null;
   state.cubDied = false;
+  state.diseasedDied = false;
+  state.promotions = 0;
   state.shots = [];
   state.afterShot = null;
   state.lines = [];
   state.seerLog = [];
   state.log = [];
   state.history = [];
-  state.players.forEach((p) => { p.role = null; p.alive = true; p.ready = false; p.revealed = false; p.potions = null; });
+  state.players.forEach((p) => { p.role = null; p.alive = true; p.ready = false; p.revealed = false; p.potions = null; p.promoted = false; p.haunt = false; });
   return null;
 }
 

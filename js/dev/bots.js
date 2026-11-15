@@ -24,7 +24,12 @@ export function addBots(host, count, { minDelay = 600, maxDelay = 2500, rand = M
           if (p?.kind === 'shoot') timer = setTimeout(() => client.send('shoot', { targetId: pick(p.targets) }), delay());
           return;
         }
-        if (!view.you.alive) return;
+        if (!view.you.alive) {
+          if (view.phase === 'vote' && p?.haunt && !p.done) { // a dead Poltergeist may haunt once, or pass
+            timer = setTimeout(() => client.send('vote', { targetId: pick([...p.targets, 'skip', 'pass']) }), delay());
+          }
+          return;
+        }
         if (view.phase === 'reveal') {
           timer = setTimeout(() => client.send('ready'), delay());
         } else if ((view.phase === 'night' || view.phase === 'vote') && p && !p.done) {

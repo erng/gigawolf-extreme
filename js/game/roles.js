@@ -9,6 +9,9 @@ export const ROLES = Object.freeze({
   hunter:    { id: 'hunter',    name: 'Hunter',    team: TEAM.VILLAGE, nightPrompt: 'Who do you suspect?' },
   prince:    { id: 'prince',    name: 'Prince',    team: TEAM.VILLAGE, nightPrompt: 'Who do you suspect?' },
   witch:     { id: 'witch',     name: 'Witch',     team: TEAM.VILLAGE, nightPrompt: 'Use a potion?' },
+  diseased:  { id: 'diseased',  name: 'Diseased Villager', team: TEAM.VILLAGE, nightPrompt: 'Who do you suspect?' },
+  apprentice: { id: 'apprentice', name: "Seer's Apprentice", team: TEAM.VILLAGE, nightPrompt: 'Who do you suspect?' },
+  poltergeist: { id: 'poltergeist', name: 'Graveyard Voter', team: TEAM.VILLAGE, nightPrompt: 'Who do you suspect?' },
   jester:    { id: 'jester',    name: 'Jester',    team: TEAM.JESTER,  nightPrompt: 'Who do you suspect?' },
 });
 
@@ -16,4 +19,4 @@ export const teamOf = (roleId) => ROLES[roleId].team;
 // Wolf cubs are on the wolf team and show up as wolves to the seer.
 export const isWolf = (roleId) => roleId === 'werewolf' || roleId === 'wolfcub';
 // Roles with no night power: they get a decoy "suspect" prompt so nobody can tell who is who.
-export const isDecoy = (roleId) => ['villager', 'hunter', 'prince', 'jester'].includes(roleId);
+export const isDecoy = (roleId) => ['villager', 'hunter', 'prince', 'diseased', 'apprentice', 'poltergeist', 'jester'].includes(roleId);

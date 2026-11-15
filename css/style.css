@@ -58,8 +58,11 @@ button.player { cursor: pointer; }
 .announce { font-size: 1.5rem; }
 .rolecard { position: relative; min-height: 240px; border-radius: 18px; background: var(--panel); border: 3px solid var(--panel2); display: grid; place-items: center; text-align: center; padding: 18px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; cursor: pointer; }
 .rolecard .back { display: none; } .rolecard.shown .back { display: block; } .rolecard.shown .front { display: none; }
-.rolename { font-size: 2.2rem; font-weight: 800; margin-bottom: 6px; }
+.rolename { font-size: 2.2rem; font-weight: 800; margin-bottom: 6px; overflow-wrap: anywhere; line-height: 1.1; }
+.row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .role-wolfcub .rolename { color: var(--wolf); } .role-hunter .rolename { color: #f59e0b; } .role-prince .rolename { color: #fbbf24; } .role-witch .rolename { color: #c084fc; } .role-jester .rolename { color: #f472b6; }
+.role-diseased .rolename { color: #84cc16; } .role-apprentice .rolename { color: #7aa2f7; } .role-poltergeist .rolename { color: #c3cbe6; }
+.row > span { overflow-wrap: anywhere; }
 .jesterwin { color: #f472b6; }
 .announce h2 { margin: 4px 0; }
 .role-werewolf .rolename { color: var(--wolf); } .role-seer .rolename { color: #60a5fa; } .role-bodyguard .rolename { color: var(--good); }
@@ -80,6 +83,8 @@ button.player { cursor: pointer; }
 .sprite { display: block; flex: none; image-rendering: pixelated; shape-rendering: crispEdges; }
 .player > .sprite { width: 32px; height: 32px; }
 .rolecard .back > .sprite { margin: 0 auto 8px; max-width: 100%; height: auto; filter: drop-shadow(0 4px 0 rgba(0,0,0,.35)); animation: sprite-bob 1.6s steps(2, end) infinite; }
+/* role description under the name: short, wrapping, conservative sizing for phones */
+.rolecard .back .roledesc { font-size: .95rem; line-height: 1.35; margin: 4px 0 0; overflow-wrap: anywhere; }
 @keyframes sprite-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { .rolecard .back > .sprite { animation: none; } }
 

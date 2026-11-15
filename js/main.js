@@ -125,7 +125,7 @@ function chooseScreen(v, ctx) {
     case 'reveal': return revealScreen(v, ctx);
     case 'night': return alive ? nightScreen(v, ctx) : deadScreen(v, ctx);
     case 'day': return alive ? dayScreen(v, ctx) : deadScreen(v, ctx);
-    case 'vote': return alive || v.voteResult ? voteScreen(v, ctx) : deadScreen(v, ctx);
+    case 'vote': return alive || v.voteResult || v.prompt?.kind === 'vote' ? voteScreen(v, ctx) : deadScreen(v, ctx);
     case 'shot': return shotScreen(v, ctx);
     case 'gameover': return gameoverScreen(v, ctx);
     default: return h('main', { class: 'screen' }, t('main.unknown'));

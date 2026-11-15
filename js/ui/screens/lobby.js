@@ -49,10 +49,11 @@ export function lobbyScreen(view, ctx) {
                 h('p', null, t('lobby.randomHint')))
             : h('p', { class: 'sub small' }, t('lobby.manualHint')),
           c && stepper(t('lobby.wolves'), c.wolves, (v) => setCounts('wolves', v), 0, 7),
-          c && stepper(t('lobby.seer'), c.seer, (v) => setCounts('seer', v), 0, 3),
+          c && stepper(t('lobby.seer'), c.seer, (v) => setCounts('seer', v), c.apprentice, 3),
           c && stepper(t('lobby.bodyguard'), c.bodyguard, (v) => setCounts('bodyguard', v), 0, 3),
-          c && ['wolfcub', 'hunter', 'witch', 'prince', 'jester'].map((k) =>
-            stepper(t(`lobby.${k}`), c[k], (v) => setCounts(k, v), 0, 3)),
+          c && ['wolfcub', 'hunter', 'witch', 'prince', 'diseased', 'apprentice', 'poltergeist', 'jester'].map((k) =>
+            stepper(t(`lobby.${k}`), c[k], (v) => setCounts(k, v), 0, k === 'apprentice' ? Math.min(3, c.seer) : 3)),
+          c && c.apprentice > 0 && h('p', { class: 'sub small' }, t('lobby.apprenticeHint')),
           c && h('div', { class: 'row' }, h('span', null, t('lobby.villagers')), h('span', { class: 'num' }, c.villagers)),
           !s.randomize && h('button', { class: 'btn small', onClick: () => set({ counts: null }) }, t('lobby.reset')),
           h('h3', null, t('lobby.options')),

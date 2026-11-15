@@ -34,7 +34,7 @@ export const act = (g, action) => {
 export function submitNight(g, picks, now = T0) {
   for (const p of g.s.players.filter((x) => x.alive)) {
     if (p.id in g.s.night.picks) continue;
-    if (['villager', 'hunter', 'prince', 'jester'].includes(p.role)) { act(g, { kind: 'nightPick', by: p.id, targetId: null, now }); continue; }
+    if (['villager', 'hunter', 'prince', 'diseased', 'apprentice', 'poltergeist', 'jester'].includes(p.role)) { act(g, { kind: 'nightPick', by: p.id, targetId: null, now }); continue; }
     if (!(p.id in picks)) throw new Error(`no pick for ${p.id} (${p.role})`);
     const r = act(g, { kind: 'nightPick', by: p.id, targetId: picks[p.id], now });
     if (r.error) throw new Error(`${p.id}: ${r.error.message}`);

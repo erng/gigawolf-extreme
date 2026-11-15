@@ -13,6 +13,7 @@ export function nightScreen(view, ctx) {
   const nameOf = (id) => view.players.find((p) => p.id === id)?.name ?? '?';
   const seerCard = priv.seerResult && h('div', { class: 'card result' },
     t('night.isA', { name: nameOf(priv.seerResult.targetId) }), h('strong', null, priv.seerResult.isWolf ? t('night.werewolf') : t('night.notWerewolf')));
+  const promoted = priv.promoted && h('div', { class: 'card result' }, t('role.promoted'));
   const footer = h('p', { class: 'sub small' }, t('night.youAre', { role: ROLE_LABEL[you.role] }));
   const head = [h('div', { class: 'phase' }, t('night.title', { n: view.round })), h('h2', { class: 'prompt' }, tr(prompt.text))];
 
@@ -31,6 +32,7 @@ export function nightScreen(view, ctx) {
   return h('main', { class: 'screen night' },
     ...head,
     two ? multiList(view, prompt, selectedMany, done, tags, onPick) : list,
+    promoted,
     seerCard,
     done
       ? h('p', { class: 'sub' }, t('night.confirmed'))

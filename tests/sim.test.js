@@ -15,7 +15,7 @@ function randomCounts(rng, n) {
   for (let tries = 0; tries < 200; tries++) {
     const c = Object.fromEntries(COUNT_KEYS.map((k) => [k, 0]));
     c.wolves = 1 + Math.floor(rng() * 3);
-    c.seer = Math.floor(rng() * 2); c.bodyguard = Math.floor(rng() * 2);
+    c.seer = Math.floor(rng() * 3); c.bodyguard = Math.floor(rng() * 2);
     for (const k of EXTRA_KEYS) c[k] = rng() < 0.6 ? 1 + Math.floor(rng() * 2) : 0;
     c.villagers = n - COUNT_KEYS.filter((k) => k !== 'villagers').reduce((s, k) => s + c[k], 0);
     if (validate(c, n).ok) return c;
@@ -39,7 +39,7 @@ class Sim {
     this.r = createRng(seed * 7919 + 13); // decisions
     this.n = n;
     this.steps = 0;
-    this.stats = { deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0, jesterWins: 0 };
+    this.stats = { deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0, jesterWins: 0, sickNights: 0, hauntOffers: 0, hauntVotes: 0, promotions: 0 };
     this.s = createState({ hostId: 'p0', roomCode: 'ABCD' });
     for (let i = 0; i < n; i++) this.do({ kind: 'join', by: `p${i}`, name: `P${i}` });
   }
@@ -50,8 +50,37 @@ class Sim {
     assert.ok(!res.error, `step ${this.steps} ${JSON.stringify(action)} rejected: ${res.error?.message} (phase ${before.phase})`);
     this.s = res.state;
     this.steps++;
+    this.oracleStep(before, this.s);
     this.check();
     return res;
+  }
+
+  // Independent shadow rules for promotions and haunt votes, written from the spec, not the engine.
+  oracleStep(before, after) {
+    if (before.phase === PHASE.LOBBY || after.phase === PHASE.LOBBY) return;
+    const was = new Map(before.players.map((p) => [p.id, p]));
+    const died = after.players.filter((p) => was.get(p.id).alive && !p.alive);
+    const seerDeaths = died.filter((p) => was.get(p.id).role === 'seer').length;
+    const survivingApprentices = after.players.filter((p) => p.alive && was.get(p.id).role === 'apprentice');
+    const promoted = after.players.filter((p) => was.get(p.id).role === 'apprentice' && p.role === 'seer');
+    assert.equal(promoted.length, Math.min(seerDeaths, survivingApprentices.length), 'one promotion per dead Seer, never a dead Apprentice');
+    assert.ok(promoted.every((p) => p.alive));
+    this.stats.promotions += promoted.length;
+    // no other role ever changes
+    for (const p of after.players) if (was.get(p.id).role !== p.role) assert.ok(was.get(p.id).role === 'apprentice' && p.role === 'seer');
+    // vote tally, including haunt votes
+    if (before.phase === PHASE.VOTE && before.vote.stage === 'voting' && after.vote?.stage === 'result') {
+      const tally = new Map();
+      const add = (t) => tally.set(t, (tally.get(t) ?? 0) + 1);
+      for (const p of before.players.filter((x) => x.alive)) add(after.vote.votes[p.id] ?? 'skip');
+      for (const id of after.vote.ghosts) { const t = after.vote.votes[id]; if (t && t !== 'pass') add(t); }
+      const max = Math.max(...tally.values());
+      const top = [...tally.keys()].filter((k) => tally.get(k) === max);
+      let expected = top.length === 1 && top[0] !== 'skip' ? top[0] : null;
+      if (expected && was.get(expected).role === 'prince' && !was.get(expected).revealed) expected = null;
+      assert.equal(after.vote.result.eliminatedId, expected, 'vote outcome matches the independent tally');
+      for (const id of after.vote.ghosts) assert.equal(id in after.vote.result.votes, !!after.vote.votes[id] && after.vote.votes[id] !== 'pass');
+    }
   }
 
   // Invariants checked after every single action.
@@ -94,7 +123,11 @@ class Sim {
       if (v.prompt?.healTargets !== undefined) assert.equal(me.role, 'witch');
       if (v.you.private.potions) assert.equal(me.role, 'witch');
       if (v.prompt?.kind === 'shoot') assert.equal(s.shots[0], me.id);
-      if (!me.alive && s.phase !== PHASE.SHOT) assert.equal(v.prompt, null, 'dead players get no prompt');
+      const ghostNow = s.phase === PHASE.VOTE && s.vote.stage === 'voting' && s.vote.ghosts.includes(me.id);
+      if (!me.alive && s.phase !== PHASE.SHOT && !(s.phase === PHASE.VOTE && s.vote.ghosts?.includes(me.id) && s.vote.stage === 'voting')) assert.equal(v.prompt, null, 'dead players get no prompt');
+      if (v.prompt?.haunt) assert.ok(!me.alive && me.role === 'poltergeist' && ghostNow, 'only a haunting ghost sees the haunt prompt');
+      if (me.role === 'apprentice') assert.equal(v.you.private.seerLog, undefined);
+      if (me.promoted) assert.equal(me.role, 'seer');
     }
   }
 
@@ -140,6 +173,7 @@ class Sim {
   night() {
     const r = this.r;
     if (this.s.night.doubleKill) this.stats.doubleKills++;
+    if (this.s.night.noKill) { this.stats.sickNights++; assert.equal(this.s.night.doubleKill, false, 'skip beats revenge'); }
     // Wolves first so the witch has something to look at some of the time.
     const order = [...this.alive()].sort((a, b) => (isWolf(b.role) ? 1 : 0) - (isWolf(a.role) ? 1 : 0));
     for (const p of order) {
@@ -157,7 +191,7 @@ class Sim {
         if (t.startsWith('poison')) this.stats.poisons++;
         this.do({ kind: 'nightPick', by: p.id, targetId: t });
       } else if (!pr.required) {
-        this.do({ kind: 'nightPick', by: p.id, targetId: r() < 0.5 ? null : pick(r, pr.targets) });
+        this.do({ kind: 'nightPick', by: p.id, targetId: r() < 0.5 || !pr.targets.length ? null : pick(r, pr.targets) });
       } else if (pr.picks === 2) {
         const a = pick(r, pr.targets);
         this.do({ kind: 'nightPick', by: p.id, targetId: a, targetId2: pick(r, pr.targets.filter((x) => x !== a)) });
@@ -167,6 +201,7 @@ class Sim {
     }
     const aliveBefore = this.alive().length;
     const doubleKill = this.s.night.doubleKill;
+    const noKill = this.s.night.noKill;
     const deadBefore = new Set(this.s.players.filter((p) => !p.alive).map((p) => p.id));
     this.do({ kind: 'nextPhase', by: 'p0' });
     const killed = this.s.players.filter((p) => !p.alive && !deadBefore.has(p.id)).length;
@@ -174,7 +209,7 @@ class Sim {
     const witches = this.s.players.filter((p) => p.role === 'witch').length;
     const hunters = this.s.players.filter((p) => p.role === 'hunter').length;
     this.stats.deaths += killed;
-    assert.ok(killed <= (doubleKill ? 2 : 1) + witches + hunters, `too many deaths in one night: ${killed}`);
+    assert.ok(killed <= (noKill ? 0 : doubleKill ? 2 : 1) + witches + hunters, `too many deaths in one night: ${killed}`);
     void aliveBefore;
   }
 
@@ -195,6 +230,16 @@ class Sim {
       const t = r() < 0.7 ? (this.focus && pr.targets.includes(this.focus) ? this.focus : pick(r, pr.targets)) : pick(r, opts);
       this.do({ kind: 'vote', by: p.id, targetId: t });
     }
+    for (const id of [...this.s.vote?.ghosts ?? []]) {
+      if (this.s.phase !== PHASE.VOTE || this.s.vote.stage !== 'voting') break;
+      const pr = this.viewOf(id).prompt;
+      assert.equal(pr.haunt, true);
+      this.stats.hauntOffers++;
+      const roll = r();
+      if (roll < 0.15) continue; // idle ghost: the host ends the vote
+      if (roll < 0.4) this.do({ kind: 'vote', by: id, targetId: 'pass' });
+      else { this.stats.hauntVotes++; this.do({ kind: 'vote', by: id, targetId: r() < 0.9 ? pick(r, pr.targets) : 'skip' }); }
+    }
     if (this.s.phase === PHASE.VOTE && this.s.vote.stage === 'voting') this.do({ kind: 'nextPhase', by: 'p0' });
     this.focus = pick(r, this.alive().map((p) => p.id));
   }
@@ -203,13 +248,13 @@ class Sim {
 const SEEDS = Number(process.env.SIM_SEEDS ?? 150);
 
 test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, () => {
-  const totals = { games: 0, village: 0, wolves: 0, jester: 0, deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0 };
+  const totals = { games: 0, village: 0, wolves: 0, jester: 0, deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0, sickNights: 0, hauntOffers: 0, hauntVotes: 0, promotions: 0 };
   for (let n = 5; n <= 15; n++) {
     for (let seed = 1; seed <= SEEDS; seed++) {
       const sim = new Sim(seed * 100 + n, n);
       const end = sim.playGame();
       totals.games++; totals[end.winner]++;
-      for (const k of ['deaths', 'shots', 'doubleKills', 'heals', 'poisons', 'princeSaves']) totals[k] += sim.stats[k];
+      for (const k of ['deaths', 'shots', 'doubleKills', 'heals', 'poisons', 'princeSaves', 'sickNights', 'hauntOffers', 'hauntVotes', 'promotions']) totals[k] += sim.stats[k];
       // play again resets everything and a second game on the same state works
       if (seed % 10 === 0) {
         sim.do({ kind: 'playAgain', by: 'p0' });
@@ -226,6 +271,9 @@ test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, ()
   assert.ok(totals.shots > 20, 'hunter shots happened');
   assert.ok(totals.doubleKills > 5, 'cub revenge nights happened');
   assert.ok(totals.heals > 5 && totals.poisons > 5, 'witch potions were used');
+  assert.ok(totals.sickNights > 3, 'diseased sick nights happened');
+  assert.ok(totals.hauntOffers > 5 && totals.hauntVotes > 5, 'poltergeist haunts happened');
+  assert.ok(totals.promotions > 3, 'apprentices were promoted');
   assert.ok(totals.princeSaves > 3, 'prince survived votes');
   assert.ok(totals.jester > 3, 'jester won sometimes');
   assert.ok(totals.village > 0 && totals.wolves > 0);

@@ -58,6 +58,7 @@ async function playGame({ n, counts, seed }) {
       once(`day${r}`, () => client.send('startVote'));
     } else if (v.phase === 'vote') {
       if (v.voteResult) once(`res${r}`, () => client.send('nextPhase'));
+      else if (!v.you.alive && p?.haunt && !p.done) once(`h${r}`, () => client.send('vote', { targetId: pick([...p.targets, 'skip', 'pass']) }));
       else if (v.you.alive && p && !p.done) once(`v${r}`, () => client.send('vote', { targetId: pick([...p.targets, 'skip']) }));
     } else if (v.phase === 'shot') {
       if (p?.kind === 'shoot') once(`shot${r}${v.shooter.id}`, () => client.send('shoot', { targetId: pick(p.targets) }));
@@ -78,12 +79,12 @@ async function playGame({ n, counts, seed }) {
   return { winner: final.winner, rounds: final.round, phases };
 }
 
-const ALL = { wolves: 1, wolfcub: 1, seer: 1, bodyguard: 1, hunter: 1, witch: 1, prince: 1, jester: 1, villagers: 0 };
+const ALL = { wolves: 1, wolfcub: 1, seer: 1, bodyguard: 1, hunter: 1, witch: 1, prince: 1, diseased: 1, apprentice: 1, poltergeist: 1, jester: 1, villagers: 0 };
 const withVillagers = (c, n) => ({ ...c, villagers: n - Object.entries(c).filter(([k]) => k !== 'villagers').reduce((s, [, v]) => s + v, 0) });
 
 test('e2e: full games over the network with every new role in play', async () => {
   const results = [];
-  for (const [i, n] of [8, 9, 10, 12, 15].entries()) {
+  for (const [i, n] of [11, 12, 13, 14, 15].entries()) {
     for (let k = 0; k < 4; k++) {
       results.push(await playGame({ n, counts: withVillagers(ALL, n), seed: 1000 + i * 10 + k }));
     }
@@ -94,7 +95,7 @@ test('e2e: full games over the network with every new role in play', async () =>
 });
 
 test('e2e: classic 5-player game still works with default roles', async () => {
-  const counts = { wolves: 1, wolfcub: 0, seer: 1, bodyguard: 1, hunter: 0, witch: 0, prince: 0, jester: 0, villagers: 2 };
+  const counts = { wolves: 1, wolfcub: 0, seer: 1, bodyguard: 1, hunter: 0, witch: 0, prince: 0, diseased: 0, apprentice: 0, poltergeist: 0, jester: 0, villagers: 2 };
   for (let k = 0; k < 3; k++) {
     const r = await playGame({ n: 5, counts, seed: 50 + k });
     assert.ok(['village', 'wolves'].includes(r.winner));
