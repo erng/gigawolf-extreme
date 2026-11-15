@@ -3,6 +3,7 @@ import { h } from './ui/dom.js';
 import { Client, peerConnector } from './net/client.js';
 import { Host } from './net/host.js';
 import { randomId } from './net/protocol.js';
+import { t, tr, getLang, setLang } from './i18n.js';
 import { storage } from './util/storage.js';
 import { keepAwake, releaseAwake } from './util/wakelock.js';
 import { speak, unlock } from './ui/narrator.js';
@@ -54,7 +55,7 @@ function wire(client) {
   client.onError = (e) => {
     if (e.code === 'unreachable') { storage.remove(SESSION_KEY); resetToHome(e.message); return; }
     if (['gameStarted', 'roomFull', 'badName', 'badVersion'].includes(e.code)) { storage.remove(SESSION_KEY); resetToHome(e.message); return; }
-    toast(e.message);
+    toast(tr(e.message));
   };
   client.onView = (view) => {
     onViewChange(app.view, view);
@@ -71,7 +72,7 @@ function onViewChange(prev, next) {
     app.prevKey = key;
   }
   if (next.phase !== 'lobby' && next.phase !== 'gameover') {
-    keepAwake(() => toast('Tip: keep your screen on during the game (turn off auto-lock).'));
+    keepAwake(() => toast(t('main.wake')));
   }
 }
 
@@ -86,8 +87,8 @@ async function hostGame(name, resume = null) {
   catch (e) {
     app.connecting = false;
     resetToHome(resume
-      ? "Couldn't reclaim the room. Check your connection and try again."
-      : "Can't reach the matchmaking service. Check your internet connection and try again.");
+      ? 'main.noReclaim'
+      : 'main.noService');
     return;
   }
   app.host = host;
@@ -121,7 +122,7 @@ function chooseScreen(v, ctx) {
     case 'day': return alive ? dayScreen(v, ctx) : deadScreen(v, ctx);
     case 'vote': return alive || v.voteResult ? voteScreen(v, ctx) : deadScreen(v, ctx);
     case 'gameover': return gameoverScreen(v, ctx);
-    default: return h('main', { class: 'screen' }, 'Unknown phase');
+    default: return h('main', { class: 'screen' }, t('main.unknown'));
   }
 }
 
@@ -148,8 +149,8 @@ function render() {
   $app.replaceChildren();
   if (!v) {
     if (app.connecting) {
-      $app.append(h('main', { class: 'screen' }, h('h2', null, app.status === 'reconnecting' ? 'Reconnecting…' : 'Connecting…'),
-        h('button', { class: 'btn', onClick: leave }, 'Cancel')));
+      $app.append(h('main', { class: 'screen' }, h('h2', null, app.status === 'reconnecting' ? t('main.reconnecting') : t('main.connecting')),
+        h('button', { class: 'btn', onClick: leave }, t('main.cancel'))));
     } else {
       const save = Host.loadSave(storage);
       $app.append(homeScreen({
@@ -166,13 +167,13 @@ function render() {
     }
   } else {
     $app.append(chooseScreen(v, ctx));
-    $app.append(h('button', { class: 'btn leave', onClick: () => { if (confirm('Leave this game?')) leave(); } }, 'Leave'));
+    $app.append(h('button', { class: 'btn leave', onClick: () => { if (confirm(t('main.leaveConfirm'))) leave(); } }, t('main.leave')));
   }
   window.scrollTo(0, scrollY);
 
   const down = app.status === 'reconnecting' && !!v;
   $banner.hidden = !down;
-  $banner.textContent = down ? 'Host disconnected, waiting…' : '';
+  $banner.textContent = down ? t('main.hostDown') : '';
 }
 
 // ---------- boot ----------
@@ -186,5 +187,10 @@ function boot() {
   }
   render();
 }
+// Language switch (English default). Fixed button; re-renders the current screen.
+const $lang = document.getElementById('lang');
+function syncLang() { $lang.textContent = t('lang.button'); $lang.setAttribute('aria-label', getLang() === 'en' ? 'ภาษาไทย' : 'English'); document.documentElement.lang = getLang(); }
+$lang.addEventListener('click', () => { setLang(getLang() === 'en' ? 'th' : 'en'); syncLang(); render(); });
+syncLang();
 boot();
 window.__app = app; // handy for debugging / tests

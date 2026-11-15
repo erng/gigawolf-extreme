@@ -1,3 +1,5 @@
+import { roleSprite } from './pixel.js';
+
 export function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs ?? {})) {
@@ -14,13 +16,10 @@ export function h(tag, attrs, ...kids) {
   return el;
 }
 
-export const ROLE_LABEL = { villager: 'Villager', werewolf: 'Werewolf', seer: 'Seer', bodyguard: 'Bodyguard' };
-export const ROLE_BLURB = {
-  villager: 'Find the wolves. You have no night power.',
-  werewolf: 'Pick a victim each night with your pack. Do not get caught.',
-  seer: 'Each night, learn if one player is a werewolf.',
-  bodyguard: 'Each night, protect one player from the wolves.',
-};
+import { t } from '../i18n.js';
+
+export const ROLE_LABEL = new Proxy({}, { get: (_, r) => t(`role.${String(r)}`) });
+export const ROLE_BLURB = new Proxy({}, { get: (_, r) => t(`blurb.${String(r)}`) });
 
 
 export function playerList(view, { selectable = [], selected = null, onPick, tags = {}, showRole = false } = {}) {
@@ -32,9 +31,10 @@ export function playerList(view, { selectable = [], selected = null, onPick, tag
       'aria-pressed': can ? String(selected === p.id) : null,
       onClick: can ? () => onPick(p.id) : null,
     },
-      h('span', { class: `dot ${p.connected ? 'on' : 'off'}`, title: p.connected ? 'connected' : 'reconnecting' }),
-      h('span', { class: 'pname' }, p.name, p.id === view.you.id ? ' (you)' : ''),
-      !p.alive && h('span', { class: 'tag' }, 'dead'),
+      h('span', { class: `dot ${p.connected ? 'on' : 'off'}`, title: p.connected ? t('connected') : t('reconnecting') }),
+      h('span', { class: 'pname' }, p.name, p.id === view.you.id ? t('you') : ''),
+      !p.alive && h('span', { class: 'tag' }, t('dead')),
+      p.role && (showRole || !p.alive) && roleSprite(p.role, { scale: 2 }),
       p.role && (showRole || !p.alive) && h('span', { class: 'tag role' }, ROLE_LABEL[p.role]),
       (tags[p.id] ?? []).map((t) => h('span', { class: 'tag wolf' }, t)),
     );
