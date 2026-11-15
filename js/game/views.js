@@ -33,6 +33,7 @@ function nightPrompt(state, me) {
     targets,
     picks,
     required: !isDecoy(me.role),
+    blockedId: me.role === 'bodyguard' ? state.bodyguardLast : null, // protected last night: cannot be picked again
     done,
   };
 }

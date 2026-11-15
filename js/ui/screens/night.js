@@ -9,6 +9,7 @@ export function nightScreen(view, ctx) {
   for (const mate of priv.teammates ?? []) {
     for (const id of [mate.pick, mate.pick2]) if (id) (tags[id] ??= []).push(t('pick', { name: mate.name }));
   }
+  if (prompt.blockedId) (tags[prompt.blockedId] ??= []).push(t('night.protectedLast'));
   const nameOf = (id) => view.players.find((p) => p.id === id)?.name ?? '?';
   const seerCard = priv.seerResult && h('div', { class: 'card result' },
     t('night.isA', { name: nameOf(priv.seerResult.targetId) }), h('strong', null, priv.seerResult.isWolf ? t('night.werewolf') : t('night.notWerewolf')));
