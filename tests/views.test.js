@@ -177,14 +177,16 @@ test('votes stay hidden until everyone has voted; only own vote is visible', () 
   assert.equal(r.votes.p6, 'p0');
 });
 
-test('night prompt: bodyguard last pick and self excluded; villager gets a prompt; dead get none', () => {
+test('night prompt: bodyguard self option follows setting; villager gets a prompt; dead get none', () => {
   const g = game(R7);
   assert.equal(viewFor(g.s, 'p4', T0).prompt.text, 'Who do you suspect?');
   assert.equal(viewFor(g.s, 'p0', T0).prompt.text, 'Who do you want to kill?');
   assert.equal(viewFor(g.s, 'p2', T0).prompt.text, 'Who do you want to check?');
   const bg = viewFor(g.s, 'p3', T0).prompt;
   assert.equal(bg.text, 'Who do you want to protect?');
-  assert.ok(!bg.targets.includes('p3'));
+  assert.ok(bg.targets.includes('p3'), 'self-protect is on by default');
+  const gOff = game(R7, { settings: { bodyguardSelfProtect: false } });
+  assert.ok(!viewFor(gOff.s, 'p3', T0).prompt.targets.includes('p3'));
   assert.ok(!viewFor(g.s, 'p0', T0).prompt.targets.includes('p1'), 'wolves cannot target wolves');
   submitNight(g, { p0: 'p5', p1: 'p5', p2: 'p0', p3: 'p4' });
   resolveNight(g);
