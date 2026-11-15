@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { reduce, PHASE, nightTargets } from '../js/game/engine.js';
-import { presetFor, validate, roleList } from '../js/game/setup.js';
+import { presetFor, validate, roleList, randomCounts } from '../js/game/setup.js';
 import { createRng } from '../js/util/rng.js';
 import { lobby, game, act, submitNight, resolveNight, everyoneVotes, T0 } from './helpers.js';
 
@@ -21,6 +21,16 @@ test('presets by player count', () => {
   assert.equal(presetFor(36), null);
   assert.deepEqual(presetFor(35), { wolves: 7, seer: 1, bodyguard: 1, villagers: 26 }); // past 15 (bots): ~1 wolf in 5
   assert.ok(validate(presetFor(35), 35).ok);
+});
+
+test('MAX chaos: no villagers while specials last, then villagers fill the rest (up to 35 players)', () => {
+  for (let n = 5; n <= 35; n++) for (let seed = 1; seed <= 40; seed++) {
+    const c = randomCounts(n, createRng(seed), { noVillagers: true });
+    assert.ok(validate(c, n).ok, `n=${n} seed=${seed}`);
+    if (n <= 30) assert.equal(c.villagers, 0, `n=${n}`);
+    else assert.ok(c.seer > 0 && c.jester <= 1, `n=${n} keeps its specials`);
+  }
+  assert.ok(randomCounts(35, createRng(1), { noVillagers: true }).villagers > 0);
 });
 
 test('validation rules', () => {

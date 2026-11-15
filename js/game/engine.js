@@ -10,7 +10,7 @@
 //          { type:'narrate', text }    host phone speaks this line
 //          { type:'haptic' }           phase change buzz
 import { ROLES, isWolf, isDecoy, teamOf, TEAM } from './roles.js';
-import { MAX_PLAYERS, MAX_HUMANS, MAX_BOTS, isBotId, MIN_PLAYERS, COUNT_KEYS, presetFor, validate, roleList, fullCounts, randomCounts } from './setup.js';
+import { MAX_PLAYERS, MAX_HUMANS, MAX_BOTS, BOT_NAMES, BOT_TAG, isBotId, MIN_PLAYERS, COUNT_KEYS, presetFor, validate, roleList, fullCounts, randomCounts } from './setup.js';
 import { shuffle } from '../util/rng.js';
 
 export const PHASE = Object.freeze({
@@ -103,7 +103,7 @@ export function reduce(prev, action, rng) {
     case 'setConnected': if (sender) sender.connected = !!action.connected; break;
     case 'leave': err = leave(state, action); break;
     case 'settings': err = settings(state, action, isHost); break;
-    case 'setBots': err = setBots(state, action, isHost); break;
+    case 'setBots': err = setBots(state, action, isHost, rng); break;
     case 'startGame': err = startGame(state, action, isHost, rng, fx); break;
     case 'ready': err = ready(state, action, sender, fx); break;
     case 'nightPick': err = nightPick(state, action, sender, rng, fx); break;
@@ -170,14 +170,22 @@ function settings(state, { patch }, isHost) {
 }
 
 // Host-run bots: ids bot-1..bot-N, joined in one step so 1000 bots cost one state copy, not 1000.
-function setBots(state, { count }, isHost) {
+function setBots(state, { count }, isHost, rng) {
   if (!isHost) return { code: 'forbidden', message: 'Only the host can change bots.' };
   if (state.phase !== PHASE.LOBBY) return { code: 'badPhase', message: 'Bots can only change in the lobby.' };
   const n = Number(count);
   if (!Number.isInteger(n) || n < 0 || n > MAX_BOTS) return { code: 'badBots', message: `Bots must be 0 to ${MAX_BOTS}.` };
   const humans = state.players.filter((p) => !isBotId(p.id));
-  const bots = [];
-  for (let i = 1; i <= n; i++) bots.push({ id: `bot-${i}`, name: `Bot ${i}`, connected: true, role: null, alive: true, ready: false, revealed: false, potions: null });
+  const bots = state.players.filter((p) => isBotId(p.id) && Number(p.id.slice(4)) <= n); // keep existing bots and their names
+  const taken = new Set(state.players.map((p) => p.name));
+  const pool = shuffle(rng, BOT_NAMES.map((x) => x + BOT_TAG).filter((x) => !taken.has(x)));
+  const have = new Set(bots.map((p) => p.id));
+  for (let i = 1; i <= n; i++) {
+    if (have.has(`bot-${i}`)) continue;
+    const name = pool.pop() ?? `Bot ${i}${BOT_TAG}`; // pool used up: plain numbered name
+    bots.push({ id: `bot-${i}`, name, connected: true, role: null, alive: true, ready: false, revealed: false, potions: null });
+  }
+  bots.sort((x, y) => Number(x.id.slice(4)) - Number(y.id.slice(4)));
   state.players = [...humans, ...bots];
   return null;
 }

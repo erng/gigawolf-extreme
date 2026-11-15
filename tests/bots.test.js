@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { reduce, PHASE } from '../js/game/engine.js';
-import { MAX_BOTS, MAX_HUMANS, isBotId } from '../js/game/setup.js';
+import { MAX_BOTS, MAX_HUMANS, BOT_NAMES, BOT_TAG, isBotId } from '../js/game/setup.js';
 import { Host } from '../js/net/host.js';
 import { Client } from '../js/net/client.js';
 import { createFakeNetwork } from '../js/dev/fakepeer.js';
@@ -26,7 +26,10 @@ test('setBots: host only, lobby only, 0..MAX_BOTS, replaces the old bots', () =>
   let s = set(s0, 'p0', 7).state;
   assert.equal(s.players.length, 10);
   assert.deepEqual(s.players.slice(0, 3).map((p) => p.id), ['p0', 'p1', 'p2'], 'humans keep their seats');
-  assert.deepEqual(s.players[3], { id: 'bot-1', name: 'Bot 1', connected: true, role: null, alive: true, ready: false, revealed: false, potions: null });
+  assert.deepEqual({ ...s.players[3], name: '' }, { id: 'bot-1', name: '', connected: true, role: null, alive: true, ready: false, revealed: false, potions: null });
+  const kept = s.players.slice(3, 5).map((p) => p.name);
+  s = set(s, 'p0', 9).state;
+  assert.deepEqual(s.players.slice(3, 5).map((p) => p.name), kept, 'existing bots keep their names when more are added');
   s = set(s, 'p0', 2).state;
   assert.deepEqual(s.players.map((p) => p.id), ['p0', 'p1', 'p2', 'bot-1', 'bot-2']);
   s = set(s, 'p0', 0).state;
@@ -36,6 +39,16 @@ test('setBots: host only, lobby only, 0..MAX_BOTS, replaces the old bots', () =>
   const started = reduce(set(s0, 'p0', 4).state, { kind: 'startGame', by: 'p0', now: T0 }, rng);
   assert.equal(started.state.phase, PHASE.REVEAL);
   assert.equal(set(started.state, 'p0', 1).error?.code, 'badPhase');
+});
+
+test('bot names: cute pool, every one marked (bot), unique and within the name limit for a full room', () => {
+  assert.ok(BOT_NAMES.length >= MAX_BOTS && new Set(BOT_NAMES).size === BOT_NAMES.length);
+  assert.ok(BOT_NAMES.every((n) => (n + BOT_TAG).length <= 20), 'name + tag fits 20 characters');
+  const rng = createRng(3);
+  const s = reduce(lobby(1, rng), { kind: 'setBots', by: 'p0', count: MAX_BOTS, now: T0 }, rng).state;
+  const names = s.players.filter((p) => isBotId(p.id)).map((p) => p.name);
+  assert.equal(new Set(names).size, MAX_BOTS);
+  assert.ok(names.every((n) => n.endsWith(BOT_TAG)));
 });
 
 test('the 15-human limit still holds, and bots do not use up human seats', () => {
@@ -78,7 +91,7 @@ async function runBotGame(botCount, settings = {}) {
   // The host (a human here) plays too, like the real host UI: it is the only one who taps through phases.
   const deadline = Date.now() + 60000;
   while (h.view.phase !== 'gameover') {
-    if (Date.now() > deadline) throw new Error(`stuck in ${h.view.phase} round ${h.view.round}`);
+    if (Date.now() > deadline) throw new Error(`stuck in ${h.view.phase} round ${h.view.round} stage ${h.view.voteResult ? 'result' : ''} progress ${JSON.stringify(h.view.progress)} alive ${h.view.you.alive} prompt ${JSON.stringify(h.view.prompt)?.slice(0, 200)} shooter ${JSON.stringify(h.view.shooter)} roles ${JSON.stringify(host.state.settings)}`);
     const v = h.view; const p = v.prompt;
     if (v.phase === 'reveal') { if (!v.players.find((x) => x.id === v.you.id).ready) h.client.send('ready'); if (v.progress.done === v.progress.total) h.client.send('nextPhase'); }
     else if (v.phase === 'night') { if (p && !p.done && v.you.alive) h.client.send('nightPick', { targetId: p.required ? p.targets[0] : null }); else if (v.progress.done >= v.progress.total - 0) h.client.send('nextPhase'); }

@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { reduce, createState, PHASE } from '../js/game/engine.js';
 import { viewFor } from '../js/game/views.js';
-import { presetFor, validate, COUNT_KEYS, EXTRA_KEYS } from '../js/game/setup.js';
+import { presetFor, validate, COUNT_KEYS, EXTRA_KEYS, randomCounts as realRandomCounts } from '../js/game/setup.js';
 import { isWolf } from '../js/game/roles.js';
 import { createRng } from '../js/util/rng.js';
 import { setLang, tr } from '../js/i18n.js';
@@ -35,14 +35,15 @@ function oracle(players) {
 }
 
 class Sim {
-  constructor(seed, n) {
+  constructor(seed, n, chaos = false) {
+    this.chaos = chaos;
     this.rng = createRng(seed);
     this.r = createRng(seed * 7919 + 13); // decisions
     this.n = n;
     this.steps = 0;
     this.stats = { deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0, jesterWins: 0, sickNights: 0, hauntOffers: 0, hauntVotes: 0, promotions: 0 };
     this.s = createState({ hostId: 'p0', roomCode: 'ABCD' });
-    for (let i = 0; i < n; i++) this.do({ kind: 'join', by: `p${i}`, name: `P${i}` });
+    for (let i = 0; i < n; i++) this.do({ kind: 'join', by: i < 15 ? `p${i}` : `bot-${i}`, name: `P${i}` }); // seats past 15 are bots, as in the app
   }
 
   do(action) {
@@ -137,7 +138,8 @@ class Sim {
 
   playGame() {
     const r = this.r;
-    const counts = randomCounts(r, this.n);
+    // chaos: the app's real MAX chaos generator (no plain villagers), not the sim's own mix
+    const counts = this.chaos ? realRandomCounts(this.n, r, { noVillagers: true }) : randomCounts(r, this.n);
     if (counts) this.do({ kind: 'settings', by: 'p0', patch: { counts } });
     if (r() < 0.3) this.do({ kind: 'settings', by: 'p0', patch: { revealOnDeath: false } });
     this.do({ kind: 'startGame', by: 'p0' });
@@ -287,4 +289,18 @@ test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, ()
   assert.ok(totals.princeSaves > 3, 'prince survived votes');
   assert.ok(totals.jester > 3, 'jester won sometimes');
   assert.ok(totals.village > 0 && totals.wolves > 0);
+});
+
+test(`headless sim: MAX chaos (real generator, no plain villagers), ${SEEDS} games per size`, () => {
+  const wins = { village: 0, wolves: 0, jester: 0 }; const bySize = {};
+  for (const n of [5, 6, 7, 8, 9, 10, 12, 15, 20, 35]) {
+    for (let seed = 1; seed <= (n >= 20 ? Math.min(SEEDS, 10) : SEEDS); seed++) { // big rooms are slow to simulate
+      const sim = new Sim(seed * 100 + n, n, true);
+      const end = sim.playGame(); // every legal move accepted, game terminates, views stay secret
+      wins[end.winner]++;
+      (bySize[n] ??= { village: 0, wolves: 0, jester: 0 })[end.winner]++;
+    }
+  }
+  if (process.env.SIM_VERBOSE) console.log('chaos wins by size', JSON.stringify(bySize));
+  assert.ok(wins.village > 0 && wins.wolves > 0);
 });

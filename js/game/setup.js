@@ -3,6 +3,15 @@ export const MAX_HUMANS = 15;   // real phones in the room
 export const MAX_BOTS = 20;     // host-run bots (they live inside the host's page). 1000 was too slow, see DECISIONS.md
 export const MAX_PLAYERS = MAX_HUMANS + MAX_BOTS;
 export const BOT_PREFIX = 'bot-';
+// Funny, cute names for bots. At most 14 characters, so name + BOT_TAG fits the 20-character name limit.
+export const BOT_TAG = ' (bot)';
+export const BOT_NAMES = [
+  'Sir Fluffy', 'Biscuit', 'Cpt. Waffles', 'Noodle', 'Pickles', 'Mochi', 'Lady Meowsalot', 'Turnip',
+  'Gizmo', 'Banana Pants', 'Muffin', 'Count Snuggles', 'Pudding', 'Waddles', 'Sprout', 'Dumpling',
+  'Professor Bun', 'Tater Tot', 'Marshmallow', 'Beans', 'Sassy Pancake', 'Cupcake', 'Doodle', 'Nugget',
+  'Princess Toast', 'Wobbles', 'Pebble', 'Bubbles', 'Cheeseball', 'Peanut', 'Fuzzball', 'Squeaky',
+  'Jellybean', 'Mr. Sprinkles', 'Gumdrop', 'Snickers', 'Meatball', 'Pip Squeak', 'Boba', 'Zigzag',
+];
 export const isBotId = (id) => typeof id === 'string' && id.startsWith(BOT_PREFIX);
 
 // counts key -> role id
@@ -36,7 +45,8 @@ export function presetFor(n) {
 // game-breaking. Falls back to the classic preset (always valid for any size).
 const CHANCE = { seer: 0.85, bodyguard: 0.7, witch: 0.45, hunter: 0.4, prince: 0.25, diseased: 0.2, apprentice: 0.15, poltergeist: 0.15, jester: 0.25 };
 // MAX chaos (opt-in): no plain villagers at all. Every non-wolf seat is a special role, spread as
-// evenly as possible (each kind once before any repeats; at most one Jester, one Apprentice per Seer).
+// evenly as possible (each kind once before any repeats; at most one Jester, one Apprentice per Seer,
+// three of any other). If a huge room runs out of specials, the leftover seats become plain villagers.
 const SPECIAL_KINDS = ['seer', 'bodyguard', 'hunter', 'witch', 'prince', 'diseased', 'apprentice', 'poltergeist', 'jester'];
 function maxChaosCounts(n, rng) {
   const base = presetFor(n).wolves;
@@ -47,7 +57,7 @@ function maxChaosCounts(n, rng) {
     if (wolfSide >= 2 && rng() < 0.35) { c.wolves--; c.wolfcub = 1; }
     for (let slot = n - wolfSide; slot > 0; slot--) {
       const open = SPECIAL_KINDS.filter((k) => c[k] < (k === 'jester' ? 1 : k === 'apprentice' ? c.seer : 3));
-      if (!open.length) break;
+      if (!open.length) { c.villagers = slot; break; } // specials used up (big rooms): the rest are plain villagers
       const low = Math.min(...open.map((k) => c[k]));
       const pool = open.filter((k) => c[k] === low);
       c[pool[Math.floor(rng() * pool.length)]]++;
