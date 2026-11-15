@@ -328,6 +328,11 @@ test('randomize: always valid for every player count, and the mix is never expos
     for (let i = 0; i < 300; i++) {
       const c = randomCounts(n, rng);
       assert.ok(validate(c, n).ok, `n=${n} ${JSON.stringify(c)}`);
+      // balanced: no stacked specials in small groups, enough plain villagers
+      for (const k of ['seer', 'bodyguard', 'witch', 'hunter', 'prince', 'jester']) {
+        assert.ok(c[k] <= (n >= 12 && k !== 'jester' ? 2 : 1), `n=${n} ${k} ${JSON.stringify(c)}`);
+      }
+      assert.ok(c.villagers >= Math.ceil((n - c.wolves - c.wolfcub) / 3), `n=${n} villagers ${JSON.stringify(c)}`);
     }
   }
   const g = { s: lobby(6), rng: createRng(3) };

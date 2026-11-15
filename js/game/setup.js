@@ -26,22 +26,29 @@ export function presetFor(n) {
   return { wolves, seer: 1, bodyguard: 1, villagers: n - wolves - 2 };
 }
 
-// Secret random mix: rejection-sample counts until validate() accepts, so it can never be an
-// invalid or game-breaking setup. Falls back to the classic preset (always valid for 5..15).
+// Secret random mix. Weighted toward balanced games: the wolf count follows the classic preset
+// (sometimes +/-1), special roles mostly appear once (twice only in big groups), and plenty of
+// plain villagers are kept. Rejection-sampled through validate(), so it can never be invalid or
+// game-breaking. Falls back to the classic preset (always valid for 5..15).
+const CHANCE = { seer: 0.85, bodyguard: 0.7, witch: 0.45, hunter: 0.4, prince: 0.25, jester: 0.25 };
 export function randomCounts(n, rng) {
   if (!Number.isInteger(n) || n < MIN_PLAYERS || n > MAX_PLAYERS) return null;
-  const keys = COUNT_KEYS.filter((k) => k !== 'villagers');
+  const base = presetFor(n).wolves;
   for (let i = 0; i < 500; i++) {
-    const c = {};
-    let used = 0;
-    for (const k of keys) {
-      // Mostly 0 or 1 of each role, occasionally more.
-      const r = rng();
-      c[k] = r < 0.4 ? 0 : r < 0.85 ? 1 : r < 0.96 ? 2 : 3;
-      used += c[k];
+    const r = rng();
+    const wolfSide = Math.max(1, base + (r < 0.2 ? -1 : r > 0.85 ? 1 : 0));
+    const c = { wolves: wolfSide, wolfcub: 0 };
+    if (wolfSide >= 2 && rng() < 0.35) { c.wolves--; c.wolfcub = 1; }
+    let specials = 0;
+    for (const [k, p] of Object.entries(CHANCE)) {
+      c[k] = rng() < p ? 1 : 0;
+      if (c[k] && k !== 'jester' && n >= 12 && rng() < 0.2) c[k] = 2; // doubles only in big groups
+      specials += c[k];
     }
-    c.villagers = n - used;
-    if (c.villagers >= 0 && validate(c, n).ok) return c;
+    // Keep enough plain villagers: at least a third of the village side.
+    c.villagers = n - wolfSide - specials;
+    if (c.villagers < Math.ceil((n - wolfSide) / 3) || c.villagers < 1) continue;
+    if (validate(c, n).ok) return c;
   }
   return presetFor(n);
 }
