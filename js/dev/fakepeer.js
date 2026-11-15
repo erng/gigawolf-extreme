@@ -31,6 +31,18 @@ export function createFakeNetwork() {
         }, 0);
         return mine;
       }
+      // Simulates the broker link dropping (phone slept): existing connections survive.
+      dropBroker() {
+        if (registry.get(this.id) === this) registry.delete(this.id);
+        this.disconnected = true; this._emit('disconnected', this.id);
+      }
+      reconnect() {
+        setTimeout(() => {
+          if (this.destroyed || !this.disconnected) return;
+          if (registry.has(this.id)) return;
+          registry.set(this.id, this); this.disconnected = false; this._emit('open', this.id);
+        }, 0);
+      }
       destroy() {
         this.destroyed = true;
         if (registry.get(this.id) === this) registry.delete(this.id);

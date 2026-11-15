@@ -23,7 +23,7 @@ const NONCE_MEMORY = 50;
 export const DEFAULT_SETTINGS = Object.freeze({
   counts: null, // null = auto preset for current player count
   randomize: false, // secret random mix, rolled at start; nobody (host included) sees the counts
-  revealOnDeath: true,
+  revealOnDeath: false,
   bodyguardSelfProtect: true,
   narration: true,
 });
@@ -229,7 +229,8 @@ function afterDeaths(state, after, fx) {
 
 function announceShot(state, fx) {
   const h = byId(state, state.shots[0]);
-  fx.push({ type: 'narrate', text: `${h.name} was the Hunter! One last shot…` });
+  // With role reveal off the narration must not name the role (the shot itself is unavoidably visible).
+  fx.push({ type: 'narrate', text: state.settings.revealOnDeath ? `${h.name} was the Hunter! One last shot…` : `${h.name} gets one last shot…` });
   fx.push({ type: 'haptic' });
 }
 

@@ -234,3 +234,28 @@ test('stale saves (over 2h) are not offered', () => {
   assert.equal(Host.loadSave(storage, 1000 + 2 * 3600e3 + 1), null);
   assert.ok(Host.loadSave(storage, 1000 + 3600e3));
 });
+
+test('host recovers when its broker link drops (phone slept): new players can still join', async () => {
+  const net = createFakeNetwork();
+  const h = await mkHost(net);
+  const code = h.host.roomCode;
+  h.host.peer.dropBroker();
+  await sleep(30);
+  assert.equal(h.host.peer.disconnected, false, 'host re-registered itself');
+  const a = mkClient(net, code, 'player-aaaa', 'Ann'); a.client.start();
+  await until(() => a.view && a.view.players.length === 2);
+  h.host.close();
+});
+
+test('host.recover() re-registers a destroyed peer under the same room code', async () => {
+  const net = createFakeNetwork();
+  const h = await mkHost(net);
+  const code = h.host.roomCode;
+  h.host.peer.destroy(); // simulates the OS killing the sockets; 'close' is not emitted by the fake
+  h.host.recover();
+  await sleep(30);
+  assert.ok(h.host.peer && !h.host.peer.destroyed);
+  const a = mkClient(net, code, 'player-bbbb', 'Bo'); a.client.start();
+  await until(() => a.view && a.view.players.length >= 2);
+  h.host.close();
+});

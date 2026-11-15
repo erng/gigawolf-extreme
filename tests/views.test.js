@@ -115,7 +115,7 @@ test('secrecy: revealOnDeath off hides dead roles until game over', () => {
 });
 
 test('revealOnDeath on shows the dead role to everyone', () => {
-  const g = game(R7);
+  const g = game(R7, { settings: { revealOnDeath: true } });
   submitNight(g, { p0: 'p4', p1: 'p4', p2: 'p0', p3: 'p5' });
   resolveNight(g);
   const v = viewFor(g.s, 'p6', T0);
@@ -249,6 +249,36 @@ test('secrecy holds across full random games for every player count', () => {
           assertSecrecy(g.s, `seed ${seed} vote partial`);
         }
         act(g, { kind: 'nextPhase', by: g.s.hostId, now });
+      }
+    }
+  }
+});
+
+// With revealOnDeath off, no public text (log, announcements, narration) may name a dead player's role.
+test('revealOnDeath off: log, announcements and narration never name a role (full random games)', async () => {
+  const { reduce } = await import('../js/game/engine.js');
+  const { ROLES } = await import('../js/game/roles.js');
+  const names = Object.values(ROLES).map((r) => r.name);
+  // Allowed by design: the Prince's survival is public, and a voted-out Jester ends the game.
+  const allowed = (text) => /is the Prince!|was the Jester!/.test(text);
+  const leaks = (text) => !allowed(text) && names.some((n) => new RegExp(`\\b${n}\\b`).test(text));
+  for (let seed = 1; seed <= 60; seed++) {
+    const rng = createRng(seed);
+    const roles = ['werewolf', 'wolfcub', 'seer', 'hunter', 'witch', 'prince', 'bodyguard', 'villager', 'villager'];
+    const g = game(roles, { settings: { revealOnDeath: false }, rng });
+    for (let guard = 0; guard < 200 && g.s.phase !== PHASE.GAMEOVER; guard++) {
+      const s = g.s; const alive = s.players.filter((p) => p.alive);
+      const pick = (id) => alive.filter((p) => p.id !== id)[Math.floor(rng() * (alive.length - 1))].id;
+      const run = (a) => { const r = reduce(g.s, { now: T0, ...a }, g.rng); if (!r.error) g.s = r.state; for (const e of r.effects ?? []) if (e.type === 'narrate') assert.ok(!leaks(e.text), `narration leaks: ${e.text}`); return r; };
+      if (s.phase === PHASE.NIGHT) {
+        for (const p of alive) run({ kind: 'nightPick', by: p.id, targetId: ['villager', 'hunter', 'prince', 'jester'].includes(p.role) ? null : pick(p.id) });
+        run({ kind: 'nextPhase', by: 'p0' });
+      } else if (s.phase === PHASE.DAY) run({ kind: 'startVote', by: 'p0' });
+      else if (s.phase === PHASE.VOTE && s.vote.stage === 'voting') for (const p of alive) run({ kind: 'vote', by: p.id, targetId: pick(p.id) });
+      else run({ kind: 'nextPhase', by: 'p0' });
+      if (g.s.phase !== PHASE.GAMEOVER) for (const p of g.s.players) {
+        const v = viewFor(g.s, p.id, T0);
+        for (const l of [...v.log.map((x) => x.text), ...v.announce]) assert.ok(!leaks(l), `seed ${seed}: log leaks: ${l}`);
       }
     }
   }

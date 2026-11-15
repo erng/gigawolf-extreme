@@ -69,9 +69,61 @@ export class Host {
       }
     }
     if (!this.state) this.state = createState({ hostId: this.hostPlayerId, roomCode: this.roomCode });
-    this.peer.on('connection', (conn) => this._onConnection(conn));
-    this.peer.on('error', () => {}); // post-open errors: clients retry on their own
+    this._attach(this.peer);
+    this._watchWake();
     return this.roomCode;
+  }
+
+  _attach(peer) {
+    peer.on('connection', (conn) => this._onConnection(conn));
+    peer.on('error', () => {}); // post-open errors: clients retry on their own
+    // A sleeping phone loses its link to the broker. Established data connections may survive,
+    // but nobody new (or reconnecting) can reach us until we re-register, so do it eagerly.
+    peer.on('disconnected', () => { if (peer === this.peer) this._relink(); });
+    peer.on('close', () => { if (peer === this.peer) this._reclaim(); });
+  }
+
+  // Re-open the broker link, keeping our ID. Retries until it sticks.
+  _relink() {
+    if (this.closed || !this.peer || this.peer.destroyed) return;
+    clearTimeout(this.relinkTimer);
+    try { this.peer.reconnect(); } catch { /* try again below */ }
+    this.relinkTimer = setTimeout(() => { if (this.peer?.disconnected) this._relink(); }, 3000);
+    this.relinkTimer.unref?.();
+  }
+
+  // The peer object itself is dead: register the same room code again.
+  async _reclaim() {
+    if (this.closed || this.reclaiming) return;
+    this.reclaiming = true;
+    const deadline = this.now() + HOST_REGISTER_RETRY_MS;
+    try {
+      while (!this.closed && this.now() < deadline) {
+        try {
+          const peer = await this._register(PEER_ID_PREFIX + this.roomCode);
+          if (this.closed) { try { peer.destroy(); } catch {} return; }
+          this.peer = peer;
+          this._attach(peer);
+          this._broadcast();
+          return;
+        } catch { await new Promise((r) => { const t = setTimeout(r, 2000); t.unref?.(); }); }
+      }
+    } finally { this.reclaiming = false; }
+  }
+
+  // Called when the page wakes up: repair the broker link and push fresh views to everyone.
+  recover() {
+    if (this.closed || !this.peer) return;
+    if (this.peer.destroyed) this._reclaim();
+    else if (this.peer.disconnected) this._relink();
+    this._broadcast();
+  }
+
+  _watchWake() {
+    if (typeof document === 'undefined' || this._wake) return;
+    this._wake = () => { if (document.visibilityState === 'visible') this.recover(); };
+    document.addEventListener('visibilitychange', this._wake);
+    if (typeof window !== 'undefined') window.addEventListener('online', this._wake);
   }
 
   _register(id) {
@@ -188,6 +240,11 @@ export class Host {
 
   close() {
     this.closed = true;
+    clearTimeout(this.relinkTimer);
+    if (this._wake) {
+      document.removeEventListener('visibilitychange', this._wake);
+      if (typeof window !== 'undefined') window.removeEventListener('online', this._wake);
+    }
     for (const c of this.conns.values()) { try { c.close(); } catch {} }
     this.conns.clear();
     try { this.peer?.destroy(); } catch {}

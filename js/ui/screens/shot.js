@@ -8,7 +8,7 @@ export function shotScreen(view, ctx) {
   if (!p) {
     return h('main', { class: 'screen shot' },
       h('div', { class: 'phase' }, t('shot.title')),
-      h('h2', { class: 'announce', role: 'status' }, t('shot.waiting', { name: view.shooter?.name ?? '?' })),
+      h('h2', { class: 'announce', role: 'status' }, t(view.settings.revealOnDeath ? 'shot.waiting' : 'shot.waitingHidden', { name: view.shooter?.name ?? '?' })),
       playerList(view),
       hostAdvance(view, ctx),
     );
