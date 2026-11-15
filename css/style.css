@@ -72,4 +72,5 @@ button.player { cursor: pointer; }
 @keyframes sprite-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { .rolecard .back > .sprite { animation: none; } }
 
+#refresh { display: block; margin: 0 auto calc(16px + env(safe-area-inset-bottom)); background: none; border: 1px solid var(--muted); color: var(--muted); border-radius: 8px; padding: 6px 12px; font-size: .75rem; opacity: .7; cursor: pointer; }
 #version { text-align: center; color: var(--muted); font-size: .75rem; opacity: .7; padding: 8px 16px calc(12px + env(safe-area-inset-bottom)); user-select: none; }

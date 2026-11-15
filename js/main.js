@@ -195,9 +195,37 @@ const $ver = document.getElementById('version');
 const htmlVer = $ver.dataset.htmlVersion;
 $ver.textContent = htmlVer === APP_VERSION ? `v${APP_VERSION}` : `v${APP_VERSION} (page v${htmlVer}) ⚠ stale cache, reload`;
 
+// Force refresh: GitHub Pages serves files with max-age=600, so a plain reload can reuse stale JS/CSS.
+// Re-download index.html, the stylesheet and every module in the import graph with cache:'reload'
+// (which overwrites the HTTP cache entries), then reload. Session storage is kept so players rejoin.
+async function forceRefresh(btn) {
+  if (app.host && !confirm(t('refresh.hostWarn'))) return;
+  btn.disabled = true; btn.textContent = t('refresh.busy');
+  try {
+    const seen = new Set();
+    const queue = [new URL('js/main.js', document.baseURI).href, new URL('css/style.css', document.baseURI).href, new URL('index.html', document.baseURI).href];
+    while (queue.length) {
+      const url = queue.pop();
+      if (seen.has(url)) continue;
+      seen.add(url);
+      const res = await fetch(url, { cache: 'reload' });
+      if (!res.ok || !url.endsWith('.js')) continue;
+      const src = await res.text();
+      for (const m of src.matchAll(/(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g)) queue.push(new URL(m[1], url).href);
+    }
+    await fetch(location.pathname, { cache: 'reload' });
+    if (window.caches) for (const k of await caches.keys()) await caches.delete(k);
+  } catch { /* offline or partial: reload anyway */ }
+  location.reload();
+}
+const $refresh = document.createElement('button');
+$refresh.type = 'button'; $refresh.id = 'refresh'; $refresh.textContent = t('refresh.button');
+$refresh.addEventListener('click', () => forceRefresh($refresh));
+$ver.after($refresh);
+
 // Language switch (English default). Fixed button; re-renders the current screen.
 const $lang = document.getElementById('lang');
-function syncLang() { $lang.textContent = t('lang.button'); $lang.setAttribute('aria-label', getLang() === 'en' ? 'ภาษาไทย' : 'English'); document.documentElement.lang = getLang(); }
+function syncLang() { $refresh.textContent = t('refresh.button'); $lang.textContent = t('lang.button'); $lang.setAttribute('aria-label', getLang() === 'en' ? 'ภาษาไทย' : 'English'); document.documentElement.lang = getLang(); }
 $lang.addEventListener('click', () => { setLang(getLang() === 'en' ? 'th' : 'en'); syncLang(); render(); });
 syncLang();
 boot();
