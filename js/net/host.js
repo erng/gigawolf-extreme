@@ -1,13 +1,13 @@
 // Host: owns the engine state, validates every action, sends per-player views.
 // The host's own UI is a normal Client attached through an in-memory loopback.
-import { createState, reduce, PHASE, nextWake as wakeTime } from '../game/engine.js';
+import { createState, reduce, PHASE } from '../game/engine.js';
 import { viewFor } from '../game/views.js';
 import { createRng } from '../util/rng.js';
 import { msg, validate } from './protocol.js';
 import { createLoopbackPair } from './loopback.js';
 import {
   PEER_ID_PREFIX, PEER_OPTIONS, ROOM_ALPHABET, ROOM_CODE_LENGTH,
-  HOST_REGISTER_RETRY_MS, RESUME_MAX_AGE_MS, RESUME_MIN_DEADLINE_MS,
+  HOST_REGISTER_RETRY_MS, RESUME_MAX_AGE_MS,
 } from '../config.js';
 
 export const SAVE_KEY = 'gigawolf.hostSave';
@@ -37,8 +37,6 @@ export class Host {
     this.peerOptions = peerOptions;
     this.conns = new Map();   // playerId -> conn
     this.peer = null;
-    this.timer = null;
-    this.timerAt = null;
     this.closed = false;
     this.rng = createRng(seed);
     this.roomCode = resume?.roomCode ?? null;
@@ -47,9 +45,6 @@ export class Host {
       this.state = resume.state;
       this.rng.setState(resume.rngState);
       this.state.players.forEach((p) => { p.connected = false; });
-      if (this.state.deadline != null) {
-        this.state.deadline = Math.max(this.state.deadline, this.now() + RESUME_MIN_DEADLINE_MS);
-      }
     }
   }
 
@@ -76,7 +71,6 @@ export class Host {
     if (!this.state) this.state = createState({ hostId: this.hostPlayerId, roomCode: this.roomCode });
     this.peer.on('connection', (conn) => this._onConnection(conn));
     this.peer.on('error', () => {}); // post-open errors: clients retry on their own
-    this._schedule();
     return this.roomCode;
   }
 
@@ -172,29 +166,16 @@ export class Host {
     }
     this._save();
     this._broadcast();
-    this._schedule();
   }
 
   _sendView(playerId) {
     const conn = this.conns.get(playerId);
     if (!conn) return;
-    const view = viewFor(this.state, playerId, this.now());
+    const view = viewFor(this.state, playerId);
     if (view) this._send(conn, msg.view(view));
   }
 
   _broadcast() { for (const id of this.conns.keys()) this._sendView(id); }
-
-  _schedule() {
-    const at = wakeTime(this.state);
-    if (at === this.timerAt && this.timer) return;
-    clearTimeout(this.timer); this.timer = null; this.timerAt = at;
-    if (at == null || this.closed) return;
-    this.timer = setTimeout(() => {
-      this.timer = null; this.timerAt = null;
-      this.apply({ kind: 'tick', now: this.now() });
-      // if the engine had nothing due yet (clock jitter), apply() rescheduled via _afterApply
-    }, Math.max(10, at - this.now()));
-  }
 
   _save() {
     if (!this.storage) return;
@@ -206,7 +187,6 @@ export class Host {
 
   close() {
     this.closed = true;
-    clearTimeout(this.timer);
     for (const c of this.conns.values()) { try { c.close(); } catch {} }
     this.conns.clear();
     try { this.peer?.destroy(); } catch {}

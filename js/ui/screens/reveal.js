@@ -1,4 +1,5 @@
 import { h, ROLE_LABEL, ROLE_BLURB } from '../dom.js';
+import { hostAdvance } from './hostbar.js';
 
 export function revealScreen(view, ctx) {
   const me = view.you; const ui = ctx.ui;
@@ -23,6 +24,6 @@ export function revealScreen(view, ctx) {
     meP.ready
       ? h('p', { class: 'sub' }, `Waiting for others… (${readyCount}/${view.players.length} ready)`)
       : h('button', { class: 'btn primary', onClick: () => ctx.send('ready') }, 'Ready'),
-    h('div', { class: 'timer', 'data-deadline': view.deadline ?? '' }),
+    hostAdvance(view, ctx),
   );
 }

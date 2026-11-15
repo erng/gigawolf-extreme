@@ -203,12 +203,13 @@ test('game over reveals all roles and the winner', () => {
   assert.equal(v.players.find((p) => p.id === 'p0').role, 'werewolf');
 });
 
-test('view carries hostNow and the deadline', () => {
+test('only the host sees progress counts, and they are aggregate only', () => {
   const g = game(R7);
-  const v = viewFor(g.s, 'p0', 12345);
-  assert.equal(v.hostNow, 12345);
-  assert.equal(v.deadline, g.s.deadline);
-  assert.equal(v.deadline, T0 + 45_000);
+  assert.deepEqual(viewFor(g.s, 'p0').progress, { done: 0, total: 7 });
+  assert.equal(viewFor(g.s, 'p4').progress, undefined);
+  act(g, { kind: 'nightPick', by: 'p4', targetId: null });
+  assert.deepEqual(viewFor(g.s, 'p0').progress, { done: 1, total: 7 });
+  assert.ok(!('deadline' in viewFor(g.s, 'p0')));
 });
 
 test('unknown player gets no view', () => {
@@ -238,9 +239,9 @@ test('secrecy holds across full random games for every player count', () => {
           act(g, { kind: 'nightPick', by: p.id, targetId: t.length ? t[Math.floor(rng() * t.length)] : null, now });
           assertSecrecy(g.s, `seed ${seed} night partial`);
         }
-        now += 10_000; act(g, { kind: 'tick', now });
+        act(g, { kind: 'nextPhase', by: g.s.hostId });
       } else if (g.s.phase === PHASE.DAY) {
-        now = g.s.deadline; act(g, { kind: 'tick', now });
+        act(g, { kind: 'startVote', by: g.s.hostId });
       } else {
         for (const p of alive) {
           const o = alive.filter((x) => x.id !== p.id);

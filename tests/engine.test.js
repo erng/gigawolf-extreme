@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reduce, PHASE, nextWake, nightTargets } from '../js/game/engine.js';
+import { reduce, PHASE, nightTargets } from '../js/game/engine.js';
 import { presetFor, validate, roleList } from '../js/game/setup.js';
 import { createRng } from '../js/util/rng.js';
 import { lobby, game, act, submitNight, resolveNight, everyoneVotes, T0 } from './helpers.js';
@@ -50,16 +50,18 @@ test('role deal is repeatable with the same seed', () => {
   assert.deepEqual(ra.players.map((p) => p.role), rb.players.map((p) => p.role));
 });
 
-test('reveal: night starts when all ready, or after 60s', () => {
+test('reveal: night starts only when the host advances (even if not everyone is ready)', () => {
   const rng = createRng(1);
   let s = lobby(5, rng);
   s = reduce(s, { kind: 'startGame', by: 'p0', now: T0 }, rng).state;
-  assert.equal(s.deadline, T0 + 60_000);
-  s = reduce(s, { kind: 'ready', by: 'p0', now: T0 }, rng).state;
-  assert.equal(s.phase, PHASE.REVEAL);
-  s = reduce(s, { kind: 'tick', now: T0 + 60_000 }, rng).state;
+  for (const p of s.players) s = reduce(s, { kind: 'ready', by: p.id, now: T0 }, rng).state;
+  assert.equal(s.phase, PHASE.REVEAL, 'all ready does not auto-start');
+  assert.equal(reduce(s, { kind: 'nextPhase', by: 'p2' }, rng).error.code, 'forbidden');
+  s = reduce(s, { kind: 'nextPhase', by: 'p0' }, rng).state;
   assert.equal(s.phase, PHASE.NIGHT);
   assert.equal(s.round, 1);
+  const idle = reduce(lobby(5, rng), { kind: 'startGame', by: 'p0', now: T0 }, rng).state;
+  assert.equal(reduce(idle, { kind: 'nextPhase', by: 'p0' }, rng).state.phase, PHASE.NIGHT);
 });
 
 test('wolves kill the target; non-wolves cannot be targeted wrongly', () => {
@@ -99,11 +101,10 @@ test('majority beats minority among wolves', () => {
   assert.equal(g.s.players[6].alive, true);
 });
 
-test('no wolf votes means no kill (timeout)', () => {
+test('no wolf pick means no kill (host ends the night)', () => {
   const g = game(R7);
-  act(g, { kind: 'tick', now: g.s.deadline - 1 });
   assert.equal(g.s.phase, PHASE.NIGHT);
-  act(g, { kind: 'tick', now: g.s.deadline });
+  resolveNight(g);
   assert.equal(g.s.phase, PHASE.DAY);
   assert.equal(g.s.players.filter((p) => !p.alive).length, 0);
   assert.equal(g.s.log.at(-1).text, 'Nobody died.');
@@ -136,7 +137,7 @@ test('bodyguard restriction resets after a skipped night', () => {
   act(g, { kind: 'startVote', by: 'p0' });
   everyoneVotes(g, {});
   act(g, { kind: 'nextPhase', by: 'p0' });
-  act(g, { kind: 'tick', now: g.s.deadline }); // night 2 times out, bodyguard skips
+  resolveNight(g); // night 2: bodyguard skips
   assert.equal(g.s.phase, PHASE.DAY);
   assert.equal(g.s.bodyguardLast, null);
 });
@@ -158,15 +159,12 @@ test('seer learns wolf / not wolf immediately after picking', () => {
   assert.equal(act(g2, { kind: 'nightPick', by: 'p2', targetId: 'p2' }).error.code, 'alreadyActed');
 });
 
-test('night ends after the last submission plus a 2-5s delay', () => {
+test('night never ends by itself; only the host ends it', () => {
   const g = game(R7);
   submitNight(g, { p0: 'p4', p1: 'p4', p2: 'p0', p3: 'p5' });
-  const d = g.s.night.resolveAt - T0;
-  assert.ok(d >= 2000 && d <= 5000, `delay ${d}`);
-  act(g, { kind: 'tick', now: T0 + 1999 });
-  assert.equal(g.s.phase, PHASE.NIGHT);
-  assert.equal(nextWake(g.s), g.s.night.resolveAt);
-  resolveNight(g, T0 + 5000);
+  assert.equal(g.s.phase, PHASE.NIGHT, 'everyone confirmed but still night');
+  assert.equal(act(g, { kind: 'nextPhase', by: 'p2' }).error.code, 'forbidden');
+  resolveNight(g);
   assert.equal(g.s.phase, PHASE.DAY);
 });
 
@@ -200,9 +198,7 @@ test('day vote: a tie means no elimination, and voting never times out', () => {
   act(g, { kind: 'vote', by: 'p1', targetId: 'p6' });
   act(g, { kind: 'vote', by: 'p2', targetId: 'p6' });
   assert.equal(g.s.vote.stage, 'voting');
-  assert.equal(g.s.deadline, null, 'voting has no timer');
-  act(g, { kind: 'tick', now: T0 + 60 * 60_000 });
-  assert.equal(g.s.vote.stage, 'voting', 'never times out');
+  assert.equal(g.s.vote.stage, 'voting', 'waits for everyone');
   for (const id of ['p3', 'p5', 'p6']) act(g, { kind: 'vote', by: id, targetId: 'skip' }); // 3 skips vs 3 for p6: tie
   assert.equal(g.s.vote.stage, 'result');
   assert.equal(g.s.vote.result.eliminatedId, null);
@@ -219,12 +215,12 @@ test('day vote validation and host-only startVote', () => {
   assert.equal(act(g, { kind: 'vote', by: 'p4', targetId: 'p0' }).error.code, 'dead');
 });
 
-test('discussion timer starts the vote automatically', () => {
+test('a dead host can still start the vote', () => {
   const g = game(R7);
   submitNight(g, { p0: 'p4', p1: 'p4', p2: 'p0', p3: 'p5' });
   resolveNight(g);
-  assert.equal(g.s.deadline, T0 + 10_000 + 180_000);
-  act(g, { kind: 'tick', now: g.s.deadline });
+  g.s.players.find((p) => p.id === 'p0').alive = false;
+  assert.equal(act(g, { kind: 'startVote', by: 'p0' }).error, undefined);
   assert.equal(g.s.phase, PHASE.VOTE);
 });
 
@@ -236,8 +232,6 @@ test('village wins when no wolves remain (day vote)', () => {
   act(g, { kind: 'startVote', by: 'p0' });
   everyoneVotes(g, { p0: 'p1', p1: 'p0', p2: 'p0', p4: 'p0' });
   assert.equal(g.s.phase, PHASE.VOTE); // result screen first
-  act(g, { kind: 'tick', now: T0 + 10 * 60_000 });
-  assert.equal(g.s.phase, PHASE.VOTE, 'result waits for host');
   assert.equal(act(g, { kind: 'nextPhase', by: 'p2' }).error.code, 'forbidden');
   act(g, { kind: 'nextPhase', by: 'p0' });
   assert.equal(g.s.phase, PHASE.GAMEOVER);
@@ -254,7 +248,7 @@ test('wolves win when living wolves >= living non-wolves (after night)', () => {
   act(g, { kind: 'nextPhase', by: 'p0' });
   assert.equal(g.s.phase, PHASE.NIGHT);
   submitNight(g, { p0: 'p4', p2: 'p0' });
-  resolveNight(g, g.s.deadline);
+  resolveNight(g);
   assert.equal(g.s.phase, PHASE.GAMEOVER);
   assert.equal(g.s.winner, 'wolves');
 });
@@ -319,9 +313,9 @@ test('smoke: random play always reaches game over, for every player count', () =
           const t = nightTargets(g.s, p);
           act(g, { kind: 'nightPick', by: p.id, targetId: t.length ? t[Math.floor(rng() * t.length)] : null, now });
         }
-        now += 10_000; act(g, { kind: 'tick', now });
+        act(g, { kind: 'nextPhase', by: g.s.hostId });
       } else if (g.s.phase === PHASE.DAY) {
-        now = g.s.deadline; act(g, { kind: 'tick', now });
+        act(g, { kind: 'startVote', by: g.s.hostId });
       } else if (g.s.phase === PHASE.VOTE) {
         for (const p of alive) {
           const others = alive.filter((x) => x.id !== p.id);

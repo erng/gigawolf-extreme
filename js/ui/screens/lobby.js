@@ -15,9 +15,6 @@ function toggle(label, on, onChange) {
   return h('label', { class: 'row toggle' }, h('span', null, label),
     h('input', { type: 'checkbox', checked: on ? true : null, onChange: (e) => onChange(e.target.checked) }));
 }
-function secs(label, value, onChange) {
-  return stepper(label, value, onChange, 10, 1800);
-}
 
 export function lobbyScreen(view, ctx) {
   const s = view.settings; const n = view.players.length;
@@ -49,8 +46,6 @@ export function lobbyScreen(view, ctx) {
           toggle('Reveal role on death', s.revealOnDeath, (v) => set({ revealOnDeath: v })),
           toggle('Bodyguard can protect self', s.bodyguardSelfProtect, (v) => set({ bodyguardSelfProtect: v })),
           toggle('Narration (this phone speaks)', s.narration, (v) => set({ narration: v })),
-          secs('Night (sec)', s.nightSecs, (v) => set({ nightSecs: v })),
-          secs('Discussion (sec)', s.discussionSecs, (v) => set({ discussionSecs: v })),
           view.setup && !view.setup.ok && h('p', { class: 'error' }, view.setup.errors.join(' ')),
           h('button', { class: 'btn primary', disabled: !(view.setup?.ok) || n < MIN_PLAYERS, onClick: () => { unlock(); ctx.send('startGame'); } },
             n < MIN_PLAYERS ? `Need ${MIN_PLAYERS - n} more player${MIN_PLAYERS - n === 1 ? '' : 's'}` : 'Start game'))

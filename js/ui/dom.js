@@ -22,9 +22,6 @@ export const ROLE_BLURB = {
   bodyguard: 'Each night, protect one player from the wolves.',
 };
 
-export function timerEl(view) {
-  return h('div', { class: 'timer', 'data-deadline': view.deadline ?? '' , 'aria-live': 'off' }, '');
-}
 
 export function playerList(view, { selectable = [], selected = null, onPick, tags = {}, showRole = false } = {}) {
   return h('ul', { class: 'players', role: 'list' }, view.players.map((p) => {

@@ -23,4 +23,3 @@ export const PING_INTERVAL_MS = 5000;
 export const DEAD_AFTER_MS = 15_000;               // no message for this long => reconnect
 export const HOST_REGISTER_RETRY_MS = 60_000;      // resume: keep trying to reclaim the ID
 export const RESUME_MAX_AGE_MS = 2 * 60 * 60 * 1000;
-export const RESUME_MIN_DEADLINE_MS = 15_000;      // grace added to deadlines on resume

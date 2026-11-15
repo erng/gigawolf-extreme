@@ -67,17 +67,17 @@ test('room code collision picks another code', async () => {
   h1.host.close(); h2.close();
 });
 
-test('clients cannot spoof: tick/unknown kinds rejected, host-only actions refused, no state in views', async () => {
+test('clients cannot spoof: unknown kinds rejected, host-only actions refused, no state in views', async () => {
   const net = createFakeNetwork();
   const h = await mkHost(net);
   const a = mkClient(net, h.host.roomCode, 'player-aaaa', 'Ann'); a.client.start();
   await until(() => a.view);
   a.client.conn.send({ v: 1, type: 'action', kind: 'tick' });
   a.client.send('startGame');
-  a.client.send('settings', { patch: { nightSecs: 99 } });
+  a.client.send('settings', { patch: { narration: false } });
   await until(() => a.errors.length >= 3);
   assert.equal(h.host.state.phase, 'lobby');
-  assert.equal(h.host.state.settings.nightSecs, 45);
+  assert.equal(h.host.state.settings.narration, true);
   assert.ok(!('nonces' in a.view) && !('hostId' in a.view && a.view.night));
   h.host.close();
 });
@@ -86,19 +86,21 @@ async function fullGame(net, h, n) {
   // host + bots; start; wait for gameover
   addBots(h.host, n - 1, { minDelay: 1, maxDelay: 15 });
   await until(() => h.view.players.length === n);
-  h.client.send('settings', { patch: { nightSecs: 10, discussionSecs: 10 } });
+  h.client.send('settings', { patch: { revealOnDeath: false } });
   h.client.send('startGame');
   // host UI plays too, with the same logic as a bot
   let guard = 0;
   const hostPlay = setInterval(() => {
     const v = h.view; if (!v) return;
     if (v.phase === 'reveal' && !v.players.find((p) => p.id === 'hostplayer').ready) h.client.send('ready');
+    // the host advances reveal/night once everyone is in
+    if ((v.phase === 'reveal' || v.phase === 'night') && v.progress && v.progress.done === v.progress.total) h.client.send('nextPhase');
     const p = v.prompt;
     if (p && !p.done && v.you.alive) {
       if (v.phase === 'night') h.client.send('nightPick', { targetId: p.required ? p.targets[0] : null });
       if (v.phase === 'vote') h.client.send('vote', { targetId: 'skip' });
     }
-    if (v.phase === 'day' && v.you.alive) h.client.send('startVote');
+    if (v.phase === 'day') h.client.send('startVote');
     if (v.phase === 'vote' && v.voteResult) h.client.send('nextPhase');
   }, 5);
   try { await until(() => h.view.phase === 'gameover', 60000); } finally { clearInterval(hostPlay); }
@@ -134,22 +136,19 @@ test('a real remote player plus bots, and everyone only ever sees their own role
   h.host.close();
 });
 
-test('night timeout: a player who never acts does not stall the game', async () => {
+test('host can advance past a player who never acts', async () => {
   const net = createFakeNetwork();
-  let skew = 0;
-  const h = await mkHost(net, { now: () => Date.now() + skew });
+  const h = await mkHost(net);
   addBots(h.host, 3, { minDelay: 1, maxDelay: 10 });
   const idle = mkClient(net, h.host.roomCode, 'player-idle', 'Idle'); idle.client.start();
   await until(() => h.view.players.length === 5);
-  h.client.send('settings', { patch: { nightSecs: 10 } });
-  await until(() => h.view.settings.nightSecs === 10);
-  h.host.state.settings.nightSecs = 0.2; h.host.state.settings.discussionSecs = 0.2;
   h.client.send('startGame');
   await until(() => h.view.phase === 'reveal');
-  skew = 61_000; // jump the host clock past the reveal timeout (idle never readies)
-  h.host.apply({ kind: 'tick', now: h.host.now() });
+  // the idle player never readies; the host moves on anyway
+  h.client.send('nextPhase');
   await until(() => h.view.phase === 'night');
-  await until(() => h.view.phase !== 'night', 5000);
+  h.client.send('nextPhase'); // ...and ends the night without the idle player's pick
+  await until(() => h.view.phase !== 'night');
   h.host.close();
 });
 

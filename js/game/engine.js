@@ -1,24 +1,21 @@
-// Pure game state machine. No DOM, no network, no Date.now().
+// Pure game state machine. No DOM, no network, no clock, no timers: the host advances the game.
 // reduce(state, action, rng) -> { state, effects, error? }
 //
-// Actions: { kind, by, now, ...payload, nonce? }
+// Actions: { kind, by, ...payload, nonce? }
 //   join{name} setConnected{connected} leave settings{patch} startGame ready
-//   nightPick{targetId} startVote vote{targetId|'skip'} nextPhase playAgain tick
+//   nightPick{targetId} startVote vote{targetId|'skip'} nextPhase playAgain
 //
 // Effects: { type:'views' }            host should resend every player's view
-//          { type:'timer', at }        wake the engine with a tick at this time
 //          { type:'narrate', text }    host phone speaks this line
 //          { type:'haptic' }           phase change buzz
 import { ROLES, isWolf, teamOf, TEAM } from './roles.js';
 import { MAX_PLAYERS, MIN_PLAYERS, presetFor, validate, roleList } from './setup.js';
-import { randInt, shuffle } from '../util/rng.js';
+import { shuffle } from '../util/rng.js';
 
 export const PHASE = Object.freeze({
   LOBBY: 'lobby', REVEAL: 'reveal', NIGHT: 'night', DAY: 'day', VOTE: 'vote', GAMEOVER: 'gameover',
 });
 
-export const REVEAL_MS = 60_000;
-export const NIGHT_DELAY_MS = [2000, 5000];
 const MAX_NAME = 20;
 const NONCE_MEMORY = 50;
 
@@ -27,8 +24,6 @@ export const DEFAULT_SETTINGS = Object.freeze({
   revealOnDeath: true,
   bodyguardSelfProtect: true,
   narration: true,
-  nightSecs: 45,
-  discussionSecs: 180,
 });
 
 export function createState({ hostId, roomCode }) {
@@ -38,8 +33,7 @@ export function createState({ hostId, roomCode }) {
     settings: { ...DEFAULT_SETTINGS },
     players: [],            // { id, name, connected, role, alive, ready }
     round: 0,
-    deadline: null,
-    night: null,            // { picks, resolveAt, seerResult }
+    night: null,            // { picks, seerResult }
     bodyguardLast: null,    // who the bodyguard protected last night
     seerLog: [],            // { round, targetId, isWolf }
     vote: null,             // { votes, stage:'voting'|'result', result }
@@ -72,22 +66,6 @@ export function checkWinner(state) {
   return null;
 }
 
-// When should the host next call tick? null = never.
-export function nextWake(state) {
-  switch (state.phase) {
-    case PHASE.REVEAL:
-    case PHASE.DAY:
-    case PHASE.VOTE:
-      return state.deadline;
-    case PHASE.NIGHT:
-      return state.night?.resolveAt != null
-        ? Math.min(state.deadline, state.night.resolveAt)
-        : state.deadline;
-    default:
-      return null;
-  }
-}
-
 // ---------- reducer ----------
 export function reduce(prev, action, rng) {
   const state = structuredClone(prev);
@@ -112,9 +90,8 @@ export function reduce(prev, action, rng) {
     case 'nightPick': err = nightPick(state, action, sender, rng, fx); break;
     case 'startVote': err = startVote(state, action, sender, isHost, fx); break;
     case 'vote': err = vote(state, action, sender, fx); break;
-    case 'nextPhase': err = nextPhase(state, action, isHost, fx); break;
+    case 'nextPhase': err = nextPhase(state, action, isHost, rng, fx); break;
     case 'playAgain': err = playAgain(state, isHost); break;
-    case 'tick': tick(state, action.now, rng, fx); break;
     default: err = { code: 'badAction', message: `Unknown action ${action.kind}` };
   }
   if (err) return { state: prev, effects: [], error: err };
@@ -125,8 +102,6 @@ export function reduce(prev, action, rng) {
   }
 
   fx.push({ type: 'views' });
-  const wake = nextWake(state);
-  if (wake != null) fx.push({ type: 'timer', at: wake });
   return { state, effects: fx };
 }
 
@@ -154,7 +129,6 @@ function leave(state, { by }) {
   return null;
 }
 
-const clampInt = (v, lo, hi) => Math.min(hi, Math.max(lo, Math.round(Number(v))));
 
 function settings(state, { patch }, isHost) {
   if (!isHost) return { code: 'forbidden', message: 'Only the host can change settings.' };
@@ -163,8 +137,6 @@ function settings(state, { patch }, isHost) {
   for (const [k, v] of Object.entries(patch ?? {})) {
     switch (k) {
       case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': s[k] = !!v; break;
-      case 'nightSecs': s[k] = clampInt(v, 10, 300); break;
-      case 'discussionSecs': s[k] = clampInt(v, 10, 1800); break;
       case 'counts':
         if (v === null) s.counts = null;
         else s.counts = {
@@ -178,7 +150,7 @@ function settings(state, { patch }, isHost) {
   return null;
 }
 
-function startGame(state, { now }, isHost, rng, fx) {
+function startGame(state, _a, isHost, rng, fx) {
   if (!isHost) return { code: 'forbidden', message: 'Only the host can start.' };
   if (state.phase !== PHASE.LOBBY) return { code: 'badPhase', message: 'Already started.' };
   const v = lobbyValidation(state);
@@ -188,7 +160,6 @@ function startGame(state, { now }, isHost, rng, fx) {
     p.role = roles[i]; p.alive = true; p.ready = false;
   });
   state.phase = PHASE.REVEAL;
-  state.deadline = now + REVEAL_MS;
   state.round = 0;
   state.log = [];
   state.seerLog = [];
@@ -200,20 +171,18 @@ function startGame(state, { now }, isHost, rng, fx) {
   return null;
 }
 
-function ready(state, _a, sender, fx) {
+function ready(state, _a, sender) {
   if (state.phase !== PHASE.REVEAL) return { code: 'badPhase', message: 'Not in role reveal.' };
   if (!sender) return { code: 'unknownPlayer', message: 'Unknown player.' };
   sender.ready = true;
-  if (state.players.every((p) => p.ready)) startNight(state, _a.now, fx);
   return null;
 }
 
 // ---------- night ----------
-function startNight(state, now, fx) {
+function startNight(state, fx) {
   state.round += 1;
   state.phase = PHASE.NIGHT;
-  state.deadline = now + state.settings.nightSecs * 1000;
-  state.night = { picks: {}, resolveAt: null, seerResult: null };
+  state.night = { picks: {}, seerResult: null };
   state.vote = null;
   fx.push({ type: 'narrate', text: 'Night falls. Everyone, check your phone.' });
   fx.push({ type: 'haptic' });
@@ -234,12 +203,11 @@ export function nightTargets(state, player) {
   }
 }
 
-function nightPick(state, { targetId, now }, sender, rng, fx) {
+function nightPick(state, { targetId }, sender) {
   if (state.phase !== PHASE.NIGHT) return { code: 'badPhase', message: 'It is not night.' };
   if (!sender || !sender.alive) return { code: 'dead', message: 'You cannot act.' };
   const n = state.night;
   if (sender.id in n.picks) return { code: 'alreadyActed', message: 'Already confirmed.' };
-  if (n.resolveAt != null && now >= n.resolveAt) return { code: 'tooLate', message: 'Night is over.' };
 
   if (sender.role === 'villager') {
     n.picks[sender.id] = null; // answer ignored
@@ -254,13 +222,10 @@ function nightPick(state, { targetId, now }, sender, rng, fx) {
       state.seerLog.push({ round: state.round, ...n.seerResult });
     }
   }
-  if (living(state).every((p) => p.id in n.picks) && n.resolveAt == null) {
-    n.resolveAt = now + randInt(rng, ...NIGHT_DELAY_MS);
-  }
   return null;
 }
 
-function resolveNight(state, now, rng, fx) {
+function resolveNight(state, rng, fx) {
   const n = state.night;
   // Wolf target: most votes, random among ties.
   const counts = new Map();
@@ -283,7 +248,7 @@ function resolveNight(state, now, rng, fx) {
     killed = byId(state, target);
     killed.alive = false;
   }
-  startDay(state, killed, now, fx);
+  startDay(state, killed, fx);
 }
 
 // ---------- day ----------
@@ -291,7 +256,7 @@ function roleNote(state, p) {
   return state.settings.revealOnDeath ? ` They were a ${ROLES[p.role].name}.` : '';
 }
 
-function startDay(state, killed, now, fx) {
+function startDay(state, killed, fx) {
   const text = killed
     ? `${killed.name} was killed in the night.${roleNote(state, killed)}`
     : 'Nobody died.';
@@ -300,28 +265,25 @@ function startDay(state, killed, now, fx) {
   const winner = checkWinner(state);
   if (winner) return endGame(state, winner, fx, text);
   state.phase = PHASE.DAY;
-  state.deadline = now + state.settings.discussionSecs * 1000;
   fx.push({ type: 'narrate', text: `Day breaks. ${text}` });
   fx.push({ type: 'haptic' });
 }
 
-function startVote(state, { now }, sender, isHost, fx) {
+function startVote(state, _a, _sender, isHost, fx) {
   if (!isHost) return { code: 'forbidden', message: 'Only the host can start the vote.' };
   if (state.phase !== PHASE.DAY) return { code: 'badPhase', message: 'Not in discussion.' };
-  if (!sender?.alive) return { code: 'dead', message: 'You cannot act.' };
-  beginVote(state, now, fx);
+  beginVote(state, fx);
   return null;
 }
 
-function beginVote(state, now, fx) {
+function beginVote(state, fx) {
   state.phase = PHASE.VOTE;
-  state.deadline = null; // no timer: resolves once every living player has voted
   state.vote = { votes: {}, stage: 'voting', result: null };
   fx.push({ type: 'narrate', text: 'Time to vote.' });
   fx.push({ type: 'haptic' });
 }
 
-function vote(state, { targetId, now }, sender, fx) {
+function vote(state, { targetId }, sender, fx) {
   if (state.phase !== PHASE.VOTE || state.vote.stage !== 'voting') {
     return { code: 'badPhase', message: 'Not voting.' };
   }
@@ -332,11 +294,11 @@ function vote(state, { targetId, now }, sender, fx) {
     if (!t || !t.alive || t.id === sender.id) return { code: 'badTarget', message: 'Invalid target.' };
   }
   state.vote.votes[sender.id] = targetId;
-  if (living(state).every((p) => p.id in state.vote.votes)) resolveVote(state, now, fx);
+  if (living(state).every((p) => p.id in state.vote.votes)) resolveVote(state, fx);
   return null;
 }
 
-function resolveVote(state, now, fx) {
+function resolveVote(state, fx) {
   const votes = {};
   const counts = new Map();
   for (const p of living(state)) {
@@ -358,26 +320,29 @@ function resolveVote(state, now, fx) {
   state.log.push({ text });
   state.vote.stage = 'result';
   state.vote.result = { votes, counts: Object.fromEntries(counts), eliminatedId };
-  state.deadline = null; // result stays up until the host clicks Next
   state.winner = checkWinner(state); // announced after the result screen
   fx.push({ type: 'narrate', text });
 }
 
-function nextPhase(state, { now }, isHost, fx) {
+// The host's single "advance" control. Missing players simply count as no pick / Skip.
+function nextPhase(state, _a, isHost, rng, fx) {
   if (!isHost) return { code: 'forbidden', message: 'Only the host can continue.' };
-  if (state.phase !== PHASE.VOTE || state.vote.stage !== 'result') {
-    return { code: 'badPhase', message: 'Nothing to continue.' };
+  switch (state.phase) {
+    case PHASE.REVEAL: startNight(state, fx); return null;
+    case PHASE.NIGHT: resolveNight(state, rng, fx); return null;
+    case PHASE.VOTE:
+      if (state.vote.stage === 'voting') resolveVote(state, fx);
+      else if (state.winner) endGame(state, state.winner, fx, null);
+      else startNight(state, fx);
+      return null;
+    default: return { code: 'badPhase', message: 'Nothing to continue.' };
   }
-  if (state.winner) endGame(state, state.winner, fx, null);
-  else startNight(state, now, fx);
-  return null;
 }
 
 // ---------- end ----------
 function endGame(state, winner, fx, lastText) {
   state.winner = winner;
   state.phase = PHASE.GAMEOVER;
-  state.deadline = null;
   const line = winner === TEAM.VILLAGE ? 'The village wins!' : 'The wolves win!';
   state.log.push({ text: line });
   fx.push({ type: 'narrate', text: `${lastText ? lastText + ' ' : ''}${line}` });
@@ -389,7 +354,6 @@ function playAgain(state, isHost) {
   if (state.phase !== PHASE.GAMEOVER) return { code: 'badPhase', message: 'Game is not over.' };
   state.phase = PHASE.LOBBY;
   state.round = 0;
-  state.deadline = null;
   state.night = null;
   state.vote = null;
   state.winner = null;
@@ -398,30 +362,6 @@ function playAgain(state, isHost) {
   state.log = [];
   state.players.forEach((p) => { p.role = null; p.alive = true; p.ready = false; });
   return null;
-}
-
-// ---------- time ----------
-function tick(state, now, rng, fx) {
-  switch (state.phase) {
-    case PHASE.REVEAL:
-      if (now >= state.deadline) startNight(state, now, fx);
-      break;
-    case PHASE.NIGHT: {
-      const n = state.night;
-      if (now >= state.deadline || (n.resolveAt != null && now >= n.resolveAt)) {
-        resolveNight(state, now, rng, fx);
-      }
-      break;
-    }
-    case PHASE.DAY:
-      if (now >= state.deadline) beginVote(state, now, fx);
-      break;
-    case PHASE.VOTE:
-      if (state.vote.stage === 'voting') {
-        // no timeout: voting ends when everyone has voted
-      }
-      break; // result stage waits for the host (nextPhase)
-  }
 }
 
 export { teamOf, MIN_PLAYERS };

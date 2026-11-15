@@ -21,7 +21,7 @@ const $banner = document.getElementById('banner');
 const $toast = document.getElementById('toast');
 const params = new URLSearchParams(location.search);
 
-const app = { client: null, host: null, view: null, status: null, error: null, offset: 0, prevKey: null, connecting: false };
+const app = { client: null, host: null, view: null, status: null, error: null, prevKey: null, connecting: false };
 const ui = { pick: null, holding: false, key: null };
 
 const SESSION_KEY = 'gigawolf.session';
@@ -57,7 +57,6 @@ function wire(client) {
     toast(e.message);
   };
   client.onView = (view) => {
-    app.offset = view.hostNow - Date.now();
     onViewChange(app.view, view);
     app.view = view;
     render();
@@ -174,19 +173,7 @@ function render() {
   const down = app.status === 'reconnecting' && !!v;
   $banner.hidden = !down;
   $banner.textContent = down ? 'Host disconnected, waiting…' : '';
-  tickTimers();
 }
-
-function tickTimers() {
-  const now = Date.now() + app.offset;
-  for (const el of document.querySelectorAll('.timer')) {
-    const d = Number(el.dataset.deadline);
-    if (!d) { el.textContent = ''; continue; }
-    const s = Math.max(0, Math.ceil((d - now) / 1000));
-    el.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-  }
-}
-setInterval(tickTimers, 250);
 
 // ---------- boot ----------
 function boot() {

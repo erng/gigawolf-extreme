@@ -1,4 +1,4 @@
-// viewFor(state, playerId, hostNow) -> the only thing a client ever receives.
+// viewFor(state, playerId) -> the only thing a client ever receives.
 // Never include another player's role/picks unless it is public.
 import { ROLES, isWolf, teamOf } from './roles.js';
 import { PHASE, nightTargets, effectiveCounts, lobbyValidation } from './engine.js';
@@ -21,7 +21,7 @@ function nightPrompt(state, me) {
   };
 }
 
-export function viewFor(state, playerId, hostNow = 0) {
+export function viewFor(state, playerId) {
   const me = state.players.find((p) => p.id === playerId);
   if (!me) return null;
   const inGame = state.phase !== PHASE.LOBBY;
@@ -29,8 +29,6 @@ export function viewFor(state, playerId, hostNow = 0) {
   const view = {
     phase: state.phase,
     round: state.round,
-    deadline: state.deadline, // night resolveAt is deliberately never exposed
-    hostNow,
     roomCode: state.roomCode,
     isHost: me.id === state.hostId,
     hostId: state.hostId,
@@ -54,6 +52,14 @@ export function viewFor(state, playerId, hostNow = 0) {
     prompt: null,
     log: state.log.map((l) => ({ text: l.text })),
   };
+
+  // Host-only aggregate progress (never says who), so the host knows when to advance.
+  if (view.isHost) {
+    const alive = state.players.filter((p) => p.alive);
+    if (state.phase === PHASE.REVEAL) view.progress = { done: state.players.filter((p) => p.ready).length, total: state.players.length };
+    if (state.phase === PHASE.NIGHT) view.progress = { done: alive.filter((p) => p.id in state.night.picks).length, total: alive.length };
+    if (state.phase === PHASE.VOTE && state.vote.stage === 'voting') view.progress = { done: alive.filter((p) => p.id in state.vote.votes).length, total: alive.length };
+  }
 
   if (state.phase === PHASE.LOBBY) {
     const v = lobbyValidation(state);

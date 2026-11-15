@@ -37,7 +37,7 @@ Engine, views (secrecy), and networking (host/client/rejoin/resume, over an in-m
 - `js/net/` protocol, host, client, loopback
 - `js/ui/` screens, narrator
 - `js/dev/` bots and the fake PeerJS used by tests
-- `js/config.js` timers, PeerJS broker host/port/path, STUN server. Swap the broker for a self-hosted PeerServer here.
+- `js/config.js` connection timeouts, PeerJS broker host/port/path, STUN server. Swap the broker for a self-hosted PeerServer here.
 - `DECISIONS.md` rule ambiguities and how they were resolved
 
 ## Troubleshooting
