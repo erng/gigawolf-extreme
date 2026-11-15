@@ -7,6 +7,7 @@ import { viewFor } from '../js/game/views.js';
 import { presetFor, validate, COUNT_KEYS, EXTRA_KEYS } from '../js/game/setup.js';
 import { isWolf } from '../js/game/roles.js';
 import { createRng } from '../js/util/rng.js';
+import { setLang, tr } from '../js/i18n.js';
 
 const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
 
@@ -236,8 +237,10 @@ class Sim {
       assert.equal(pr.haunt, true);
       this.stats.hauntOffers++;
       const roll = r();
-      if (roll < 0.15) continue; // idle ghost: the host ends the vote
-      if (roll < 0.4) this.do({ kind: 'vote', by: id, targetId: 'pass' });
+      if (roll < 0.15) { // idle ghost: the host is held back until they decide
+        assert.ok(reduce(this.s, { now: 0, kind: 'nextPhase', by: 'p0' }, this.rng).error, 'vote is held for the ghost');
+        this.do({ kind: 'vote', by: id, targetId: 'pass' });
+      } else if (roll < 0.4) this.do({ kind: 'vote', by: id, targetId: 'pass' });
       else { this.stats.hauntVotes++; this.do({ kind: 'vote', by: id, targetId: r() < 0.9 ? pick(r, pr.targets) : 'skip' }); }
     }
     if (this.s.phase === PHASE.VOTE && this.s.vote.stage === 'voting') this.do({ kind: 'nextPhase', by: 'p0' });
@@ -247,6 +250,8 @@ class Sim {
 
 const SEEDS = Number(process.env.SIM_SEEDS ?? 150);
 
+setLang('th');
+
 test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, () => {
   const totals = { games: 0, village: 0, wolves: 0, jester: 0, deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0, sickNights: 0, hauntOffers: 0, hauntVotes: 0, promotions: 0 };
   for (let n = 5; n <= 15; n++) {
@@ -254,6 +259,11 @@ test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, ()
       const sim = new Sim(seed * 100 + n, n);
       const end = sim.playGame();
       totals.games++; totals[end.winner]++;
+      // Every log / history line must be fully translated: player names are P<n>, so no English word may remain.
+      for (const text of [...end.log.map((l) => l.text), ...end.history.map((e) => e.text)]) {
+        const out = tr(text).replace(/\bRIP\b/g, '');
+        assert.ok(!/[A-Za-z]{3,}/.test(out), `untranslated: "${text}" -> "${out}"`);
+      }
       for (const k of ['deaths', 'shots', 'doubleKills', 'heals', 'poisons', 'princeSaves', 'sickNights', 'hauntOffers', 'hauntVotes', 'promotions']) totals[k] += sim.stats[k];
       // play again resets everything and a second game on the same state works
       if (seed % 10 === 0) {

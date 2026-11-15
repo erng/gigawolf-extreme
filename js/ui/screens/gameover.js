@@ -3,12 +3,13 @@ import { t, tr } from '../../i18n.js';
 import { roleSprite } from '../pixel.js';
 
 export function gameoverScreen(view, ctx) {
-  const wolves = view.winner === 'wolves'; const jester = view.winner === 'jester';
+  const wolves = view.winner === 'wolves'; const jester = view.winner === 'jester'; const ended = view.winner === 'ended';
   const me = view.you;
   const won = (me.team === view.winner);
   return h('main', { class: 'screen gameover' },
-    h('h1', { class: wolves ? 'wolfwin' : jester ? 'jesterwin' : 'villwin' }, wolves ? t('over.wolves') : jester ? t('over.jester') : t('over.village')),
-    h('p', { class: 'sub' }, won ? t('over.won') : t('over.lost')),
+    h('h1', { class: ended ? '' : wolves ? 'wolfwin' : jester ? 'jesterwin' : 'villwin' },
+      ended ? t('over.ended') : wolves ? t('over.wolves') : jester ? t('over.jester') : t('over.village')),
+    !ended && h('p', { class: 'sub' }, won ? t('over.won') : t('over.lost')),
     h('ul', { class: 'players' }, view.players.map((p) =>
       h('li', null, h('div', { class: `player${p.alive ? '' : ' dead'}` },
         h('span', { class: 'pname' }, p.name, p.id === me.id ? t('you') : ''),

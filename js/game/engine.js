@@ -23,6 +23,7 @@ const NONCE_MEMORY = 50;
 export const DEFAULT_SETTINGS = Object.freeze({
   counts: null, // null = auto preset for current player count
   randomize: false, // secret random mix, rolled at start; nobody (host included) sees the counts
+  noVillagers: false, // only with randomize: MAX chaos, every non-wolf seat is a special role
   revealOnDeath: false,
   bodyguardSelfProtect: true,
   narration: true,
@@ -45,7 +46,7 @@ export function createState({ hostId, roomCode }) {
     shots: [],              // dead hunters who still owe a shot
     afterShot: null,        // 'day' | 'vote': where the game goes once the shots are done
     lines: [],              // announcements for the current dawn / vote result
-    winner: null,           // 'village' | 'wolves' | 'jester'
+    winner: null,           // 'village' | 'wolves' | 'jester' | 'ended' (host stopped the game)
     log: [],                // { text }
     history: [],            // { kind: 'night'|'day'|'end', round, text }: full detail, only shown at game over
     nonces: {},             // playerId -> recent applied nonces
@@ -110,6 +111,7 @@ export function reduce(prev, action, rng) {
     case 'shoot': err = shoot(state, action, sender, fx); break;
     case 'nextPhase': err = nextPhase(state, action, isHost, rng, fx); break;
     case 'playAgain': err = playAgain(state, isHost); break;
+    case 'endEarly': err = endEarly(state, isHost, fx); break;
     default: err = { code: 'badAction', message: `Unknown action ${action.kind}` };
   }
   if (err) return { state: prev, effects: [], error: err };
@@ -154,7 +156,7 @@ function settings(state, { patch }, isHost) {
   const s = state.settings;
   for (const [k, v] of Object.entries(patch ?? {})) {
     switch (k) {
-      case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': case 'randomize': s[k] = !!v; break;
+      case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': case 'randomize': case 'noVillagers': s[k] = !!v; break;
       case 'counts':
         s.randomize = false;
         if (v === null) s.counts = null;
@@ -171,7 +173,7 @@ function startGame(state, _a, isHost, rng, fx) {
   if (state.phase !== PHASE.LOBBY) return { code: 'badPhase', message: 'Already started.' };
   const v = lobbyValidation(state);
   if (!v.ok) return { code: 'badSetup', message: v.errors.join(' ') };
-  const roles = shuffle(rng, roleList(state.settings.randomize ? randomCounts(state.players.length, rng) : effectiveCounts(state)));
+  const roles = shuffle(rng, roleList(state.settings.randomize ? randomCounts(state.players.length, rng, { noVillagers: state.settings.noVillagers }) : effectiveCounts(state)));
   state.players.forEach((p, i) => {
     p.role = roles[i]; p.alive = true; p.ready = false; p.revealed = false;
     p.potions = p.role === 'witch' ? { heal: true, poison: true } : null;
@@ -579,7 +581,14 @@ function nextPhase(state, _a, isHost, rng, fx) {
       return null;
     }
     case PHASE.VOTE:
-      if (state.vote.stage === 'voting') resolveVote(state, fx);
+      if (state.vote.stage === 'voting') {
+        // Hold the vote for a haunting Graveyard Voter who has not decided yet: they must not miss their
+        // haunt on timing. This reveals to the host that a ghost exists (accepted). A ghost whose phone is
+        // disconnected does not block, so a dead connection cannot stall the game.
+        const pending = (state.vote.ghosts ?? []).some((id) => !(id in state.vote.votes) && byId(state, id)?.connected !== false);
+        if (pending) return { code: 'waiting', message: 'Waiting for everyone to vote.' };
+        resolveVote(state, fx);
+      }
       else if (state.winner) endGame(state, state.winner, fx, null);
       else startNight(state, fx);
       return null;
@@ -592,11 +601,20 @@ function endGame(state, winner, fx, lastText) {
   state.winner = winner;
   state.phase = PHASE.GAMEOVER;
   const line = winner === TEAM.VILLAGE ? 'The village wins!'
-    : winner === TEAM.JESTER ? 'The Jester wins!' : 'The wolves win!';
+    : winner === TEAM.JESTER ? 'The Jester wins!'
+    : winner === 'ended' ? 'The host ended the game early.' : 'The wolves win!';
   state.log.push({ text: line });
   hist(state, 'end', line);
   fx.push({ type: 'narrate', text: `${lastText ? lastText + ' ' : ''}${line}` });
   fx.push({ type: 'haptic' });
+}
+
+// The host can stop a game in progress. Nobody wins; everyone sees the roles and the history so far.
+function endEarly(state, isHost, fx) {
+  if (!isHost) return { code: 'forbidden', message: 'Only the host can end the game.' };
+  if (state.phase === PHASE.LOBBY || state.phase === PHASE.GAMEOVER) return { code: 'badPhase', message: 'No game is running.' };
+  endGame(state, 'ended', fx, null);
+  return null;
 }
 
 function playAgain(state, isHost) {

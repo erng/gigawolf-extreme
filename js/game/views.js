@@ -80,7 +80,12 @@ export function viewFor(state, playerId) {
     const alive = state.players.filter((p) => p.alive);
     if (state.phase === PHASE.REVEAL) view.progress = { done: state.players.filter((p) => p.ready).length, total: state.players.length };
     if (state.phase === PHASE.NIGHT) view.progress = { done: alive.filter((p) => p.id in state.night.picks).length, total: alive.length };
-    if (state.phase === PHASE.VOTE && state.vote.stage === 'voting') view.progress = { done: alive.filter((p) => p.id in state.vote.votes).length, total: alive.length };
+    if (state.phase === PHASE.VOTE && state.vote.stage === 'voting') {
+      // A haunting ghost is counted too: the vote is held for them, so the host must see why it is not done.
+      const ghosts = (state.vote.ghosts ?? []).map((id) => state.players.find((p) => p.id === id)).filter(Boolean);
+      const voters = [...alive, ...ghosts];
+      view.progress = { done: voters.filter((p) => p.id in state.vote.votes).length, total: voters.length };
+    }
   }
 
   if (state.phase === PHASE.LOBBY) {

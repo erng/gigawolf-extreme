@@ -31,8 +31,31 @@ export function presetFor(n) {
 // plain villagers are kept. Rejection-sampled through validate(), so it can never be invalid or
 // game-breaking. Falls back to the classic preset (always valid for 5..15).
 const CHANCE = { seer: 0.85, bodyguard: 0.7, witch: 0.45, hunter: 0.4, prince: 0.25, diseased: 0.2, apprentice: 0.15, poltergeist: 0.15, jester: 0.25 };
-export function randomCounts(n, rng) {
+// MAX chaos (opt-in): no plain villagers at all. Every non-wolf seat is a special role, spread as
+// evenly as possible (each kind once before any repeats; at most one Jester, one Apprentice per Seer).
+const SPECIAL_KINDS = ['seer', 'bodyguard', 'hunter', 'witch', 'prince', 'diseased', 'apprentice', 'poltergeist', 'jester'];
+function maxChaosCounts(n, rng) {
+  const base = presetFor(n).wolves;
+  for (let i = 0; i < 500; i++) {
+    const r = rng();
+    const wolfSide = Math.max(1, base + (r < 0.2 ? -1 : r > 0.85 ? 1 : 0));
+    const c = { wolves: wolfSide, wolfcub: 0, villagers: 0, ...Object.fromEntries(SPECIAL_KINDS.map((k) => [k, 0])) };
+    if (wolfSide >= 2 && rng() < 0.35) { c.wolves--; c.wolfcub = 1; }
+    for (let slot = n - wolfSide; slot > 0; slot--) {
+      const open = SPECIAL_KINDS.filter((k) => c[k] < (k === 'jester' ? 1 : k === 'apprentice' ? c.seer : 3));
+      if (!open.length) break;
+      const low = Math.min(...open.map((k) => c[k]));
+      const pool = open.filter((k) => c[k] === low);
+      c[pool[Math.floor(rng() * pool.length)]]++;
+    }
+    if (validate(c, n).ok) return c;
+  }
+  return null;
+}
+
+export function randomCounts(n, rng, { noVillagers = false } = {}) {
   if (!Number.isInteger(n) || n < MIN_PLAYERS || n > MAX_PLAYERS) return null;
+  if (noVillagers) { const c = maxChaosCounts(n, rng); if (c) return c; }
   const base = presetFor(n).wolves;
   for (let i = 0; i < 500; i++) {
     const r = rng();

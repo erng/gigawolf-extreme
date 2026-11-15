@@ -736,13 +736,28 @@ test('Graveyard Voter: voted out at a vote, the haunt belongs to the NEXT vote o
   assert.equal(viewFor(g.s, 'p3').prompt, null, 'one haunt only');
 });
 
-test('Graveyard Voter: an unused haunt expires and does not carry over', () => {
+test('Graveyard Voter: the vote is held for the ghost; the host sees them in the progress count', () => {
   const g = game(RP);
   ghostNight(g, 'p3');
   startVote(g);
   livingVotes(g, {});
   assert.equal(g.s.vote.stage, 'voting', 'waits for the ghost');
-  host(g, 'nextPhase'); // the host ends the vote without the ghost
+  const prog = viewFor(g.s, 'p0').progress;
+  assert.equal(prog.total, prog.done + 1, 'ghost counted as still to act');
+  assert.ok(host(g, 'nextPhase').error, 'host cannot end the vote under the ghost');
+  assert.equal(g.s.vote.stage, 'voting');
+  assert.ok(!act(g, { kind: 'vote', by: 'p3', targetId: 'pass' }).error);
+  assert.equal(g.s.vote.stage, 'result');
+});
+
+test('Graveyard Voter: a disconnected ghost does not stall the vote; an unused haunt expires', () => {
+  const g = game(RP);
+  ghostNight(g, 'p3');
+  startVote(g);
+  livingVotes(g, {});
+  assert.ok(host(g, 'nextPhase').error);
+  act(g, { kind: 'setConnected', by: 'p3', connected: false });
+  host(g, 'nextPhase'); // the ghost is gone: the host may end the vote
   assert.equal(g.s.vote.stage, 'result');
   assert.equal(p3in(g), false);
   toNextVote(g);
@@ -818,15 +833,16 @@ test('Graveyard Voter: the haunt vote still cannot beat a Prince\'s first-vote i
   assert.equal(g.s.vote.result.princeId, 'p5');
 });
 
-test('Graveyard Voter: no stall. Auto-resolves only once the living and the ghost are done; the host can always end it', () => {
+test('Graveyard Voter: auto-resolves only once the living and the ghost are done; the host is held until the ghost decides', () => {
   const g = game(RP);
   ghostNight(g, 'p3');
   startVote(g);
   livingVotes(g, {});
   assert.equal(g.s.vote.stage, 'voting');
   const hv = viewFor(g.s, 'p0');
-  assert.deepEqual(hv.progress, { done: 8, total: 8 }, 'host count is living voters only: no ghost leak');
-  host(g, 'nextPhase');
+  assert.deepEqual(hv.progress, { done: 8, total: 9 }, 'host count includes the ghost (accepted leak)');
+  assert.ok(host(g, 'nextPhase').error);
+  act(g, { kind: 'vote', by: 'p3', targetId: 'pass' });
   assert.equal(g.s.vote.stage, 'result');
   // with no ghost nothing changes: resolves the moment the last living player votes
   const g2 = game(RP);
@@ -837,13 +853,13 @@ test('Graveyard Voter: no stall. Auto-resolves only once the living and the ghos
   assert.equal(g2.s.vote.stage, 'result');
 });
 
-test('Graveyard Voter: the host progress count never includes the ghost', () => {
+test('Graveyard Voter: the host progress count includes the ghost (the vote is held for them)', () => {
   const g = game(RP);
   ghostNight(g, 'p3');
   startVote(g);
-  assert.deepEqual(viewFor(g.s, 'p0').progress, { done: 0, total: 8 });
+  assert.deepEqual(viewFor(g.s, 'p0').progress, { done: 0, total: 9 });
   act(g, { kind: 'vote', by: 'p3', targetId: 'p5' });
-  assert.deepEqual(viewFor(g.s, 'p0').progress, { done: 0, total: 8 });
+  assert.deepEqual(viewFor(g.s, 'p0').progress, { done: 1, total: 9 });
 });
 
 test('Graveyard Voter: never affects wolf parity or win checks', () => {
@@ -884,4 +900,24 @@ test('Graveyard Voter: play again resets the haunt', () => {
   g.s.phase = PHASE.GAMEOVER;
   host(g, 'playAgain');
   assert.equal(g.s.players.find((p) => p.id === 'p3').haunt, false);
+});
+
+test('MAX chaos (noVillagers): valid, zero plain villagers, specials spread, default off', async () => {
+  const { randomCounts } = await import('../js/game/setup.js');
+  const { DEFAULT_SETTINGS } = await import('../js/game/engine.js');
+  assert.equal(DEFAULT_SETTINGS.noVillagers, false);
+  const rng = createRng(11);
+  for (let n = 5; n <= 15; n++) {
+    for (let i = 0; i < 300; i++) {
+      const c = randomCounts(n, rng, { noVillagers: true });
+      assert.ok(validate(c, n).ok, `n=${n} ${JSON.stringify(c)}`);
+      assert.equal(c.villagers, 0, `n=${n} ${JSON.stringify(c)}`);
+      assert.ok(c.jester <= 1);
+    }
+  }
+  const g = { s: lobby(8), rng: createRng(5) };
+  act(g, { kind: 'settings', by: 'p0', patch: { randomize: true, noVillagers: true } });
+  host(g, 'startGame');
+  assert.equal(g.s.phase, PHASE.REVEAL);
+  assert.equal(g.s.players.filter((p) => p.role === 'villager').length, 0);
 });

@@ -46,7 +46,9 @@ export function lobbyScreen(view, ctx) {
             ? h('div', { class: 'randombanner' },
                 h('strong', null, t('lobby.randomOn')),
                 h('p', null, t('lobby.randomWhat')),
-                h('p', null, t('lobby.randomHint')))
+                h('p', null, t('lobby.randomHint')),
+                toggle(t('lobby.noVillagers'), !!s.noVillagers, (v) => set({ noVillagers: v })),
+                s.noVillagers && h('p', null, t('lobby.noVillagersHint')))
             : h('p', { class: 'sub small' }, t('lobby.manualHint')),
           c && stepper(t('lobby.wolves'), c.wolves, (v) => setCounts('wolves', v), 0, 7),
           c && stepper(t('lobby.seer'), c.seer, (v) => setCounts('seer', v), c.apprentice, 3),

@@ -55,6 +55,10 @@ const TH = {
   'dead.log': 'เมื่อกี้เกิดอะไรขึ้น', 'dead.nothing': 'ยังเงียบอยู่เลย',
   'phase.night': 'กลางคืน', 'phase.day': 'กลางวัน', 'phase.vote': 'โหวต', 'phase.reveal': 'เปิดบทบาท',
   'over.wolves': 'หมาป่าชนะ! หมู่บ้านโดนจัดไป', 'over.village': 'หมู่บ้านชนะ! หมาป่าเรียบร้อย', 'over.won': 'ทีมเธอชนะ เก่งมาก ไปอวดเลย', 'over.lost': 'ทีมเธอแพ้ ไม่เป็นไร ตาหน้าเอาคืน',
+  'over.ended': 'เจ้าของห้องปิดเกมก่อนจบ ไม่มีใครชนะ',
+  'lobby.noVillagers': 'โหมดสุดโต่ง: ไม่มีชาวบ้านตาดำๆ', 'lobby.noVillagersHint': 'ทุกคนที่ไม่ใช่หมาป่าจะได้บทพิเศษหมด ไม่มีใครว่างเปล่า วุ่นวายสุดๆ',
+  'host.endEarly': 'ปิดเกมก่อนจบ', 'host.endEarlyTitle': 'ปิดเกมเลยไหม?',
+  'host.endEarlyBody': 'เกมจะจบตรงนี้ ไม่มีใครชนะ ทุกคนจะเห็นบทบาทของทุกคน', 'host.endEarlyConfirm': 'ปิดเกมเลย', 'host.endEarlyCancel': 'เล่นต่อ',
   'over.happened': 'ย้อนดูว่าใครหักหลังใคร', 'over.again': 'เล่นอีกตา!', 'over.waiting': 'รอเจ้าของห้องเปิดตาใหม่…',
   // host bar
   'host.startNight': 'เริ่มกลางคืน', 'host.endNight': 'ฟ้าสางแล้ว: จบคืน', 'host.startVote': 'เริ่มโหวต',
@@ -99,9 +103,42 @@ const TH = {
 };
 
 // Engine / host strings: [regex, replacer]. Applied globally so combined narration lines work.
-const roleTh = (name) => TH[`role.${name.toLowerCase().replace(/ /g, '')}`] ?? name;
+const ROLE_KEYS = { "Seer's Apprentice": 'apprentice', 'Graveyard Voter': 'poltergeist', 'Diseased Villager': 'diseased' };
+const roleTh = (name) => TH[`role.${ROLE_KEYS[name] ?? name.toLowerCase().replace(/ /g, '')}`] ?? name;
+const ROLE_NAMES = ['Wolf Cub', 'Werewolf', 'Villager', 'Seer', "Seer's Apprentice", 'Bodyguard', 'Hunter', 'Prince', 'Witch',
+  'Diseased Villager', 'Graveyard Voter', 'Jester'];
+const andTh = (s) => s.replace(/ and /g, ' และ ');
 const note = (s) => s.replace(/ They were a ([\w ]+)\./g, (_, r) => ` (เขาคือ${roleTh(r)} นะจ๊ะ)`);
 const TR = [
+  // End-of-game history (full detail). These run first: they match English role names in "Name (Role)" and
+  // some phrases (e.g. "died: shot by") would otherwise be caught by the looser rules below.
+  [/The Diseased Villager was killed by the wolves: the wolves cannot kill tomorrow night\./g, () => 'ชาวบ้านป่วยโดนหมาป่างับ: คืนพรุ่งนี้ฝูงท้องเสีย งับใครไม่ได้'],
+  [/(.+?) could not kill tonight \(the Diseased Villager died last night\)\./g, (_, n) => `${n} งับใครไม่ได้คืนนี้ (ชาวบ้านป่วยตายเมื่อคืน)`],
+  [/(.+?) wanted to kill (.+?)\./g, (_, n, tg) => `${n} อยากงับ ${andTh(tg)}`],
+  [/(.+?) did not pick a victim\./g, (_, n) => `${n} ไม่ได้เลือกเหยื่อ`],
+  [/The wolves were too sick to kill\./g, () => 'หมาป่าป่วยเกินกว่าจะงับใครได้'],
+  [/The wolves' victims?: (.+?)\./g, (_, v) => `เหยื่อของหมาป่า: ${andTh(v)}`],
+  [/The wolves attacked nobody\./g, () => 'หมาป่าไม่ได้งับใครเลย'],
+  [/(.+?) protected nobody\./g, (_, n) => `${n} ไม่ได้ปกป้องใคร`],
+  [/(.+?) protected (.+?)\./g, (_, n, tg) => `${n} ปกป้อง ${tg}`],
+  [/(.+?) used the (heal|poison) potion on (.+?)\./g, (_, n, k, tg) => `${n} ใช้ยา${k === 'heal' ? 'ชุบชีวิต' : 'พิษ'}กับ ${tg}`],
+  [/(.+?) used no potion\./g, (_, n) => `${n} ไม่ได้ใช้ยา`],
+  [/(.+?) checked (.+?): (not a werewolf|a werewolf)\./g, (_, n, tg, r) => `${n} ส่อง ${tg}: ${r === 'a werewolf' ? 'เป็นหมาป่า' : 'ไม่ใช่หมาป่า'}`],
+  [/(.+?) was attacked but the Bodyguard's protection saved them\./g, (_, n) => `${n} โดนงับ แต่บอดี้การ์ดปกป้องไว้ได้`],
+  [/(.+?) was attacked but the Witch's heal potion saved them\./g, (_, n) => `${n} โดนงับ แต่ยาชุบชีวิตของแม่มดช่วยไว้ได้`],
+  [/(.+?) died: killed by the wolves and poisoned by the Witch\./g, (_, n) => `${n} ตาย: โดนหมาป่างับและโดนแม่มดวางยาพิษ`],
+  [/(.+?) died: poisoned by the Witch\./g, (_, n) => `${n} ตาย: โดนแม่มดวางยาพิษ`],
+  [/(.+?) died: killed by the wolves\./g, (_, n) => `${n} ตาย: โดนหมาป่างับ`],
+  [/(.+?) died: eliminated by vote \((\d+) votes?\)\./g, (_, n, c) => `${n} ตาย: โดนโหวตเตะ (${c} โหวต)`],
+  [/(.+?) died: shot by the Hunter (.+?)\./g, (_, n, h) => `${n} ตาย: โดนนายพราน ${h} ยิง`],
+  [/(.+?) chose not to shoot anyone\./g, (_, n) => `${n} เลือกไม่ยิงใคร`],
+  [/(.+?) \(Seer's Apprentice\) was promoted to Seer\./g, (_, n) => `${n} (ลูกศิษย์หมอดู) ได้เลื่อนขั้นเป็นหมอดู`],
+  [/(.+?)( \(haunting\))? voted (?:to skip|for (.+?))( \(no vote cast\))?\./g,
+    (m, n, haunt, tg, none) => `${n}${haunt ? ' (โผล่มาจากหลุม)' : ''} โหวต${tg ? `เตะ ${tg}` : 'ข้าม'}${none ? ' (ไม่ได้กดโหวต)' : ''}`],
+  [/Tally: (.+)\./g, (_, s) => `สรุปคะแนน: ${s.replace(/\bSkip\b/g, 'ข้าม')}`],
+  [/Tied vote: nobody was eliminated\./g, () => 'โหวตเสมอ: ไม่มีใครโดนเตะ'],
+  [/(.+?) survived the vote: the Prince is immune to the first vote against them\./g, (_, n) => `${n} รอดจากการโหวต: เจ้าชายรอดโหวตแรกได้`],
+  [new RegExp(`\\((${ROLE_NAMES.join('|')})\\)`, 'g'), (_, r) => `(${roleTh(r)})`],
   [/Night falls\. Everyone, check your phone\./g, () => 'ค่ำคืนมาเยือนแล้ว ทุกคนหยิบมือถือขึ้นมา แล้วทำตัวดีๆ'],
   [/(.+?) was killed in the night\.( They were a [\w ]+\.)?/g, (_, n, r) => `${n} โดนเก็บไปในคืนนี้ RIP${r ? note(r) : ''}`],
   [/Nobody died\./g, () => 'ไม่มีใครตาย คืนนี้หมาป่าคงอิ่มมาแล้ว'],
@@ -118,6 +155,10 @@ const TR = [
   [/(.+?) gets one last shot…/g, (_, n) => `${n} ได้ยิงนัดสุดท้ายก่อนไป…`],
   [/(.+?) was the Hunter! One last shot…/g, (_, n) => `${n} คือนายพราน! ยิงนัดสุดท้ายก่อนไป…`],
   [/The wolves win!/g, () => 'หมาป่าชนะ! หมู่บ้านโดนจัดไป'],
+  [/Waiting for everyone to vote\./g, () => 'ยังมีคนตัดสินใจไม่เสร็จ รอก่อนนะ'],
+  [/The host ended the game early\./g, () => 'เจ้าของห้องปิดเกมก่อนจบ'],
+  [/Only the host can end the game\./g, () => 'แค่เจ้าของห้องที่ปิดเกมได้นะ'],
+  [/No game is running\./g, () => 'ตอนนี้ไม่มีเกมให้ปิดนะ'],
   [/You can't kill anyone tonight: the Diseased Villager's sickness weakens the wolves\./g, () => 'คืนนี้งับใครไม่ได้! ชาวบ้านป่วยทำให้ฝูงท้องเสีย กดยืนยันเพื่อไปต่อ'],
   [/You died, but you can haunt the vote\. Who do you want to eliminate\?/g, () => 'เธอตายแล้วแต่ยังโผล่มาโหวตจากหลุมได้ อยากเตะใครออก?'],
   [/Seer's Apprentice needs a Seer: (\d+) Apprentices? but (\d+) Seers?\. Add a Seer or remove the Apprentice\./g, (_, a, s) => `ลูกศิษย์หมอดูต้องมีหมอดู: มีลูกศิษย์ ${a} คนแต่หมอดู ${s} คน เพิ่มหมอดูหรือเอาลูกศิษย์ออกนะ`],
@@ -221,6 +262,10 @@ const EN = {
   'dead.log': 'What has happened', 'dead.nothing': 'Nothing yet.',
   'phase.night': 'Night', 'phase.day': 'Day', 'phase.vote': 'Vote', 'phase.reveal': 'Role reveal',
   'over.wolves': 'The wolves win!', 'over.village': 'The village wins!', 'over.won': 'Your team won.', 'over.lost': 'Your team lost.',
+  'over.ended': 'The host ended the game early. Nobody wins.',
+  'lobby.noVillagers': 'MAX chaos: zero villagers', 'lobby.noVillagersHint': 'Everyone who is not a wolf gets a special role. No plain villagers at all.',
+  'host.endEarly': 'End game early', 'host.endEarlyTitle': 'End the game now?',
+  'host.endEarlyBody': 'The game stops here with no winner, and everyone sees all the roles.', 'host.endEarlyConfirm': 'End game', 'host.endEarlyCancel': 'Keep playing',
   'over.happened': 'What happened', 'over.again': 'Play again', 'over.waiting': 'Waiting for the host to start another game…',
   'host.startNight': 'Start night', 'host.endNight': 'Dawn: end the night', 'host.startVote': 'Start vote',
   'host.next': 'Next', 'host.endVote': 'End vote now',

@@ -149,7 +149,7 @@ function render() {
   // Reset per-phase UI state when the phase changes.
   const v = app.view;
   const key = v ? `${v.phase}:${v.round}` : 'home';
-  if (key !== ui.key) { ui.key = key; ui.pick = null; ui.picks = null; ui.mode = null; if (v?.phase !== 'reveal') ui.holding = false; }
+  if (key !== ui.key) { ui.key = key; ui.pick = null; ui.picks = null; ui.mode = null; ui.confirmEnd = false; if (v?.phase !== 'reveal') ui.holding = false; }
 
   const scrollY = window.scrollY;
   $app.replaceChildren();
@@ -174,6 +174,19 @@ function render() {
   } else {
     $app.append(chooseScreen(v, ctx));
     $app.append(h('button', { class: 'btn leave', onClick: () => { if (confirm(t('main.leaveConfirm'))) leave(); } }, t('main.leave')));
+    // Host only, while a game is running: stop it early (red, behind a confirmation sheet at the bottom).
+    if (v.isHost && v.phase !== 'lobby' && v.phase !== 'gameover') {
+      $app.append(h('button', { class: 'btn danger endearly', onClick: () => { ui.confirmEnd = true; render(); } }, t('host.endEarly')));
+      if (ui.confirmEnd) {
+        const close = () => { ui.confirmEnd = false; render(); };
+        $app.append(h('div', { class: 'sheet-backdrop', onClick: close }),
+          h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'sheet-title' },
+            h('h3', { id: 'sheet-title' }, t('host.endEarlyTitle')),
+            h('p', { class: 'sub' }, t('host.endEarlyBody')),
+            h('button', { class: 'btn danger', onClick: () => { ui.confirmEnd = false; ctx.send('endEarly'); } }, t('host.endEarlyConfirm')),
+            h('button', { class: 'btn', onClick: close }, t('host.endEarlyCancel'))));
+      }
+    }
   }
   window.scrollTo(0, scrollY);
 

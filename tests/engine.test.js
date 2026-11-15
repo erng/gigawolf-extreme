@@ -327,3 +327,16 @@ test('smoke: random play always reaches game over, for every player count', () =
     assert.equal(g.s.phase, PHASE.GAMEOVER, `seed ${seed} (n=${n}) stalled`);
   }
 });
+
+test('host can end a running game early: nobody wins, non-hosts and lobby/gameover are refused', () => {
+  const g = game(['werewolf', 'werewolf', 'seer', 'bodyguard', 'villager', 'villager', 'villager']);
+  assert.ok(act(g, { kind: 'endEarly', by: 'p3' }).error, 'non-host refused');
+  assert.equal(g.s.phase, PHASE.NIGHT);
+  assert.ok(!act(g, { kind: 'endEarly', by: 'p0' }).error);
+  assert.equal(g.s.phase, PHASE.GAMEOVER);
+  assert.equal(g.s.winner, 'ended');
+  assert.equal(g.s.history.at(-1).text, 'The host ended the game early.');
+  assert.ok(act(g, { kind: 'endEarly', by: 'p0' }).error, 'already over');
+  assert.ok(!act(g, { kind: 'playAgain', by: 'p0' }).error);
+  assert.ok(act(g, { kind: 'endEarly', by: 'p0' }).error, 'lobby refused');
+});
