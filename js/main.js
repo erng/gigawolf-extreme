@@ -224,7 +224,9 @@ async function forceRefresh(btn) {
 const $refresh = document.createElement('button');
 $refresh.type = 'button'; $refresh.id = 'refresh'; $refresh.textContent = t('refresh.button');
 $refresh.addEventListener('click', () => forceRefresh($refresh));
-$ver.after($refresh);
+const $tools = document.createElement('div');
+$tools.id = 'tools'; $tools.append($refresh);
+$ver.after($tools); // the music panel joins this row when hosting
 
 // Language switch (English default). Fixed button; re-renders the current screen.
 const $lang = document.getElementById('lang');
