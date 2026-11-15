@@ -1,4 +1,4 @@
-import { h, playerList, ROLE_LABEL } from '../dom.js';
+import { h, playerList } from '../dom.js';
 import { t, tr } from '../../i18n.js';
 import { hostAdvance } from './hostbar.js';
 
@@ -14,10 +14,9 @@ export function nightScreen(view, ctx) {
   const seerCard = priv.seerResult && h('div', { class: 'card result' },
     t('night.isA', { name: nameOf(priv.seerResult.targetId) }), h('strong', null, priv.seerResult.isWolf ? t('night.werewolf') : t('night.notWerewolf')));
   const promoted = priv.promoted && h('div', { class: 'card result' }, t('role.promoted'));
-  const footer = h('p', { class: 'sub small' }, t('night.youAre', { role: ROLE_LABEL[you.role] }));
   const head = [h('div', { class: 'phase' }, t('night.title', { n: view.round })), h('h2', { class: 'prompt' }, tr(prompt.text))];
 
-  if (prompt.kind === 'witch') return witchNight(view, ctx, head, footer);
+  if (prompt.kind === 'witch') return witchNight(view, ctx, head);
 
   const two = prompt.picks === 2;
   const done = prompt.done;
@@ -39,7 +38,6 @@ export function nightScreen(view, ctx) {
       : h('button', { class: 'btn primary', disabled: !canConfirm,
           onClick: () => ctx.send('nightPick', two ? { targetId: chosen[0], targetId2: chosen[1] } : { targetId: ui.pick ?? null }) }, t('night.confirm')),
     hostAdvance(view, ctx),
-    footer,
   );
 }
 
@@ -53,7 +51,7 @@ function multiList(view, prompt, selectedMany, done, tags, onPick) {
   return ul;
 }
 
-function witchNight(view, ctx, head, footer) {
+function witchNight(view, ctx, head) {
   const { prompt, you } = view; const ui = ctx.ui; const priv = you.private;
   const done = prompt.done;
   const nameOf = (id) => view.players.find((p) => p.id === id)?.name ?? '?';
@@ -80,6 +78,5 @@ function witchNight(view, ctx, head, footer) {
         h('button', { class: 'btn', onClick: () => send('pass') }, t('witch.pass')),
       ],
     hostAdvance(view, ctx),
-    footer,
   );
 }

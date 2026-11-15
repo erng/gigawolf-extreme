@@ -173,6 +173,10 @@ function render() {
     }
   } else {
     $app.append(chooseScreen(v, ctx));
+    // Always show your own role while a game is on (night, day, vote, shot), alive or dead.
+    if (v.you.role && ['night', 'day', 'vote', 'shot'].includes(v.phase)) {
+      $app.append(h('p', { class: 'sub small yourole' }, t('night.youAre', { role: t(`role.${v.you.role}`) })));
+    }
     $app.append(h('button', { class: 'btn leave', onClick: () => { if (confirm(t('main.leaveConfirm'))) leave(); } }, t('main.leave')));
     // Host only, while a game is running: stop it early (red, behind a confirmation sheet at the bottom).
     if (v.isHost && v.phase !== 'lobby' && v.phase !== 'gameover') {
