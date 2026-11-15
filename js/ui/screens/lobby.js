@@ -39,13 +39,16 @@ export function lobbyScreen(view, ctx) {
     host
       ? h('section', { class: 'card settings' },
           h('h2', null, t('lobby.setup')),
+          s.randomize && h('p', { class: 'sub' }, t('lobby.randomOn')),
+          !s.randomize && h('button', { class: 'btn small', onClick: () => set({ randomize: true }) }, t('lobby.randomize')),
+          s.randomize && h('button', { class: 'btn small', onClick: () => set({ counts: null }) }, t('lobby.manual')),
           c && stepper(t('lobby.wolves'), c.wolves, (v) => setCounts('wolves', v), 0, 7),
           c && stepper(t('lobby.seer'), c.seer, (v) => setCounts('seer', v), 0, 3),
           c && stepper(t('lobby.bodyguard'), c.bodyguard, (v) => setCounts('bodyguard', v), 0, 3),
           c && ['wolfcub', 'hunter', 'witch', 'prince', 'jester'].map((k) =>
             stepper(t(`lobby.${k}`), c[k], (v) => setCounts(k, v), 0, 3)),
           c && h('div', { class: 'row' }, h('span', null, t('lobby.villagers')), h('span', { class: 'num' }, c.villagers)),
-          h('button', { class: 'btn small', onClick: () => set({ counts: null }) }, t('lobby.reset')),
+          !s.randomize && h('button', { class: 'btn small', onClick: () => set({ counts: null }) }, t('lobby.reset')),
           toggle(t('lobby.revealOnDeath'), s.revealOnDeath, (v) => set({ revealOnDeath: v })),
           toggle(t('lobby.selfProtect'), s.bodyguardSelfProtect, (v) => set({ bodyguardSelfProtect: v })),
           toggle(t('lobby.narration'), s.narration, (v) => set({ narration: v })),

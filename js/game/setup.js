@@ -26,6 +26,26 @@ export function presetFor(n) {
   return { wolves, seer: 1, bodyguard: 1, villagers: n - wolves - 2 };
 }
 
+// Secret random mix: rejection-sample counts until validate() accepts, so it can never be an
+// invalid or game-breaking setup. Falls back to the classic preset (always valid for 5..15).
+export function randomCounts(n, rng) {
+  if (!Number.isInteger(n) || n < MIN_PLAYERS || n > MAX_PLAYERS) return null;
+  const keys = COUNT_KEYS.filter((k) => k !== 'villagers');
+  for (let i = 0; i < 500; i++) {
+    const c = {};
+    let used = 0;
+    for (const k of keys) {
+      // Mostly 0 or 1 of each role, occasionally more.
+      const r = rng();
+      c[k] = r < 0.4 ? 0 : r < 0.85 ? 1 : r < 0.96 ? 2 : 3;
+      used += c[k];
+    }
+    c.villagers = n - used;
+    if (c.villagers >= 0 && validate(c, n).ok) return c;
+  }
+  return presetFor(n);
+}
+
 export function validate(counts, n) {
   const errors = [];
   if (!counts) return { ok: false, errors: ['No role counts.'] };

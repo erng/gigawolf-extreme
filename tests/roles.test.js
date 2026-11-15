@@ -320,3 +320,21 @@ test('night views never leak roles of the new characters', () => {
   assert.equal(viewFor(g.s, 'p7').prompt.required, false);
   assert.equal(viewFor(g.s, 'p4').prompt.required, false);
 });
+
+test('randomize: always valid for every player count, and the mix is never exposed', async () => {
+  const { randomCounts } = await import('../js/game/setup.js');
+  const rng = createRng(7);
+  for (let n = 5; n <= 15; n++) {
+    for (let i = 0; i < 300; i++) {
+      const c = randomCounts(n, rng);
+      assert.ok(validate(c, n).ok, `n=${n} ${JSON.stringify(c)}`);
+    }
+  }
+  const g = { s: lobby(6), rng: createRng(3) };
+  act(g, { kind: 'settings', by: 'p0', patch: { randomize: true } });
+  for (const p of g.s.players) assert.equal(viewFor(g.s, p.id).settings.counts, null);
+  host(g, 'startGame');
+  assert.equal(g.s.phase, PHASE.REVEAL);
+  assert.ok(validate(Object.fromEntries(Object.entries({ wolves: 'werewolf', wolfcub: 'wolfcub', seer: 'seer', bodyguard: 'bodyguard', hunter: 'hunter', witch: 'witch', prince: 'prince', jester: 'jester', villagers: 'villager' }).map(([k, r]) => [k, g.s.players.filter((p) => p.role === r).length])), 6).ok);
+  for (const p of g.s.players) assert.equal(viewFor(g.s, p.id).settings.counts, null);
+});

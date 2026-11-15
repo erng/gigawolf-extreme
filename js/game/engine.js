@@ -10,7 +10,7 @@
 //          { type:'narrate', text }    host phone speaks this line
 //          { type:'haptic' }           phase change buzz
 import { ROLES, isWolf, isDecoy, teamOf, TEAM } from './roles.js';
-import { MAX_PLAYERS, MIN_PLAYERS, COUNT_KEYS, presetFor, validate, roleList, fullCounts } from './setup.js';
+import { MAX_PLAYERS, MIN_PLAYERS, COUNT_KEYS, presetFor, validate, roleList, fullCounts, randomCounts } from './setup.js';
 import { shuffle } from '../util/rng.js';
 
 export const PHASE = Object.freeze({
@@ -22,6 +22,7 @@ const NONCE_MEMORY = 50;
 
 export const DEFAULT_SETTINGS = Object.freeze({
   counts: null, // null = auto preset for current player count
+  randomize: false, // secret random mix, rolled at start; nobody (host included) sees the counts
   revealOnDeath: true,
   bodyguardSelfProtect: true,
   narration: true,
@@ -55,10 +56,18 @@ const livingWolves = (s) => living(s).filter((p) => isWolf(p.role));
 const fail = (state, code, message) => ({ state, effects: [], error: { code, message } });
 
 export function effectiveCounts(state) {
+  if (state.settings.randomize) return null; // secret: never exposed
   return fullCounts(state.settings.counts) ?? presetFor(state.players.length);
 }
 
 export function lobbyValidation(state) {
+  if (state.settings.randomize) {
+    const n = state.players.length;
+    const errors = [];
+    if (n < MIN_PLAYERS) errors.push(`Need at least ${MIN_PLAYERS} players.`);
+    if (n > MAX_PLAYERS) errors.push(`At most ${MAX_PLAYERS} players.`);
+    return { ok: errors.length === 0, errors };
+  }
   const counts = effectiveCounts(state);
   return validate(counts, state.players.length);
 }
@@ -142,8 +151,9 @@ function settings(state, { patch }, isHost) {
   const s = state.settings;
   for (const [k, v] of Object.entries(patch ?? {})) {
     switch (k) {
-      case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': s[k] = !!v; break;
+      case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': case 'randomize': s[k] = !!v; break;
       case 'counts':
+        s.randomize = false;
         if (v === null) s.counts = null;
         else s.counts = Object.fromEntries(COUNT_KEYS.map((key) => [key, Number(v?.[key] ?? 0)]));
         break;
@@ -158,7 +168,7 @@ function startGame(state, _a, isHost, rng, fx) {
   if (state.phase !== PHASE.LOBBY) return { code: 'badPhase', message: 'Already started.' };
   const v = lobbyValidation(state);
   if (!v.ok) return { code: 'badSetup', message: v.errors.join(' ') };
-  const roles = shuffle(rng, roleList(effectiveCounts(state)));
+  const roles = shuffle(rng, roleList(state.settings.randomize ? randomCounts(state.players.length, rng) : effectiveCounts(state)));
   state.players.forEach((p, i) => {
     p.role = roles[i]; p.alive = true; p.ready = false; p.revealed = false;
     p.potions = p.role === 'witch' ? { heal: true, poison: true } : null;
