@@ -191,7 +191,7 @@ test('day vote: tie means no elimination', () => {
   assert.ok(g.s.players.filter((p) => p.alive).length === 6);
 });
 
-test('day vote: Skip winning means no elimination; non-voters count as Skip', () => {
+test('day vote: a tie means no elimination, and voting never times out', () => {
   const g = game(R7);
   submitNight(g, { p0: 'p4', p1: 'p4', p2: 'p0', p3: 'p5' });
   resolveNight(g);
@@ -200,7 +200,10 @@ test('day vote: Skip winning means no elimination; non-voters count as Skip', ()
   act(g, { kind: 'vote', by: 'p1', targetId: 'p6' });
   act(g, { kind: 'vote', by: 'p2', targetId: 'p6' });
   assert.equal(g.s.vote.stage, 'voting');
-  act(g, { kind: 'tick', now: g.s.deadline }); // 3 voters left, 3 skips by default vs 3 for p6
+  assert.equal(g.s.deadline, null, 'voting has no timer');
+  act(g, { kind: 'tick', now: T0 + 60 * 60_000 });
+  assert.equal(g.s.vote.stage, 'voting', 'never times out');
+  for (const id of ['p3', 'p5', 'p6']) act(g, { kind: 'vote', by: id, targetId: 'skip' }); // 3 skips vs 3 for p6: tie
   assert.equal(g.s.vote.stage, 'result');
   assert.equal(g.s.vote.result.eliminatedId, null);
 });

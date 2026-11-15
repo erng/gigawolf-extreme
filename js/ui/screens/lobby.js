@@ -51,7 +51,6 @@ export function lobbyScreen(view, ctx) {
           toggle('Narration (this phone speaks)', s.narration, (v) => set({ narration: v })),
           secs('Night (sec)', s.nightSecs, (v) => set({ nightSecs: v })),
           secs('Discussion (sec)', s.discussionSecs, (v) => set({ discussionSecs: v })),
-          secs('Vote (sec)', s.voteSecs, (v) => set({ voteSecs: v })),
           view.setup && !view.setup.ok && h('p', { class: 'error' }, view.setup.errors.join(' ')),
           h('button', { class: 'btn primary', disabled: !(view.setup?.ok) || n < MIN_PLAYERS, onClick: () => { unlock(); ctx.send('startGame'); } },
             n < MIN_PLAYERS ? `Need ${MIN_PLAYERS - n} more player${MIN_PLAYERS - n === 1 ? '' : 's'}` : 'Start game'))

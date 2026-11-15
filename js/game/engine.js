@@ -29,7 +29,6 @@ export const DEFAULT_SETTINGS = Object.freeze({
   narration: true,
   nightSecs: 45,
   discussionSecs: 180,
-  voteSecs: 60,
 });
 
 export function createState({ hostId, roomCode }) {
@@ -165,7 +164,6 @@ function settings(state, { patch }, isHost) {
     switch (k) {
       case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': s[k] = !!v; break;
       case 'nightSecs': s[k] = clampInt(v, 10, 300); break;
-      case 'voteSecs': s[k] = clampInt(v, 10, 300); break;
       case 'discussionSecs': s[k] = clampInt(v, 10, 1800); break;
       case 'counts':
         if (v === null) s.counts = null;
@@ -317,7 +315,7 @@ function startVote(state, { now }, sender, isHost, fx) {
 
 function beginVote(state, now, fx) {
   state.phase = PHASE.VOTE;
-  state.deadline = now + state.settings.voteSecs * 1000;
+  state.deadline = null; // no timer: resolves once every living player has voted
   state.vote = { votes: {}, stage: 'voting', result: null };
   fx.push({ type: 'narrate', text: 'Time to vote.' });
   fx.push({ type: 'haptic' });
@@ -420,7 +418,7 @@ function tick(state, now, rng, fx) {
       break;
     case PHASE.VOTE:
       if (state.vote.stage === 'voting') {
-        if (now >= state.deadline) resolveVote(state, now, fx);
+        // no timeout: voting ends when everyone has voted
       }
       break; // result stage waits for the host (nextPhase)
   }

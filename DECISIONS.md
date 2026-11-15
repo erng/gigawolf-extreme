@@ -38,3 +38,5 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Bots** are real Clients on host loopback connections (`?bots=N`, max 14).
 - **Idle players** don't stall anything: night/vote/reveal deadlines resolve with no pick / Skip / auto-ready.
 - **Not tested here**: real iOS/Android phones, hotspot and client-isolation networks, speech synthesis and wake lock (verified only in headless Chrome and Node).
+
+- **No vote timer**: voting has no deadline and ends once every living player has voted (casual same-room play). The vote-length setting was removed.

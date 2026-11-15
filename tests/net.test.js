@@ -86,7 +86,7 @@ async function fullGame(net, h, n) {
   // host + bots; start; wait for gameover
   addBots(h.host, n - 1, { minDelay: 1, maxDelay: 15 });
   await until(() => h.view.players.length === n);
-  h.client.send('settings', { patch: { nightSecs: 10, discussionSecs: 10, voteSecs: 10 } });
+  h.client.send('settings', { patch: { nightSecs: 10, discussionSecs: 10 } });
   h.client.send('startGame');
   // host UI plays too, with the same logic as a bot
   let guard = 0;
@@ -143,7 +143,7 @@ test('night timeout: a player who never acts does not stall the game', async () 
   await until(() => h.view.players.length === 5);
   h.client.send('settings', { patch: { nightSecs: 10 } });
   await until(() => h.view.settings.nightSecs === 10);
-  h.host.state.settings.nightSecs = 0.2; h.host.state.settings.voteSecs = 0.2; h.host.state.settings.discussionSecs = 0.2;
+  h.host.state.settings.nightSecs = 0.2; h.host.state.settings.discussionSecs = 0.2;
   h.client.send('startGame');
   await until(() => h.view.phase === 'reveal');
   skew = 61_000; // jump the host clock past the reveal timeout (idle never readies)
