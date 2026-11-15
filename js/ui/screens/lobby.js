@@ -76,6 +76,7 @@ export function lobbyScreen(view, ctx) {
           bots > 0 && h('p', { class: 'sub small' }, t('lobby.botsHint')),
           h('h3', null, t('lobby.options')),
           toggle(t('lobby.revealOnDeath'), s.revealOnDeath, (v) => set({ revealOnDeath: v })),
+          toggle(t('lobby.hideVotes'), !!s.hideVotes, (v) => set({ hideVotes: v })),
           toggle(t('lobby.selfProtect'), s.bodyguardSelfProtect, (v) => set({ bodyguardSelfProtect: v })),
           toggle(t('lobby.narration'), s.narration, (v) => set({ narration: v })),
           view.setup && !view.setup.ok && h('p', { class: 'error' }, view.setup.errors.map(tr).join(' ')),

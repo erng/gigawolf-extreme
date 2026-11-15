@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   randomize: false, // secret random mix, rolled at start; nobody (host included) sees the counts
   noVillagers: false, // only with randomize: MAX chaos, every non-wolf seat is a special role
   revealOnDeath: false,
+  hideVotes: false, // hide who-voted-whom on the result screen, so players can lie about their votes
   bodyguardSelfProtect: true,
   narration: true,
 });
@@ -157,7 +158,7 @@ function settings(state, { patch }, isHost) {
   const s = state.settings;
   for (const [k, v] of Object.entries(patch ?? {})) {
     switch (k) {
-      case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': case 'randomize': case 'noVillagers': s[k] = !!v; break;
+      case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': case 'randomize': case 'noVillagers': case 'hideVotes': s[k] = !!v; break;
       case 'counts':
         s.randomize = false;
         if (v === null) s.counts = null;

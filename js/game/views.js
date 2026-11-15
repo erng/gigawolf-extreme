@@ -153,7 +153,9 @@ export function viewFor(state, playerId) {
         };
       }
     } else {
-      view.voteResult = { ...v.result, votes: { ...v.result.votes }, counts: { ...v.result.counts } };
+      view.voteResult = state.settings.hideVotes
+        ? { ...v.result, votes: {}, counts: {}, hidden: true }
+        : { ...v.result, votes: { ...v.result.votes }, counts: { ...v.result.counts } };
     }
   }
 

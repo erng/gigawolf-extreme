@@ -926,3 +926,11 @@ test('MAX chaos (noVillagers): valid, zero plain villagers, specials spread, def
   assert.equal(g.s.phase, PHASE.REVEAL);
   assert.equal(g.s.players.filter((p) => p.role === 'villager').length, 0);
 });
+
+test('hideVotes: default off; settable by host', async () => {
+  const { DEFAULT_SETTINGS } = await import('../js/game/engine.js');
+  assert.equal(DEFAULT_SETTINGS.hideVotes, false);
+  const g = { s: lobby(6), rng: createRng(3) };
+  act(g, { kind: 'settings', by: 'p0', patch: { hideVotes: true } });
+  assert.equal(g.s.settings.hideVotes, true);
+});
