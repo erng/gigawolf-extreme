@@ -36,7 +36,7 @@ async function mkHost(net, extra = {}) {
 test('room code is 4 valid letters; join by code shows same live lobby', async () => {
   const net = createFakeNetwork();
   const h = await mkHost(net);
-  assert.match(h.host.roomCode, /^[ABCDEFGHJKMNPQRSTUVWXYZ]{4}$/);
+  assert.match(h.host.roomCode, /^[ABCDEFGHJKMNPQRSTUVWXYZ]{8}$/);
   const a = mkClient(net, h.host.roomCode, 'player-aaaa', 'Ann'); a.client.start();
   const b = mkClient(net, h.host.roomCode, 'player-bbbb', 'Bob'); b.client.start();
   await until(() => h.view.players.length === 3 && a.view?.players.length === 3 && b.view?.players.length === 3);

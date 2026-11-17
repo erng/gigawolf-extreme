@@ -2,6 +2,7 @@ import { h, playerList } from '../dom.js';
 import { MIN_PLAYERS, COUNT_KEYS, MAX_BOTS, isBotId } from '../../game/setup.js';
 import { t, tr } from '../../i18n.js';
 import { unlock } from '../narrator.js';
+import { formatRoomCode } from '../../config.js';
 
 function stepper(label, value, onChange, min = 0, max = 15) {
   return h('div', { class: 'row' },
@@ -43,7 +44,7 @@ export function lobbyScreen(view, ctx) {
   const bots = view.players.filter((p) => isBotId(p.id)).length;
   return h('main', { class: 'screen lobby' },
     h('p', { class: 'sub' }, t('lobby.roomCode')),
-    h('div', { class: 'roomcode', 'aria-label': `${t('lobby.roomCode')} ${view.roomCode.split('').join(' ')}` }, view.roomCode),
+    h('div', { class: 'roomcode', 'aria-label': `${t('lobby.roomCode')} ${view.roomCode.split('').join(' ')}` }, formatRoomCode(view.roomCode)),
     h('button', { class: 'btn small', onClick: async (e) => {
       try { if (navigator.share) await navigator.share({ url: link, title: 'Gigawolf Extreme' }); else { await navigator.clipboard.writeText(link); e.target.textContent = t('lobby.copied'); } } catch { /* cancelled */ }
     } }, t('lobby.share')),
