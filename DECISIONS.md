@@ -82,3 +82,11 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Cap: 20 bots** (`MAX_BOTS`), on top of the 15-human limit (`MAX_PLAYERS` = 35). 1000 was tried: every player's view lists every player and each action broadcasts, so cost grows roughly with the cube of the room size, and a 1000-bot lobby did not get through its first phase in two minutes. Raising it needs batched phases (one pass per phase, not per action), slimmer views and virtualised player lists, plus an auto-advance for the host.
 - Rooms over 40 players throttle saving (1s) and view broadcasts (150ms); smaller rooms are unchanged.
 - `setBots` is one engine action (host only, lobby only), so adding bots costs one state copy.
+
+## Village suspicions (v1.18.0, opt-in setting `suspicions`, default off)
+
+- The "Who do you suspect?" prompt that every no-power role gets used to do nothing. With this setting on, those answers are collected (`night.suspects`, host only, never in a view) and dawn adds one line: `Most suspected: <names>.`
+- **Checked for game-breaking, and kept safe by these limits.** The answers come only from players with no night power, so anything that shows who answered, or how many answered, tells the table who has a power and how many there are (and defeats the secret random mix). So the line shows names only, never counts or voters, and appears only when at least two answers agree; one lone answer cannot show how many no-power players are alive. A tie names everyone tied.
+- Answers about a player who died that night are dropped. Wolves, Seer, Bodyguard and Witch never answer, so the line is village sentiment and proves nothing about roles. The outcome is not fixed by it, so `validate()` is unchanged.
+- Known small leak, accepted: when the line appears, at least two no-power players are alive.
+- An invalid answer (self, dead player) is ignored, never an error, as before. With the setting off nothing changes.
