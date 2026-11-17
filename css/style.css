@@ -26,7 +26,7 @@ h4 { margin: 10px 0 0; font-size: .9rem; color: var(--muted); }
 label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: .9rem; }
 input[type=text] { min-height: 48px; padding: 8px 12px; border-radius: 10px; border: 2px solid var(--panel2); background: var(--panel); color: var(--text); font-size: 1.1rem; }
 input[type=text].bad { border-color: var(--bad); }
-input.code-input { text-transform: uppercase; letter-spacing: .4em; text-align: center; font-size: 1.5rem; }
+input.code-input { text-transform: uppercase; letter-spacing: .15em; text-align: center; font-size: 1.5rem; }
 input[type=checkbox] { width: 28px; height: 28px; accent-color: var(--accent); }
 .btn { min-height: 48px; padding: 10px 18px; border: 0; border-radius: 12px; background: var(--panel2); color: var(--text); font-size: 1.05rem; font-weight: 600; cursor: pointer; }
 .btn.primary { background: var(--accent); color: var(--accent-ink); }
@@ -42,7 +42,7 @@ input[type=checkbox] { width: 28px; height: 28px; accent-color: var(--accent); }
 :focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 .card { background: var(--panel); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .card.result { font-size: 1.15rem; text-align: center; border: 2px solid var(--wolf); }
-.roomcode { font-size: 3.4rem; font-weight: 800; letter-spacing: .3em; text-align: center; padding-left: .3em; }
+.roomcode { font-size: clamp(2rem, 10vw, 3rem); font-weight: 800; letter-spacing: .12em; text-align: center; padding-left: .12em; white-space: nowrap; }
 .players, .tally, .log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .log li, .tally li { background: var(--panel); border-radius: 10px; padding: 10px 12px; }
 .player { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 8px 12px; background: var(--panel); border: 2px solid transparent; border-radius: 12px; color: var(--text); font: inherit; text-align: left; }

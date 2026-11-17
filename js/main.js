@@ -9,7 +9,7 @@ import { storage } from './util/storage.js';
 import { keepAwake, releaseAwake } from './util/wakelock.js';
 import { speak, unlock } from './ui/narrator.js';
 import { startMusic, stopMusic, refreshMusicLabels } from './ui/music.js';
-import { APP_VERSION } from './config.js';
+import { APP_VERSION, normalizeRoomCode } from './config.js';
 import { homeScreen } from './ui/screens/home.js';
 import { lobbyScreen } from './ui/screens/lobby.js';
 import { revealScreen } from './ui/screens/reveal.js';
@@ -161,7 +161,7 @@ function render() {
     } else {
       const save = Host.loadSave(storage);
       $app.append(homeScreen({
-        prefill: { name: storage.get(NAME_KEY) ?? '', code: params.get('join')?.toUpperCase().slice(0, 4) ?? '' },
+        prefill: { name: storage.get(NAME_KEY) ?? '', code: normalizeRoomCode(params.get('join')) },
         error: app.error, resumeAvailable: !!save,
         onHost: (name) => { Host.clearSave(storage); hostGame(name); },
         onJoin: (code, name) => joinGame(code, name),
@@ -204,7 +204,7 @@ function render() {
 function boot() {
   const session = storage.get(SESSION_KEY);
   // Non-host phones that reloaded mid-game rejoin automatically.
-  const wanted = params.get('join')?.toUpperCase();
+  const wanted = normalizeRoomCode(params.get('join'));
   if (session && !session.isHost && (!wanted || wanted === session.roomCode)) {
     joinGame(session.roomCode, session.name, true);
     return;

@@ -7,7 +7,7 @@ Live URL: _add after enabling GitHub Pages (Settings → Pages → main branch, 
 
 ## Play
 
-1. One person opens the site, enters a name, taps **Host game** and shares the 4-letter room code (or the invite link).
+1. One person opens the site, enters a name, taps **Host game** and shares the 8-letter room code (or the invite link).
 2. Everyone else opens the site (same Wi-Fi, or join one phone's hotspot), enters name and code, taps **Join game**.
 3. Host taps **Start game** with 5+ players. Press and hold your card to see your role.
 

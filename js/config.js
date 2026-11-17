@@ -3,10 +3,17 @@ export const GAME_TITLE = 'Gigawolf Extreme';
 export const PROTOCOL_VERSION = 1;
 // App release version, shown in the footer so stale cached clients are easy to spot.
 // Keep in sync with package.json and index.html (tests enforce this). Bump it on EVERY change.
-export const APP_VERSION = '1.14.0';
+export const APP_VERSION = '1.15.0';
 
 export const ROOM_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ';
-export const ROOM_CODE_LENGTH = 4;
+export const ROOM_CODE_LENGTH = 8;
+// Codes are stored, sent and put in invite links as plain letters (ABCDEFGH),
+// and shown or typed as two chunks (ABCD-EFGH) so they are easier to read out loud.
+export const normalizeRoomCode = (input) => String(input ?? '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, ROOM_CODE_LENGTH);
+export const formatRoomCode = (code) => {
+  const half = ROOM_CODE_LENGTH / 2;
+  return code.length > half ? `${code.slice(0, half)}-${code.slice(half)}` : code;
+};
 export const PEER_ID_PREFIX = 'gigawolf-';
 
 export const PEER_OPTIONS = {
