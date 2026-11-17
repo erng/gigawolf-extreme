@@ -48,13 +48,14 @@ export function lobbyScreen(view, ctx) {
   return h('main', { class: 'screen lobby' },
     h('p', { class: 'sub' }, t('lobby.roomCode')),
     h('div', { class: 'roomcode', 'aria-label': `${t('lobby.roomCode')} ${view.roomCode.split('').join(' ')}` }, formatRoomCode(view.roomCode)),
-    h('button', { class: 'btn small', onClick: async (e) => {
-      const btn = e.currentTarget;
-      try { await navigator.clipboard.writeText(formatRoomCode(view.roomCode)); btn.textContent = t('lobby.codeCopied'); } catch { /* clipboard blocked */ }
-    } }, t('lobby.copyCode')),
-    h('button', { class: 'btn small', onClick: async (e) => {
-      try { if (navigator.share) await navigator.share({ url: link, title: 'Gigawolf Extreme' }); else { await navigator.clipboard.writeText(link); e.target.textContent = t('lobby.copied'); } } catch { /* cancelled */ }
-    } }, t('lobby.share')),
+    h('div', { class: 'invite' },
+      h('button', { class: 'btn small', onClick: async (e) => {
+        const btn = e.currentTarget;
+        try { await navigator.clipboard.writeText(formatRoomCode(view.roomCode)); btn.textContent = t('lobby.codeCopied'); } catch { /* clipboard blocked */ }
+      } }, t('lobby.copyCode')),
+      h('button', { class: 'btn small', onClick: async (e) => {
+        try { if (navigator.share) await navigator.share({ url: link, title: 'Gigawolf Extreme' }); else { await navigator.clipboard.writeText(link); e.target.textContent = t('lobby.copied'); } } catch { /* cancelled */ }
+      } }, t('lobby.share'))),
     h('h2', null, t('lobby.players', { n })),
     playerList(bots > 0 ? { ...view, players: view.players.filter((p) => !isBotId(p.id)) } : view),
     bots > 0 && h('p', { class: 'sub' }, t('lobby.botsList', { n: bots })),
@@ -86,8 +87,10 @@ export function lobbyScreen(view, ctx) {
           rows(
             toggle(t('lobby.revealOnDeath'), s.revealOnDeath, (v) => set({ revealOnDeath: v })),
             toggle(t('lobby.hideVotes'), !!s.hideVotes, (v) => set({ hideVotes: v })),
+            toggle(t('lobby.suspicions'), !!s.suspicions, (v) => set({ suspicions: v })),
             toggle(t('lobby.selfProtect'), s.bodyguardSelfProtect, (v) => set({ bodyguardSelfProtect: v })),
             toggle(t('lobby.narration'), s.narration, (v) => set({ narration: v }))),
+          s.suspicions && h('p', { class: 'sub small' }, t('lobby.suspicionsHint')),
           view.setup && !view.setup.ok && h('p', { class: 'error' }, view.setup.errors.map(tr).join(' ')),
           h('button', { class: 'btn primary', disabled: !(view.setup?.ok) || n < MIN_PLAYERS, onClick: () => ctx.send('startGame') },
             n < MIN_PLAYERS ? t('lobby.needMore', { n: MIN_PLAYERS - n, s: MIN_PLAYERS - n === 1 ? '' : 's' }) : s.randomize ? t('lobby.startRandom') : t('lobby.start')))

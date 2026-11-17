@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   noVillagers: false, // only with randomize: MAX chaos, every non-wolf seat is a special role
   revealOnDeath: false,
   hideVotes: false, // hide who-voted-whom on the result screen, so players can lie about their votes
+  suspicions: false, // dawn announces who the no-power players suspect most (names only, anonymous)
   bodyguardSelfProtect: true,
   narration: true,
 });
@@ -159,7 +160,7 @@ function settings(state, { patch }, isHost) {
   const s = state.settings;
   for (const [k, v] of Object.entries(patch ?? {})) {
     switch (k) {
-      case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': case 'randomize': case 'noVillagers': case 'hideVotes': s[k] = !!v; break;
+      case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': case 'randomize': case 'noVillagers': case 'hideVotes': case 'suspicions': s[k] = !!v; break;
       case 'counts':
         s.randomize = false;
         if (v === null) s.counts = null;
@@ -312,7 +313,7 @@ function startNight(state, fx) {
   state.phase = PHASE.NIGHT;
   // A sick night (the wolves killed the Diseased) beats a Cub revenge night: no kill at all.
   const noKill = state.diseasedDied;
-  state.night = { picks: {}, picks2: {}, seerResult: null, doubleKill: state.cubDied && !noKill, noKill, victims: noKill ? [] : null };
+  state.night = { picks: {}, picks2: {}, suspects: {}, seerResult: null, doubleKill: state.cubDied && !noKill, noKill, victims: noKill ? [] : null };
   state.cubDied = false;
   state.diseasedDied = false;
   state.vote = null;
@@ -363,7 +364,8 @@ function nightPick(state, { targetId, targetId2 }, sender, rng) {
   if (sender.id in n.picks) return { code: 'alreadyActed', message: 'Already confirmed.' };
 
   if (isDecoy(sender.role)) {
-    n.picks[sender.id] = null; // answer ignored
+    n.picks[sender.id] = null; // no night power: the answer only matters when suspicions are on
+    if (state.settings.suspicions && nightTargets(state, sender).includes(targetId)) (n.suspects ??= {})[sender.id] = targetId;
     return null;
   }
 
@@ -440,7 +442,20 @@ function resolveNight(state, rng, fx) {
   }
   if (dead.length === 0) say(state, 'Nobody died.');
   for (const p of dead) say(state, `${p.name} was killed in the night.${roleNote(state, p)}`);
+  suspicionLine(state, n);
   afterDeaths(state, 'day', fx);
+}
+
+// Opt-in. Announces the living player(s) most suspected by the players with no night power.
+// Names only, never counts or who answered, and only when at least two answers agree: the line must not
+// reveal how many players have a night power, or who they are.
+function suspicionLine(state, n) {
+  if (!state.settings.suspicions) return;
+  const counts = new Map();
+  for (const id of Object.values(n.suspects ?? {})) if (byId(state, id)?.alive) counts.set(id, (counts.get(id) ?? 0) + 1);
+  const top = Math.max(0, ...counts.values());
+  if (top < 2) return;
+  say(state, `Most suspected: ${state.players.filter((p) => counts.get(p.id) === top).map((p) => p.name).join(' and ')}.`);
 }
 
 function recordNight(state, n, victims, protectedId, bg, healed, poisoned, dead) {

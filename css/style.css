@@ -31,6 +31,8 @@ input[type=checkbox] { width: 28px; height: 28px; accent-color: var(--accent); }
 .btn { min-height: 48px; padding: 10px 18px; border: 0; border-radius: 12px; background: var(--panel2); color: var(--text); font-size: 1.05rem; font-weight: 600; cursor: pointer; }
 .btn.primary { background: var(--accent); color: var(--accent-ink); }
 .btn.small { min-height: 48px; min-width: 48px; padding: 6px 14px; font-size: 1rem; }
+.invite { display: flex; justify-content: center; gap: 8px; }
+.invite .btn { min-height: 40px; padding: 4px 14px; font-size: .9rem; }
 .btn:disabled { opacity: .45; cursor: default; }
 .btn.selected { outline: 3px solid var(--accent); }
 .btn.leave { align-self: center; background: transparent; color: var(--muted); margin-top: 24px; font-weight: 400; display: block; margin-left: auto; margin-right: auto; }
