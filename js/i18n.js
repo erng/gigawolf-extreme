@@ -2,6 +2,7 @@
 // UI strings go through t(key). Strings produced by the game engine / host (log lines, prompts,
 // narration, errors) stay English on the wire and are translated for display by tr().
 import { storage } from './util/storage.js';
+import { NIGHT_LINES, DAY_LINES, VOTE_LINES } from './game/lines.js';
 
 const LANG_KEY = 'gigawolf.lang';
 export const LANGS = ['en', 'th'];
@@ -29,12 +30,12 @@ const TH = {
   'home.resume': 'กลับเข้าเกมต่อ', 'home.name': 'ชื่อ', 'home.yourName': 'ชื่อเธอคืออะไร',
   'home.host': 'เปิดห้อง', 'home.code': 'รหัสห้อง', 'home.join': 'ขอเข้าร่วมวง',
   // lobby
-  'lobby.roomCode': 'รหัสห้อง', 'lobby.share': 'ส่งลิงก์ชวนเพื่อน', 'lobby.copied': 'ก๊อปลิงก์แล้วจ้า',
+  'lobby.roomCode': 'รหัสห้อง', 'lobby.share': 'ส่งลิงก์ชวนเพื่อน', 'lobby.copied': 'ก๊อปลิงก์แล้วจ้า', 'lobby.copyCode': 'ก๊อปรหัสห้อง', 'lobby.codeCopied': 'ก๊อปรหัสแล้วจ้า',
   'lobby.players': 'คนในวง ({n})', 'lobby.setup': 'ตั้งค่าเกม',
   'lobby.wolves': 'หมาป่า', 'lobby.seer': 'หมอดู', 'lobby.bodyguard': 'บอดี้การ์ด', 'lobby.villagers': 'ชาวบ้าน',
   'lobby.fewer': 'ลด{label}', 'lobby.more': 'เพิ่ม{label}',
   'lobby.randomize': 'RANDOM CHAOS MODE 🎲', 'lobby.randomOn': 'RANDOM CHAOS MODE เปิดอยู่ 🎲', 'lobby.mode': 'โหมดเลือกบทบาท', 'lobby.modeManual': 'เลือกเอง', 'lobby.modeRandom': 'สุ่มมั่วๆ 🎲',
-  'lobby.randomWhat': 'ระบบจะสุ่มบทบาทลับตอนเริ่มเกม ไม่มีใครรู้ว่าในวงมีบทบาทอะไรบ้าง แม้แต่โฮสต์ 🤫', 'lobby.randomHint': 'จำนวนบทบาทเลยถูกซ่อนไว้ ถ้าอยากกำหนดเองให้กด “เลือกเอง”',
+  'lobby.randomWhat': 'ระบบจะสุ่มบทบาทลับตอนเริ่มเกม ไม่มีใครรู้ว่าในวงมีบทบาทอะไรบ้าง แม้แต่โฮสต์ 🤫',
   'lobby.manualHint': 'กำหนดจำนวนแต่ละบทบาทเอง หรือกดสุ่มมั่วๆ ให้ระบบจัดให้', 'lobby.options': 'ตัวเลือกอื่นๆ', 'lobby.startRandom': 'เริ่มเกมสุ่มเลย!', 'lobby.manual': 'เลือกบทบาทเอง',
   'lobby.reset': 'ให้ระบบจัดบทบาทให้เอง', 'lobby.revealOnDeath': 'ตายแล้วเปิดไพ่บทบาทเลย',
   'lobby.selfProtect': 'บอดี้การ์ดปกป้องตัวเองได้ (เห็นแก่ตัวนิดนึง)', 'lobby.narration': 'เสียงเล่าเรื่อง (แต่ละเครื่องเปิดปิดเองได้)',
@@ -111,6 +112,9 @@ const ROLE_NAMES = ['Wolf Cub', 'Werewolf', 'Villager', 'Seer', "Seer's Apprenti
   'Diseased Villager', 'Graveyard Voter', 'Jester'];
 const andTh = (s) => s.replace(/ and /g, ' และ ');
 const note = (s) => s.replace(/ They were a ([\w ]+)\./g, (_, r) => ` (เขาคือ${roleTh(r)} นะจ๊ะ)`);
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Spoken night / day / vote openers: the engine picks one of several, each with its Thai pair in game/lines.js.
+const lineRules = [...NIGHT_LINES, ...DAY_LINES, ...VOTE_LINES].map(({ en, th }) => [new RegExp(escapeRe(en), 'g'), () => th]);
 const TR = [
   // End-of-game history (full detail). These run first: they match English role names in "Name (Role)" and
   // some phrases (e.g. "died: shot by") would otherwise be caught by the looser rules below.
@@ -141,11 +145,9 @@ const TR = [
   [/Tied vote: nobody was eliminated\./g, () => 'โหวตเสมอ: ไม่มีใครโดนเตะ'],
   [/(.+?) survived the vote: the Prince is immune to the first vote against them\./g, (_, n) => `${n} รอดจากการโหวต: เจ้าชายรอดโหวตแรกได้`],
   [new RegExp(`\\((${ROLE_NAMES.join('|')})\\)`, 'g'), (_, r) => `(${roleTh(r)})`],
-  [/Night falls\. Everyone, check your phone\./g, () => 'ค่ำคืนมาเยือนแล้ว ทุกคนหยิบมือถือขึ้นมา แล้วทำตัวดีๆ'],
+  ...lineRules,
   [/(.+?) was killed in the night\.( They were a [\w ]+\.)?/g, (_, n, r) => `${n} โดนเก็บไปในคืนนี้ RIP${r ? note(r) : ''}`],
   [/Nobody died\./g, () => 'ไม่มีใครตาย คืนนี้หมาป่าคงอิ่มมาแล้ว'],
-  [/Day breaks\./g, () => 'ฟ้าสางแล้ว ใครยังหายใจอยู่ ยกมือหน่อย'],
-  [/Time to vote\./g, () => 'ได้เวลาโหวต ชี้ตัวกันเลย อย่ากั๊ก'],
   [/(.+?) was eliminated by vote\.( They were a [\w ]+\.)?/g, (_, n, r) => `${n} โดนโหวตเตะออกจากวง${r ? note(r) : ''}`],
   [/Nobody was eliminated\./g, () => 'ไม่มีใครโดนเตะ ทุกคนรอดไปอย่างหวุดหวิด'],
   [/The village wins!/g, () => 'หมู่บ้านชนะ! หมาป่าเรียบร้อย'],
@@ -241,12 +243,12 @@ const EN = {
   'home.sub': 'Werewolf for your phones. No moderator needed.',
   'home.resume': 'Resume game', 'home.name': 'Name', 'home.yourName': 'Your name',
   'home.host': 'Host game', 'home.code': 'Room code', 'home.join': 'Join game',
-  'lobby.roomCode': 'Room code', 'lobby.share': 'Share invite link', 'lobby.copied': 'Link copied',
+  'lobby.roomCode': 'Room code', 'lobby.share': 'Share invite link', 'lobby.copied': 'Link copied', 'lobby.copyCode': 'Copy code', 'lobby.codeCopied': 'Code copied',
   'lobby.players': 'Players ({n})', 'lobby.setup': 'Game setup',
   'lobby.wolves': 'Werewolves', 'lobby.seer': 'Seer', 'lobby.bodyguard': 'Bodyguard', 'lobby.villagers': 'Villagers',
   'lobby.fewer': 'Fewer {label}', 'lobby.more': 'More {label}',
   'lobby.randomize': 'RANDOM CHAOS MODE 🎲', 'lobby.randomOn': 'RANDOM CHAOS MODE is ON 🎲', 'lobby.mode': 'Role mode', 'lobby.modeManual': 'Choose roles', 'lobby.modeRandom': 'Random chaos 🎲',
-  'lobby.randomWhat': 'Roles are rolled in secret when the game starts. Nobody knows which roles are in play, not even you.', 'lobby.randomHint': 'Role counts are hidden on purpose. Switch to "Choose roles" to set them yourself.',
+  'lobby.randomWhat': 'Roles are rolled in secret when the game starts. Nobody knows which roles are in play, not even you.',
   'lobby.manualHint': 'Set how many of each role, or switch to Random chaos and let the game decide.', 'lobby.options': 'Other options', 'lobby.startRandom': 'Start random game', 'lobby.manual': 'Pick roles manually',
   'lobby.reset': 'Reset roles to auto', 'lobby.revealOnDeath': 'Reveal role on death',
   'lobby.selfProtect': 'Bodyguard can protect self', 'lobby.narration': 'Narration (each phone can turn it on or off)',
