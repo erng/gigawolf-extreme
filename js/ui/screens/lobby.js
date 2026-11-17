@@ -48,13 +48,14 @@ export function lobbyScreen(view, ctx) {
   return h('main', { class: 'screen lobby' },
     h('p', { class: 'sub' }, t('lobby.roomCode')),
     h('div', { class: 'roomcode', 'aria-label': `${t('lobby.roomCode')} ${view.roomCode.split('').join(' ')}` }, formatRoomCode(view.roomCode)),
-    h('button', { class: 'btn small', onClick: async (e) => {
-      const btn = e.currentTarget;
-      try { await navigator.clipboard.writeText(formatRoomCode(view.roomCode)); btn.textContent = t('lobby.codeCopied'); } catch { /* clipboard blocked */ }
-    } }, t('lobby.copyCode')),
-    h('button', { class: 'btn small', onClick: async (e) => {
-      try { if (navigator.share) await navigator.share({ url: link, title: 'Gigawolf Extreme' }); else { await navigator.clipboard.writeText(link); e.target.textContent = t('lobby.copied'); } } catch { /* cancelled */ }
-    } }, t('lobby.share')),
+    h('div', { class: 'invite' },
+      h('button', { class: 'btn small', onClick: async (e) => {
+        const btn = e.currentTarget;
+        try { await navigator.clipboard.writeText(formatRoomCode(view.roomCode)); btn.textContent = t('lobby.codeCopied'); } catch { /* clipboard blocked */ }
+      } }, t('lobby.copyCode')),
+      h('button', { class: 'btn small', onClick: async (e) => {
+        try { if (navigator.share) await navigator.share({ url: link, title: 'Gigawolf Extreme' }); else { await navigator.clipboard.writeText(link); e.target.textContent = t('lobby.copied'); } } catch { /* cancelled */ }
+      } }, t('lobby.share'))),
     h('h2', null, t('lobby.players', { n })),
     playerList(bots > 0 ? { ...view, players: view.players.filter((p) => !isBotId(p.id)) } : view),
     bots > 0 && h('p', { class: 'sub' }, t('lobby.botsList', { n: bots })),
