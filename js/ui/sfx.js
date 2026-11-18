@@ -8,7 +8,7 @@
 // phone first turns effects on.
 import { APP_VERSION } from '../config.js';
 
-export const SOUNDS = ['gameStart', 'nightfall', 'voteCall', 'nightDeath', 'calm', 'voteOut', 'tie', 'shot', 'spared', 'prince', 'jester', 'villageWin', 'wolvesWin', 'jesterWin'];
+export const SOUNDS = ['gameStart', 'nightfall', 'voteCall', 'nightDeath', 'calm', 'voteOut', 'tie', 'shot', 'spared', 'prince', 'jester', 'villageWin', 'wolvesWin'];
 const VOLUME = 0.8;
 const TOO_LATE_MS = 600; // a sound that loads after its moment has passed is skipped, not played late
 const SPEECH_GAP_MS = 250; // quiet beat between the last sound and the spoken line
@@ -66,12 +66,12 @@ export function afterSfx(fn) {
 
 // The sound for a change of phase (the game starting, nightfall, the call to vote, the winner), or null. Only real changes count: the first view after joining or
 // reconnecting has no previous view, so a phone that rejoins mid-night stays quiet.
-// The Jester's win has its own sound, played on the game-over screen. The Jester card on the vote result before it plays the card sound.
+// The Jester's win plays the Jester sound again on the game-over screen. The vote result card before it played it once for the reveal.
 export function phaseSfx(prev, next) {
   if (!prev || !next || prev.phase === next.phase) return null;
   if (next.phase === 'reveal') return 'gameStart';
   if (next.phase === 'night') return 'nightfall';
   if (next.phase === 'vote') return 'voteCall';
-  if (next.phase === 'gameover') return { village: 'villageWin', wolves: 'wolvesWin', jester: 'jesterWin' }[next.winner] ?? null;
+  if (next.phase === 'gameover') return { village: 'villageWin', wolves: 'wolvesWin', jester: 'jester' }[next.winner] ?? null;
   return null;
 }

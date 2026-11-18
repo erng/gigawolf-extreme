@@ -40,7 +40,7 @@ test('game start, nightfall, the call to vote and the winner sound only on a rea
   assert.equal(phaseSfx({ phase: 'night' }, { phase: 'night' }), null);
   assert.equal(phaseSfx({ phase: 'day' }, { phase: 'gameover', winner: 'village' }), 'villageWin');
   assert.equal(phaseSfx({ phase: 'night' }, { phase: 'gameover', winner: 'wolves' }), 'wolvesWin');
-  assert.equal(phaseSfx({ phase: 'vote' }, { phase: 'gameover', winner: 'jester' }), 'jesterWin');
+  assert.equal(phaseSfx({ phase: 'vote' }, { phase: 'gameover', winner: 'jester' }), 'jester');
   assert.equal(phaseSfx(null, { phase: 'gameover', winner: 'jester' }), null, 'rejoining at game over is quiet');
   assert.equal(phaseSfx({ phase: 'day' }, { phase: 'gameover', winner: 'ended' }), null);
 });
