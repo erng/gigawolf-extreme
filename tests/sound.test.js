@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadSoundPrefs, saveSoundPrefs } from '../js/ui/soundprefs.js';
+import { loadSoundPrefs, saveSoundPrefs, musicAllowed } from '../js/ui/soundprefs.js';
 
 const memStorage = () => { const m = new Map(); return { get: (k) => (m.has(k) ? JSON.parse(m.get(k)) : null), set: (k, v) => m.set(k, JSON.stringify(v)), remove: (k) => m.delete(k) }; };
 const HOST = { isHost: true, roomCode: null };
@@ -41,4 +41,10 @@ test('effects are their own switch, and choices saved before effects existed get
   assert.deepEqual(loadSoundPrefs(s, room('ABCDEFGH')), { music: true, narrator: true, effects: false });
   saveSoundPrefs(s, HOST, { music: true, narrator: true, effects: false });
   assert.deepEqual(loadSoundPrefs(s, HOST), { music: true, narrator: true, effects: false }, 'muting effects leaves music and narrator alone');
+});
+
+test('music plays in the lobby only: not once a game starts, back on Play again', () => {
+  assert.equal(musicAllowed('lobby'), true);
+  assert.equal(musicAllowed(null), true, 'before the first view arrives, so the Host or Join tap can start it');
+  for (const phase of ['reveal', 'night', 'day', 'vote', 'shot', 'gameover']) assert.equal(musicAllowed(phase), false, phase);
 });

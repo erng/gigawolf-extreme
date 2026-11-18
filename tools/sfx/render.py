@@ -131,6 +131,14 @@ def _():
     add(o, lp(howl(1.4, n('G4'), n('D5'), n('B4')), 1600), .3, .4)
     return reverb(o, 2.0, .38)
 
+@sfx('midnight', 'voteCall', 'Midnight summons', 'Three wooden knocks, then a bell calling the village to vote. 2.1 s.', -17)
+def _():
+    o = buf(1.8)
+    for i in range(3):
+        add(o, wood(310, .25), i * .17, .85)
+    add(o, toll(n('E4'), 1.3, .8), .62, .5)
+    return reverb(o, .9, .2)
+
 if __name__ == '__main__':
     import wave, base64
     OUT = sys.argv[1] if len(sys.argv) > 1 else 'out'

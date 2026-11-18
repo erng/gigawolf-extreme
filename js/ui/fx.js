@@ -22,7 +22,7 @@ const RULES = [
   [/^Nobody was eliminated\.$/, () => ({ type: 'tie' })],
   [/^(.+?) is the Prince! The village cannot eliminate them\.$/, (m) => ({ type: 'prince', name: m[1], role: 'prince' })],
   [/^(.+?) was the Jester!$/, (m) => ({ type: 'jester', name: m[1], role: 'jester' })],
-  [/^(.+?) lowered the gun\.$/, (m) => ({ type: 'spared', name: m[1] })],
+  [/^(.+?) lowered the (?:bow|gun)\.$/, (m) => ({ type: 'spared', name: m[1] })],
   [new RegExp(`^(.+?) shot (.+?)\\.${REVEAL}$`), (m) => ({ type: 'shot', by: m[1], name: m[2], role: roleOf(m[3]) })],
 ];
 const DEATHS = new Set(['night', 'vote', 'shot']);
@@ -91,10 +91,10 @@ function card(view, e, { big = false, index = 0 } = {}) {
   const death = DEATHS.has(e.type);
   const cls = ['fx', `fx-${e.type}`, death && 'fx-death', you && 'fx-you', e.jester && 'fx-twist', big && 'fx-big fx-play'].filter(Boolean).join(' ');
   const attrs = { class: cls, 'data-fxkey': e.key, style: `--d:${big ? CARD_MS(index) : 0}ms`, 'aria-label': tr(e.text) };
-  if (e.type === 'info' || e.type === 'spared') return h('div', attrs, h('div', { class: 'fx-text' }, tr(e.text)));
-  if (e.type === 'calm' || e.type === 'tie') {
+  if (e.type === 'info') return h('div', attrs, h('div', { class: 'fx-text' }, tr(e.text)));
+  if (e.type === 'calm' || e.type === 'tie' || e.type === 'spared') {
     return h('div', attrs,
-      e.type === 'calm' && h('div', { class: 'fx-prop' }, propSprite('sun', { scale: 4 })),
+      h('div', { class: 'fx-prop' }, propSprite(e.type === 'calm' ? 'sun' : e.type === 'tie' ? 'scales' : 'bowdown', { scale: 4 })),
       h('div', { class: 'fx-text' }, tr(e.text)));
   }
   const kicker = e.type === 'night' ? t('fx.night') : e.type === 'vote' ? t('fx.vote')

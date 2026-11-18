@@ -3,6 +3,10 @@
 // table full of phones in one room doesn't play the same track, lines and effects over each other.
 // Remote players can turn any of them on. Choices saved before effects existed get the default for it.
 // The host's choice is kept across games; a player's choice only for the room they set it in.
+// Music is for waiting around: it plays while the lobby is up (and before the first view arrives, so the
+// Host or Join tap can start it) and stops once a game begins, so it never clashes with the sound effects.
+export const musicAllowed = (phase) => phase == null || phase === 'lobby';
+
 const HOST_KEY = 'gigawolf.sound.host';
 const PLAYER_KEY = 'gigawolf.sound.player';
 const OLD_MUSIC_MUTE_KEY = 'gigawolf.music.muted'; // before 1.16.0: host music mute only

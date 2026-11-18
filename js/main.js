@@ -8,8 +8,9 @@ import { t, tr, getLang, setLang } from './i18n.js';
 import { storage } from './util/storage.js';
 import { keepAwake, releaseAwake } from './util/wakelock.js';
 import { speak } from './ui/narrator.js';
-import { enterRoom, leaveRoom, refreshSoundLabels } from './ui/sound.js';
+import { enterRoom, leaveRoom, refreshSoundLabels, setSoundPhase } from './ui/sound.js';
 import { playSfx, phaseSfx } from './ui/sfx.js';
+import { playMoment } from './ui/moments.js';
 import { APP_VERSION, normalizeRoomCode } from './config.js';
 import { homeScreen } from './ui/screens/home.js';
 import { lobbyScreen } from './ui/screens/lobby.js';
@@ -63,10 +64,11 @@ function wire(client) {
     toast(tr(e.message));
   };
   client.onView = (view) => {
-    sayNarration(view);
+    setSoundPhase(view.phase);
     onViewChange(app.view, view);
     app.view = view;
     render();
+    sayNarration(view); // after render: the screen schedules its sounds, and speech waits for them
   };
   client.onWelcome = () => { app.connecting = false; app.narrSeq = undefined; };
 }
@@ -83,6 +85,11 @@ function sayNarration(view) {
 function onViewChange(prev, next) {
   const sfx = phaseSfx(prev, next);
   if (sfx) playSfx(sfx);
+  // Full-screen moments on a phase change seen live (not on the first view after joining or rejoining).
+  if (prev && prev.phase !== next.phase) {
+    if (next.phase === 'night') playMoment('nightfall', next);
+    if (next.phase === 'gameover' && (next.winner === 'wolves' || next.winner === 'village')) playMoment(next.winner, next);
+  }
   const key = `${next.phase}:${next.round}:${next.you.alive}`;
   if (key !== app.prevKey) {
     if (app.prevKey) { try { navigator.vibrate?.(next.phase === 'gameover' ? [200, 100, 200] : 200); } catch { /* iOS */ } }

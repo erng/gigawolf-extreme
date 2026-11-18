@@ -12,7 +12,6 @@
 import { ROLES, isWolf, isDecoy, teamOf, TEAM } from './roles.js';
 import { MAX_PLAYERS, MAX_HUMANS, MAX_BOTS, BOT_NAMES, BOT_TAG, isBotId, MIN_PLAYERS, COUNT_KEYS, presetFor, validate, roleList, fullCounts, randomCounts } from './setup.js';
 import { shuffle } from '../util/rng.js';
-import { NIGHT_LINES, DAY_LINES, VOTE_LINES, pickLine } from './lines.js';
 
 export const PHASE = Object.freeze({
   LOBBY: 'lobby', REVEAL: 'reveal', NIGHT: 'night', DAY: 'day', VOTE: 'vote', SHOT: 'shot', GAMEOVER: 'gameover',
@@ -297,7 +296,7 @@ function finishAfter(state, after, fx) {
     const text = state.lines.join(' ');
     if (winner) return endGame(state, winner, fx, text);
     state.phase = PHASE.DAY;
-    fx.push({ type: 'narrate', text: `${pickLine(state, 'day', DAY_LINES)} ${text}` });
+    fx.push({ type: 'narrate', text });
     fx.push({ type: 'haptic' });
     return null;
   }
@@ -318,7 +317,6 @@ function startNight(state, fx) {
   state.diseasedDied = false;
   state.vote = null;
   state.lines = [];
-  fx.push({ type: 'narrate', text: pickLine(state, 'night', NIGHT_LINES) });
   fx.push({ type: 'haptic' });
 }
 
@@ -506,7 +504,6 @@ function beginVote(state, fx) {
   for (const p of state.players) p.haunt = false;
   state.vote = { votes: {}, stage: 'voting', result: null, ghosts };
   state.lines = [];
-  fx.push({ type: 'narrate', text: pickLine(state, 'vote', VOTE_LINES) });
   fx.push({ type: 'haptic' });
 }
 
@@ -615,7 +612,7 @@ function nextPhase(state, _a, isHost, rng, fx) {
     case PHASE.SHOT: {
       const h = byId(state, state.shots[0]);
       hist(state, state.afterShot === 'day' ? 'night' : 'day', `${who(h)} chose not to shoot anyone.`);
-      say(state, `${h.name} lowered the gun.`);
+      say(state, `${h.name} lowered the bow.`);
       nextShot(state, fx);
       return null;
     }
@@ -644,7 +641,8 @@ function endGame(state, winner, fx, lastText) {
     : winner === 'ended' ? 'The host ended the game early.' : 'The wolves win!';
   state.log.push({ text: line });
   hist(state, 'end', line);
-  fx.push({ type: 'narrate', text: `${lastText ? lastText + ' ' : ''}${line}` });
+  // The win has its own sound and screen; only the deaths that ended the game are spoken.
+  if (lastText) fx.push({ type: 'narrate', text: lastText });
   fx.push({ type: 'haptic' });
 }
 
