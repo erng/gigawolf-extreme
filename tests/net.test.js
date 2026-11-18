@@ -82,7 +82,7 @@ test('clients cannot spoof: unknown kinds rejected, host-only actions refused, n
   h.host.close();
 });
 
-// Start a game and get everyone through the role reveal into the first night ("Night falls…" is narrated).
+// Start a game and get everyone through the role reveal into the first night.
 async function toFirstNight(h, a) {
   h.client.send('startGame');
   await until(() => h.view.phase === 'reveal' && a.view.phase === 'reveal');
@@ -102,8 +102,11 @@ test('narration goes to every phone with each view, numbered so each line is spo
   addBots(h.host, 4, { minDelay: 1, maxDelay: 5 });
   await until(() => h.view.players.length === 6);
   await toFirstNight(h, a);
+  assert.equal(h.host.narration, null, 'nightfall has a sound, not a line');
+  h.client.send('nextPhase'); // the host ends the night: dawn is narrated
+  await until(() => h.view.phase === 'day' && a.view.phase === 'day');
   const first = h.host.narration;
-  assert.ok(first, 'night falls is narrated');
+  assert.ok(first, 'dawn is narrated');
   await until(() => a.view.narration?.seq === first.seq && h.view.narration?.seq === first.seq);
   assert.equal(a.view.narration.text, first.text);
   assert.ok(said.length >= 1);
@@ -119,6 +122,8 @@ test('narration setting off: no lines are sent', async () => {
   addBots(h.host, 4, { minDelay: 1, maxDelay: 5 });
   await until(() => h.view.players.length === 6);
   await toFirstNight(h, a);
+  h.client.send('nextPhase');
+  await until(() => h.view.phase === 'day' && a.view.phase === 'day');
   assert.equal(h.host.narration, null);
   assert.equal(a.view.narration, undefined);
   h.host.close();

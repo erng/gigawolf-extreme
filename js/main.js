@@ -63,10 +63,10 @@ function wire(client) {
     toast(tr(e.message));
   };
   client.onView = (view) => {
-    sayNarration(view);
     onViewChange(app.view, view);
     app.view = view;
     render();
+    sayNarration(view); // after render: the screen schedules its sounds, and speech waits for them
   };
   client.onWelcome = () => { app.connecting = false; app.narrSeq = undefined; };
 }

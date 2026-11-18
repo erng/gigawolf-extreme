@@ -2,7 +2,6 @@
 // UI strings go through t(key). Strings produced by the game engine / host (log lines, prompts,
 // narration, errors) stay English on the wire and are translated for display by tr().
 import { storage } from './util/storage.js';
-import { NIGHT_LINES, DAY_LINES, VOTE_LINES } from './game/lines.js';
 
 const LANG_KEY = 'gigawolf.lang';
 export const LANGS = ['en', 'th'];
@@ -116,9 +115,6 @@ const ROLE_NAMES = ['Wolf Cub', 'Werewolf', 'Villager', 'Seer', "Seer's Apprenti
   'Diseased Villager', 'Graveyard Voter', 'Jester'];
 const andTh = (s) => s.replace(/ and /g, ' และ ');
 const note = (s) => s.replace(/ They were a ([\w ]+)\./g, (_, r) => ` (เขาคือ${roleTh(r)} นะจ๊ะ)`);
-const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-// Spoken night / day / vote openers: the engine picks one of several, each with its Thai pair in game/lines.js.
-const lineRules = [...NIGHT_LINES, ...DAY_LINES, ...VOTE_LINES].map(({ en, th }) => [new RegExp(escapeRe(en), 'g'), () => th]);
 const TR = [
   // End-of-game history (full detail). These run first: they match English role names in "Name (Role)" and
   // some phrases (e.g. "died: shot by") would otherwise be caught by the looser rules below.
@@ -149,7 +145,6 @@ const TR = [
   [/Tied vote: nobody was eliminated\./g, () => 'โหวตเสมอ: ไม่มีใครโดนเตะ'],
   [/(.+?) survived the vote: the Prince is immune to the first vote against them\./g, (_, n) => `${n} รอดจากการโหวต: เจ้าชายรอดโหวตแรกได้`],
   [new RegExp(`\\((${ROLE_NAMES.join('|')})\\)`, 'g'), (_, r) => `(${roleTh(r)})`],
-  ...lineRules,
   [/(.+?) was killed in the night\.( They were a [\w ]+\.)?/g, (_, n, r) => `${n} โดนเก็บไปในคืนนี้ RIP${r ? note(r) : ''}`],
   [/Nobody died\./g, () => 'ไม่มีใครตาย คืนนี้หมาป่าคงอิ่มมาแล้ว'],
   [/Most suspected: (.+?)\./g, (_, names) => `คนที่โดนสงสัยเยอะสุด: ${andTh(names)}`],
