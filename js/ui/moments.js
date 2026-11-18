@@ -1,4 +1,4 @@
-// Full-screen moments for nightfall and the end of the game. Same pattern as the outcome takeover in
+// Full-screen moments for nightfall and the end of the game (wolves, village or Jester). Same pattern as the outcome takeover in
 // fx.js: lives on <body>, fades away by itself, a tap only ends it sooner. Public moments only: every
 // phone shows the same thing (at game over every role is public).
 import { h } from './dom.js';
@@ -6,7 +6,7 @@ import { t } from '../i18n.js';
 import { roleSprite, propSprite } from './pixel.js';
 import { teamOf } from '../game/roles.js';
 
-const HOLD = { nightfall: 2800, wolves: 4600, village: 4600 };
+const HOLD = { nightfall: 2800, wolves: 4600, village: 4600, jester: 4600 };
 let current = null;
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -17,8 +17,13 @@ const STARS = Array.from({ length: 46 }, (_, i) => ({ x: Math.round(halton(i + 1
 const stars = () => h('div', { class: 'mo-stars' }, STARS.map((st) =>
   h('b', { style: `left:${st.x}%;top:${st.y}%;width:${st.s + 1}px;height:${st.s + 1}px;--tw:${st.d}ms` })));
 
+// Paper confetti for the Jester's moment: an even spread across the width, each piece on its own delay.
+const CONFETTI = ['#e0556b', '#2fb5b0', '#ffe14d', '#f472b6'];
+const confetti = () => h('div', { class: 'mo-confetti', 'aria-hidden': 'true' }, Array.from({ length: 36 }, (_, i) =>
+  h('b', { style: `left:${Math.round(halton(i + 1, 5) * 100)}%;--c:${CONFETTI[i % CONFETTI.length]};--d:${(i * 97) % 1800}ms;--s:${5 + (i % 3) * 2}px` })));
+
 function team(view, side) {
-  const list = view.players.filter((p) => p.role && (side === 'wolves' ? teamOf(p.role) === 'wolves' : teamOf(p.role) === 'village'));
+  const list = view.players.filter((p) => p.role && teamOf(p.role) === side);
   const shown = list.slice(0, 8);
   return h('div', { class: 'mo-team' },
     shown.map((p, i) => h('div', { class: `mo-member${p.alive ? '' : ' dead'}`, style: `--i:${i}`, 'data-name': p.name }, roleSprite(p.role, { scale: 3 }), h('span', null, p.name))),
@@ -38,12 +43,20 @@ function scene(kind, view) {
       h('div', { class: 'mo-moonwrap' }, h('div', { class: 'mo-white' }, propSprite('moon', { scale: 9 })), h('div', { class: 'mo-red' }, propSprite('bloodmoon', { scale: 9 }))),
       h('div', { class: 'mo-title' }, h('div', { class: 'mo-big' }, t('over.wolves'))), team(view, 'wolves')];
   }
+  if (kind === 'jester') {
+    // The curtains part on a lit stage, confetti falls and the Jester dances. The curtains come last in the
+    // list so they cover everything until they open.
+    return [h('div', { class: 'mo-sky' }), h('div', { class: 'mo-spot' }), confetti(),
+      h('div', { class: 'mo-hero' }, roleSprite('jester', { scale: 9 })),
+      h('div', { class: 'mo-title' }, h('div', { class: 'mo-big' }, t('over.jester'))), team(view, 'jester'),
+      h('div', { class: 'mo-curtain mo-left' }), h('div', { class: 'mo-curtain mo-right' })];
+  }
   // The night sky turns to dawn and the sun rises, then the villagers hop.
   return [h('div', { class: 'mo-sky' }), h('div', { class: 'mo-dawn' }), stars(), h('div', { class: 'mo-sun' }, propSprite('sun', { scale: 7 })),
     h('div', { class: 'mo-title' }, h('div', { class: 'mo-big' }, t('over.village'))), team(view, 'village')];
 }
 
-// kind: 'nightfall' | 'wolves' | 'village'.
+// kind: 'nightfall' | 'wolves' | 'village' | 'jester'.
 export function playMoment(kind, view) {
   if (reducedMotion() || typeof document === 'undefined') return;
   if (current) { clearTimeout(current.timer); current.remove(); }

@@ -6,6 +6,7 @@ import { Host } from './net/host.js';
 import { randomId } from './net/protocol.js';
 import { t, tr, getLang, setLang } from './i18n.js';
 import { storage } from './util/storage.js';
+import { refetchAll } from './util/refresh.js';
 import { keepAwake, releaseAwake } from './util/wakelock.js';
 import { speak } from './ui/narrator.js';
 import { enterRoom, leaveRoom, refreshSoundLabels, setSoundPhase } from './ui/sound.js';
@@ -88,7 +89,7 @@ function onViewChange(prev, next) {
   // Full-screen moments on a phase change seen live (not on the first view after joining or rejoining).
   if (prev && prev.phase !== next.phase) {
     if (next.phase === 'night') playMoment('nightfall', next);
-    if (next.phase === 'gameover' && (next.winner === 'wolves' || next.winner === 'village')) playMoment(next.winner, next);
+    if (next.phase === 'gameover' && ['wolves', 'village', 'jester'].includes(next.winner)) playMoment(next.winner, next);
   }
   const key = `${next.phase}:${next.round}:${next.you.alive}`;
   if (key !== app.prevKey) {
@@ -237,24 +238,15 @@ const htmlVer = $ver.dataset.htmlVersion;
 $ver.textContent = htmlVer === APP_VERSION ? `v${APP_VERSION}` : `v${APP_VERSION} (page v${htmlVer}) ⚠ stale cache, reload`;
 
 // Force refresh: GitHub Pages serves files with max-age=600, so a plain reload can reuse stale JS/CSS.
-// Re-download index.html, the stylesheet and every module in the import graph with cache:'reload'
-// (which overwrites the HTTP cache entries), then reload. Session storage is kept so players rejoin.
+// Re-download index.html, the page's own address, the stylesheet and every module in the import graph with
+// cache:'reload' (which overwrites the HTTP cache entries), all at once per level and for at most 10 seconds
+// (js/util/refresh.js), then reload. Session storage is kept so players rejoin.
 async function forceRefresh(btn) {
   if (app.host && !confirm(t('refresh.hostWarn'))) return;
   btn.disabled = true; btn.textContent = t('refresh.busy');
   try {
-    const seen = new Set();
-    const queue = [new URL('js/main.js', document.baseURI).href, new URL('css/style.css', document.baseURI).href, new URL('index.html', document.baseURI).href];
-    while (queue.length) {
-      const url = queue.pop();
-      if (seen.has(url)) continue;
-      seen.add(url);
-      const res = await fetch(url, { cache: 'reload' });
-      if (!res.ok || !url.endsWith('.js')) continue;
-      const src = await res.text();
-      for (const m of src.matchAll(/(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g)) queue.push(new URL(m[1], url).href);
-    }
-    await fetch(location.pathname, { cache: 'reload' });
+    const abs = (p) => new URL(p, document.baseURI).href;
+    await refetchAll([abs('js/main.js'), abs('css/style.css'), abs('index.html'), abs(location.pathname)]);
     if (window.caches) for (const k of await caches.keys()) await caches.delete(k);
   } catch { /* offline or partial: reload anyway */ }
   location.reload();

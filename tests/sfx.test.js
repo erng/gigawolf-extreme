@@ -26,7 +26,11 @@ test('a voted-out Jester plays the Jester sound, once, whether or not roles are 
   assert.deepEqual(sfxPlan(parseLines(['Eli was eliminated by vote. They were a Jester.'])).map((s) => s.name), ['jester']);
 });
 
-test('nightfall, the call to vote and the winner sound only on a real change of phase', () => {
+test('game start, nightfall, the call to vote and the winner sound only on a real change of phase', () => {
+  assert.equal(phaseSfx({ phase: 'lobby' }, { phase: 'reveal' }), 'gameStart');
+  assert.equal(phaseSfx(null, { phase: 'reveal' }), null, 'joining or reconnecting during the reveal is quiet');
+  assert.equal(phaseSfx({ phase: 'reveal' }, { phase: 'reveal' }), null, 'a player getting ready is not a new start');
+  assert.equal(phaseSfx({ phase: 'gameover' }, { phase: 'lobby' }), null, 'Play again is quiet until the next start');
   assert.equal(phaseSfx({ phase: 'day' }, { phase: 'vote' }), 'voteCall');
   assert.equal(phaseSfx(null, { phase: 'vote' }), null, 'joining or reconnecting mid-vote is quiet');
   assert.equal(phaseSfx({ phase: 'vote' }, { phase: 'vote' }), null, 'the vote result is not a new call');
@@ -36,7 +40,8 @@ test('nightfall, the call to vote and the winner sound only on a real change of 
   assert.equal(phaseSfx({ phase: 'night' }, { phase: 'night' }), null);
   assert.equal(phaseSfx({ phase: 'day' }, { phase: 'gameover', winner: 'village' }), 'villageWin');
   assert.equal(phaseSfx({ phase: 'night' }, { phase: 'gameover', winner: 'wolves' }), 'wolvesWin');
-  assert.equal(phaseSfx({ phase: 'vote' }, { phase: 'gameover', winner: 'jester' }), null, 'the Jester card already played');
+  assert.equal(phaseSfx({ phase: 'vote' }, { phase: 'gameover', winner: 'jester' }), 'jester');
+  assert.equal(phaseSfx(null, { phase: 'gameover', winner: 'jester' }), null, 'rejoining at game over is quiet');
   assert.equal(phaseSfx({ phase: 'day' }, { phase: 'gameover', winner: 'ended' }), null);
 });
 
