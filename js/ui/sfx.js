@@ -1,13 +1,12 @@
 // Sound effects for public moments: nightfall, the outcome cards and the end of the game.
 // Only things every phone is already shown get a sound, so nothing secret can be heard across the room.
 // Each phone turns effects on or off with its own Effects button, separate from Music and Narrator.
-// The music ducks under every sound (music.js), and speech waits for the sounds to finish (afterSfx).
+// Speech waits for the sounds to finish (afterSfx). The music only plays in the lobby, so it never meets a sound.
 //
 // Web Audio, not <audio>: a sound must start when a view arrives, long after the last tap, and only an
 // AudioContext that was started from a tap may do that on phones. The files are only fetched once a
 // phone first turns effects on.
 import { APP_VERSION } from '../config.js';
-import { attachContext, duckMusic } from './music.js';
 
 export const SOUNDS = ['nightfall', 'voteCall', 'nightDeath', 'calm', 'voteOut', 'tie', 'shot', 'spared', 'prince', 'jester', 'villageWin', 'wolvesWin'];
 const VOLUME = 0.8;
@@ -29,7 +28,6 @@ export function setEffects(want) {
   // iPhone: play like media, through the silent switch, the same as the music.
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* older iOS */ }
   try { ctx ??= new AC(); } catch { return; }
-  attachContext(ctx); // the music goes through this context too, so it can duck under the effects
   if (ctx.state === 'suspended') ctx.resume().catch(() => { /* retried on the next tap */ });
   loading ??= Promise.all(SOUNDS.map(async (name) => {
     try {
@@ -49,9 +47,7 @@ export function playSfx(name, delayMs = 0) {
     const src = ctx.createBufferSource(); src.buffer = buf;
     const gain = ctx.createGain(); gain.gain.value = VOLUME;
     src.connect(gain).connect(ctx.destination);
-    const startAt = ctx.currentTime + Math.max(0, wait) / 1000;
-    src.start(startAt);
-    duckMusic(startAt, startAt + buf.duration);
+    src.start(ctx.currentTime + Math.max(0, wait) / 1000);
     busyUntil = Math.max(busyUntil, performance.now() + Math.max(0, wait) + buf.duration * 1000);
   };
   if (buffers[name]) go(); else loading?.then(go);

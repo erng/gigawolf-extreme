@@ -8,7 +8,7 @@ import { t, tr, getLang, setLang } from './i18n.js';
 import { storage } from './util/storage.js';
 import { keepAwake, releaseAwake } from './util/wakelock.js';
 import { speak } from './ui/narrator.js';
-import { enterRoom, leaveRoom, refreshSoundLabels } from './ui/sound.js';
+import { enterRoom, leaveRoom, refreshSoundLabels, setSoundPhase } from './ui/sound.js';
 import { playSfx, phaseSfx } from './ui/sfx.js';
 import { APP_VERSION, normalizeRoomCode } from './config.js';
 import { homeScreen } from './ui/screens/home.js';
@@ -63,6 +63,7 @@ function wire(client) {
     toast(tr(e.message));
   };
   client.onView = (view) => {
+    setSoundPhase(view.phase);
     onViewChange(app.view, view);
     app.view = view;
     render();

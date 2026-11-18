@@ -2,18 +2,19 @@
 // Defaults and what is remembered live in soundprefs.js.
 import { t } from '../i18n.js';
 import { storage } from '../util/storage.js';
-import { loadSoundPrefs, saveSoundPrefs } from './soundprefs.js';
+import { loadSoundPrefs, saveSoundPrefs, musicAllowed } from './soundprefs.js';
 import { setMusic } from './music.js';
 import { setNarrator, unlock } from './narrator.js';
 import { setEffects } from './sfx.js';
 
 let room = null;   // { isHost, roomCode } while in a room
 let prefs = { music: false, narrator: false, effects: false };
+let phase = null;   // the game phase of the latest view, null until one arrives
 let panel = null;
 const buttons = {};
 
 function apply() {
-  setMusic(!!room && prefs.music);
+  setMusic(!!room && prefs.music && musicAllowed(phase));
   setNarrator(!!room && prefs.narrator);
   setEffects(!!room && prefs.effects);
   if (room && prefs.narrator) unlock();
@@ -29,6 +30,7 @@ function sync() {
     b.setAttribute('aria-pressed', String(prefs[kind]));
     b.classList.toggle('off', !prefs[kind]);
   }
+  buttons.music.hidden = !musicAllowed(phase); // no music button while a game is on
 }
 
 function init() {
@@ -57,10 +59,16 @@ function init() {
 export function enterRoom({ isHost, roomCode }) {
   init();
   if (room && room.isHost === isHost && (isHost || room.roomCode === roomCode)) { apply(); return; }
-  room = { isHost, roomCode };
+  room = { isHost, roomCode }; phase = null;
   prefs = loadSoundPrefs(storage, room);
   apply();
 }
 
-export function leaveRoom() { room = null; apply(); }
+export function leaveRoom() { room = null; phase = null; apply(); }
+
+// Call with each view's phase: the music plays in the lobby only, and picks up where it left off on Play again.
+export function setSoundPhase(next) {
+  if (next === phase) return;
+  phase = next; apply();
+}
 export function refreshSoundLabels() { sync(); }
