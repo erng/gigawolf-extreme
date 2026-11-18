@@ -83,7 +83,7 @@ Ambiguities in the plan, resolved with the simplest option.
 - Rooms over 40 players throttle saving (1s) and view broadcasts (150ms); smaller rooms are unchanged.
 - `setBots` is one engine action (host only, lobby only), so adding bots costs one state copy.
 
-## Village suspicions (v1.18.0, opt-in setting `suspicions`, default off)
+## Village suspicions (v1.18.0, setting `suspicions`; on by default since v1.19.0, the host can turn it off)
 
 - The "Who do you suspect?" prompt that every no-power role gets used to do nothing. With this setting on, those answers are collected (`night.suspects`, host only, never in a view) and dawn adds one line: `Most suspected: <names>.`
 - **Checked for game-breaking, and kept safe by these limits.** The answers come only from players with no night power, so anything that shows who answered, or how many answered, tells the table who has a power and how many there are (and defeats the secret random mix). So the line shows names only, never counts or voters, and appears only when at least two answers agree; one lone answer cannot show how many no-power players are alive. A tie names everyone tied.

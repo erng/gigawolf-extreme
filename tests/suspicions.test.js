@@ -19,13 +19,14 @@ function night(g, suspects, { resolve = true } = {}) {
   return g.s.lines;
 }
 
-test('suspicions: off by default, host can turn it on, and nothing is announced while off', () => {
-  assert.equal(DEFAULT_SETTINGS.suspicions, false);
-  const g = game(ROLES);
+test('suspicions: on by default, host can turn it off, and nothing is announced while off', () => {
+  assert.equal(DEFAULT_SETTINGS.suspicions, true);
+  const on = night(game(ROLES), { p3: 'p0', p4: 'p0', p5: 'p0' });
+  assert.ok(on.includes('Most suspected: Player0.'), 'announced with the default settings');
+  const g = game(ROLES, { settings: { suspicions: false } });
+  assert.equal(g.s.settings.suspicions, false);
   const lines = night(g, { p3: 'p0', p4: 'p0', p5: 'p0' });
   assert.ok(!lines.some((l) => l.startsWith('Most suspected')));
-  const lobbyGame = game(ROLES, { settings: { suspicions: true } });
-  assert.equal(lobbyGame.s.settings.suspicions, true);
 });
 
 test('suspicions: the most suspected living player is announced once two or more agree', () => {

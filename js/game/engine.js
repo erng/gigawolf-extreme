@@ -27,7 +27,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   noVillagers: false, // only with randomize: MAX chaos, every non-wolf seat is a special role
   revealOnDeath: false,
   hideVotes: false, // hide who-voted-whom on the result screen, so players can lie about their votes
-  suspicions: false, // dawn announces who the no-power players suspect most (names only, anonymous)
+  suspicions: true, // dawn announces who the no-power players suspect most (names only, anonymous); the host can turn it off
   bodyguardSelfProtect: true,
   narration: true,
 });
