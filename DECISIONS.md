@@ -144,3 +144,11 @@ Ambiguities in the plan, resolved with the simplest option.
 - **No fade**: the lobby music still stops the moment the game starts. The horn covers the cut. A fade was proposed and dropped, since iPhones ignore `audio.volume`.
 - **Speech**: the narrator waits for the sound like it does for every other, so a first line never talks over the horn.
 - **Tests**: `tests/sfx.test.js` (game start only on a real change, quiet on rejoin, every file exists).
+
+## Faster force refresh (v1.24.1)
+
+- **Why it was slow**: the button downloaded about 38 files one after another, each a full round trip, so a weak connection took 30 seconds or more. One request that hung held up everything behind it, with no limit.
+- **Now**: files are fetched a level of the import graph at a time, all at once. The graph is 4 levels deep, so it takes about 4 round trips. The code is in `js/util/refresh.js`.
+- **Time limit**: every request shares one 10 second limit. When it runs out, whatever is still pending is dropped and the page reloads anyway.
+- **Unchanged**: the same files are refreshed with `cache:'reload'`, the page's own address included (it is a different cache entry from `index.html`), Cache Storage is cleared, and the session is kept so players rejoin. The host still gets the "this ends the game" warning.
+- **Tests**: `tests/refresh.test.js` (every file once with `cache:'reload'`, a level goes out at once, a request that never answers stops at the limit, a failed file is skipped).
