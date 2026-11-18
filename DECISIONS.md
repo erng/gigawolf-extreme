@@ -34,7 +34,7 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Host resume**: state, RNG state and room code saved after every applied action. On resume all players start as disconnected. Same-ID registration retries for up to 60s.
 - **Rejoin after reload** (non-host): a saved session auto-rejoins on page load, also when the URL has `?join=` for the same room.
 - **Haptics** run client-side on every phone when its own phase/alive state changes (not as a host effect).
-- **Narration and music** play on any phone, each with its own button in the tools row. Both default on for the host and off for everyone else, since in-person games put every phone in one room and duplicate sound is noise; remote players turn them on. The host's choice is remembered across games, a player's only for that room. The host sends the latest line with every view as `narration: { seq, text }` (only while the game's Narration setting is on); a phone speaks when `seq` changes, skipping the first view after it connects. Speech and audio still need a tap to start, so sound turned on without one starts on the next tap.
+- **Narration and music** play on any phone, each with its own button in the tools row. Music defaults on and narration off for everyone (changed in v1.26.0; see "Fewer host options"); each phone can change either. The host's choice is remembered across games, a player's only for that room. The host sends the latest line with every view as `narration: { seq, text }` (the game's `narration` setting stays on and has no host switch); a phone speaks when `seq` changes, skipping the first view after it connects. Speech and audio still need a tap to start, so sound turned on without one starts on the next tap.
 - **Bots** are real Clients on host loopback connections (`?bots=N`, max 14).
 - **Idle players** don't stall anything: the host can advance past them (no pick / Skip / not ready).
 - **Not tested here**: real iOS/Android phones, hotspot and client-isolation networks, speech synthesis and wake lock (verified only in headless Chrome and Node).
@@ -83,7 +83,7 @@ Ambiguities in the plan, resolved with the simplest option.
 - Rooms over 40 players throttle saving (1s) and view broadcasts (150ms); smaller rooms are unchanged.
 - `setBots` is one engine action (host only, lobby only), so adding bots costs one state copy.
 
-## Village suspicions (v1.18.0, setting `suspicions`; on by default since v1.19.0, the host can turn it off)
+## Village suspicions (v1.18.0, setting `suspicions`; on by default since v1.19.0, no host switch since v1.26.0)
 
 - The "Who do you suspect?" prompt that every no-power role gets used to do nothing. With this setting on, those answers are collected (`night.suspects`, host only, never in a view) and dawn adds one line: `Most suspected: <names>.`
 - **Checked for game-breaking, and kept safe by these limits.** The answers come only from players with no night power, so anything that shows who answered, or how many answered, tells the table who has a power and how many there are (and defeats the secret random mix). So the line shows names only, never counts or voters, and appears only when at least two answers agree; one lone answer cannot show how many no-power players are alive. A tie names everyone tied.
@@ -161,3 +161,8 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Public**: at game over every role is public, so showing the Jester is fine. Every phone gets the same moment, whoever won.
 - **Reduced motion**: no full-screen moment, as for the other wins.
 - **Tests**: `tests/sfx.test.js` (the Jester win sound on a real change of phase, quiet on rejoin, every file exists).
+
+## Fewer host options and new sound defaults (v1.26.0)
+
+- **Removed from the host's lobby**: Village suspicions, Bodyguard can protect self and Narration. Suspicions and Bodyguard self-protect were on by default and nobody had a reason to turn them off; narration is already a per-phone button in the tools row. The engine settings `suspicions`, `bodyguardSelfProtect` and `narration` stay, always at their defaults (on), so the game rules and the engine tests are unchanged.
+- **Sound defaults**: music and sound effects are on and narrator is off, for the host and for players. Choices people already saved are kept. Phones still need a tap before audio can start, as before.

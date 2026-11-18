@@ -86,11 +86,7 @@ export function lobbyScreen(view, ctx) {
           h('h3', null, t('lobby.options')),
           rows(
             toggle(t('lobby.revealOnDeath'), s.revealOnDeath, (v) => set({ revealOnDeath: v })),
-            toggle(t('lobby.hideVotes'), !!s.hideVotes, (v) => set({ hideVotes: v })),
-            toggle(t('lobby.suspicions'), !!s.suspicions, (v) => set({ suspicions: v })),
-            toggle(t('lobby.selfProtect'), s.bodyguardSelfProtect, (v) => set({ bodyguardSelfProtect: v })),
-            toggle(t('lobby.narration'), s.narration, (v) => set({ narration: v }))),
-          s.suspicions && h('p', { class: 'sub small' }, t('lobby.suspicionsHint')),
+            toggle(t('lobby.hideVotes'), !!s.hideVotes, (v) => set({ hideVotes: v }))),
           view.setup && !view.setup.ok && h('p', { class: 'error' }, view.setup.errors.map(tr).join(' ')),
           h('button', { class: 'btn primary', disabled: !(view.setup?.ok) || n < MIN_PLAYERS, onClick: () => ctx.send('startGame') },
             n < MIN_PLAYERS ? t('lobby.needMore', { n: MIN_PLAYERS - n, s: MIN_PLAYERS - n === 1 ? '' : 's' }) : s.randomize ? t('lobby.startRandom') : t('lobby.start')))
