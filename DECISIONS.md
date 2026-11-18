@@ -136,3 +136,11 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Bow, not gun**: the Hunter's sprite holds a bow, so the text says bow: "X lowered the bow." and the Thai lines say ธนู. The card parser and Thai rules still read the old "lowered the gun" from a host on an older version.
 - **Failed vote**: "Nobody was eliminated" now has a picture (balanced scales), like "Nobody died" has the sun.
 - **Reduced motion**: no full-screen moments, no drifting crosshair.
+
+## Game start sound (v1.24.0)
+
+- **What**: `gameStart`, a two-note low brass call (a fifth apart) with a hall tail, about 2.4 seconds, plays on the change from the lobby into the role reveal. Picked by ear from ten options.
+- **Same rules as nightfall**: only a real change of phase, so a phone that joins or reconnects during the reveal stays quiet, and Play again is quiet until the host starts the next game. Nothing private is in it: every phone gets the same sound at the same moment, and it says nothing about roles. It follows the Effects button like every other sound.
+- **No fade**: the lobby music still stops the moment the game starts. The horn covers the cut. A fade was proposed and dropped, since iPhones ignore `audio.volume`.
+- **Speech**: the narrator waits for the sound like it does for every other, so a first line never talks over the horn.
+- **Tests**: `tests/sfx.test.js` (game start only on a real change, quiet on rejoin, every file exists).
