@@ -1,0 +1,20 @@
+{
+ "hidden": {
+  "letterW": 1.06,
+  "letterC": 2.27,
+  "letterSW": 0.86,
+  "letterSC": 0.88,
+  "whisper": 0.93,
+  "lwNight": 1.7,
+  "lwVote": 0.93
+ },
+ "reveal": {
+  "letterW": 1.06,
+  "letterC": 2.27,
+  "letterSW": 0.86,
+  "letterSC": 0.88,
+  "whisper": 1.37,
+  "lwNight": 1.7,
+  "lwVote": 1.02
+ }
+}
