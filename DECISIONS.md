@@ -108,7 +108,7 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Own button**: an Effects button sits beside Music and Narrator, so effects mute without touching music. Same defaults and memory as the other two: on for the host, off for other players (a room of phones shouldn't fire the same sound a dozen times), the host's choice kept across games, a player's for that room. Choices saved before 1.21.0 get the default for effects.
 - **Nothing secret**: only moments every phone already shows get a sound. Night deaths sound the same whatever the cause, as the card looks the same. No sound for night actions or anything only one phone sees.
 - **Timing**: a death sounds as its grave lands, each card's sound on its own card, so two night deaths are two hits a second apart. With reduced motion, one sound for the news. Nightfall and the winner sound only on a real change of phase: a phone that joins or reconnects mid-phase stays quiet.
-- **Jester**: voting out the Jester plays the Jester sound on the vote card (twist or role shown) and nothing more on the game-over screen, since it is the same moment.
+- **Jester**: voting out the Jester plays the Jester sound on the vote card (twist or role shown) and nothing more on the game-over screen, since it is the same moment. (Changed in 1.25.0: the Jester's win now has its own sound on the game-over screen.)
 - **Web Audio**: a sound starts when a view arrives, long after the last tap, which phones only allow from an audio context started by a tap. The context starts from the Host or Join tap, or the next tap anywhere. Files load only once a phone turns effects on. A sound that finishes loading after its moment is skipped, never played late. On iPhone, effects play through the silent switch, like the music.
 - **Reserved**: `tools/sfx/reserved/dread.mp3` ("Two-note dread") is kept for future random events.
 - **Tests**: `tests/sfx.test.js` (each card's sound and timing, Jester once, phase sounds, every file exists), `tests/sound.test.js` (the effects switch and old saved choices); the random-game sim checks that every card it produces has a sound and that each sound comes up.
@@ -130,7 +130,7 @@ Ambiguities in the plan, resolved with the simplest option.
 ## Nightfall, win and hunter moments (v1.23.0)
 
 - **Nightfall**: on every change into the night, a full-screen moment: the screen dusks over, the town's windows go dark one by one, the moon rises and "Night N" appears. It shows nothing private, so every phone (alive or dead) gets the same one.
-- **Wins**: when the wolves or the village win, a full-screen moment: a blood moon and the pack, or a sunrise and the hopping villagers. At game over every role is public, so showing the team is fine. A Jester win and a host-ended game get none.
+- **Wins**: when the wolves or the village win, a full-screen moment: a blood moon and the pack, or a sunrise and the hopping villagers. At game over every role is public, so showing the team is fine. A host-ended game gets none. (A Jester win got none until 1.25.0.)
 - **Fold, no button**: each moment ends by itself and folds into the screen underneath, like the outcome cards: the big title flies onto the screen's own heading ("Night N" label, game-over title) and each team sprite onto that player's row while the sky fades. A tap only ends it sooner. Only shown for a phase change seen live, not on the first view after joining or rejoining.
 - **Hunter**: everyone waiting on the hunter's last shot sees a red crosshair drift over the player list (the hunter's own screen is unchanged). "Lowered the bow" is now a real card with a lowered-bow picture that folds in with the dawn news.
 - **Bow, not gun**: the Hunter's sprite holds a bow, so the text says bow: "X lowered the bow." and the Thai lines say ธนู. The card parser and Thai rules still read the old "lowered the gun" from a host on an older version.
@@ -152,3 +152,12 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Time limit**: every request shares one 10 second limit. When it runs out, whatever is still pending is dropped and the page reloads anyway.
 - **Unchanged**: the same files are refreshed with `cache:'reload'`, the page's own address included (it is a different cache entry from `index.html`), Cache Storage is cleared, and the session is kept so players rejoin. The host still gets the "this ends the game" warning.
 - **Tests**: `tests/refresh.test.js` (every file once with `cache:'reload'`, a level goes out at once, a request that never answers stops at the limit, a failed file is skipped).
+
+## Jester victory moment (v1.25.0)
+
+- **What**: when the Jester wins, the game-over screen opens with a full-screen moment like the wolves and village get: red curtains part on a lit stage, confetti falls, the Jester sprite dances, and "The Jester wins!" lands. Then it folds into the game-over screen the same way: the title onto the heading, the Jester's sprite onto their row. A tap ends it sooner.
+- **After the vote card**: the vote result card (confetti, "It was the Jester. Fooled you!") still shows first and still plays the Jester card sound. The win moment comes when the host continues to game over, so the table gets the reveal and then the win, not one blur.
+- **Sound**: `jesterWin` (a slide whistle, a marimba run, bells, a short cackle and a brass stab with a cymbal, about 3.3 seconds) plays on the change into game over when the Jester won. Same rules as the other winner sounds: only a real change of phase, so rejoining at game over is quiet, and it follows the Effects button.
+- **Public**: at game over every role is public, so showing the Jester is fine. Every phone gets the same moment, whoever won.
+- **Reduced motion**: no full-screen moment, as for the other wins.
+- **Tests**: `tests/sfx.test.js` (the Jester win sound on a real change of phase, quiet on rejoin, every file exists).

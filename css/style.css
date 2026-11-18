@@ -269,6 +269,20 @@ label.row.toggle { flex-direction: row; gap: 12px; color: var(--text); font-size
 .mo-village .mo-sun .sprite { width: 144px; height: 144px; }
 .mo-village .mo-title { animation-delay: 1.4s; }
 
+/* Jester win: curtains part on a lit stage, confetti falls, the Jester dances. */
+.mo-jester .mo-sky { background: radial-gradient(circle at 50% 32%, #7a1d5a, #1b0720 72%); animation: mo-in .8s both; }
+.mo .mo-spot { position: absolute; inset: 0; background: radial-gradient(ellipse 42% 52% at 50% 36%, rgba(255,225,77,.32), transparent 72%); animation: mo-in 1s .7s both; }
+.mo .mo-confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.mo-confetti b { position: absolute; top: -14px; width: var(--s); height: calc(var(--s) * 1.6); background: var(--c); opacity: 0; animation: mo-fall 2.6s linear infinite; animation-delay: calc(1.2s + var(--d)); }
+.mo-hero { flex: none; filter: drop-shadow(0 0 26px rgba(255,225,77,.5)); animation: mo-in .5s 1s both, mo-sway 1.1s 1.2s ease-in-out infinite alternate; }
+.mo-hero .sprite { width: 144px; height: 144px; }
+.mo-jester .mo-big { color: #fbcfe8; text-shadow: 0 0 28px rgba(236,72,153,.9), 0 4px 0 #831843; }
+.mo-jester .mo-title { animation-delay: 1.6s; }
+.mo-jester .mo-member { animation: mo-pop .45s both, mo-hop .5s ease-in-out infinite alternate; animation-delay: calc(2s + var(--i) * 120ms), calc(2.5s + var(--i) * 120ms); }
+.mo .mo-curtain { position: absolute; top: 0; bottom: 0; width: 50%; z-index: 2; pointer-events: none; background: repeating-linear-gradient(90deg, #9b1239 0 20px, #6d0c28 20px 40px); box-shadow: 0 0 40px rgba(0,0,0,.6); }
+.mo .mo-left { left: 0; animation: mo-curtain-l 1.2s .3s cubic-bezier(.6,0,.2,1) both; }
+.mo .mo-right { right: 0; animation: mo-curtain-r 1.2s .3s cubic-bezier(.6,0,.2,1) both; }
+
 @keyframes mo-in { from { opacity: 0; } }
 @keyframes mo-to1 { to { opacity: 1; } }
 @keyframes mo-to0 { to { opacity: 0; } }
@@ -278,6 +292,10 @@ label.row.toggle { flex-direction: row; gap: 12px; color: var(--text); font-size
 @keyframes mo-rise { from { opacity: 0; transform: translateY(55vh); } 30% { opacity: 1; } }
 @keyframes mo-pop { from { opacity: 0; transform: translateY(14px) scale(.6); } }
 @keyframes mo-hop { to { transform: translateY(-8px); } }
+@keyframes mo-fall { 0% { opacity: 1; transform: translateY(0) rotate(0); } 100% { opacity: 1; transform: translateY(110vh) rotate(720deg); } }
+@keyframes mo-sway { from { transform: rotate(-7deg) translateY(0); } to { transform: rotate(7deg) translateY(-10px); } }
+@keyframes mo-curtain-l { to { transform: translateX(-86%); } }
+@keyframes mo-curtain-r { to { transform: translateX(86%); } }
 @media (prefers-reduced-motion: reduce) { .mo { display: none; } }
 
 /* The hunter's last shot, seen by everyone waiting: a crosshair drifts over the players. */

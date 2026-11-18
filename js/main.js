@@ -89,7 +89,7 @@ function onViewChange(prev, next) {
   // Full-screen moments on a phase change seen live (not on the first view after joining or rejoining).
   if (prev && prev.phase !== next.phase) {
     if (next.phase === 'night') playMoment('nightfall', next);
-    if (next.phase === 'gameover' && (next.winner === 'wolves' || next.winner === 'village')) playMoment(next.winner, next);
+    if (next.phase === 'gameover' && ['wolves', 'village', 'jester'].includes(next.winner)) playMoment(next.winner, next);
   }
   const key = `${next.phase}:${next.round}:${next.you.alive}`;
   if (key !== app.prevKey) {
