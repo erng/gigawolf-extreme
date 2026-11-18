@@ -13,7 +13,7 @@ Needs Python 3 with numpy and scipy, and ffmpeg with libmp3lame. It writes every
 - `synth.py`: the instruments (chip, bells, pluck, impacts, strings, howl and so on), the mastering chain and the first three packs (Pixel, Storybook, Midnight).
 - `render.py`: the twelve nightfall candidates, the vote-call sound and the render loop. The three original nightfall sounds in `synth.py` were dropped.
 
-Mastering matches loudness on what a phone speaker plays (above about 250 Hz), cuts sub-bass and anything above 9 kHz, and soft-limits peaks. Quiet moments (nobody died, tie, lowered gun) are mastered a little softer on purpose.
+Mastering matches loudness on what a phone speaker plays (above about 250 Hz), cuts sub-bass and anything above 9 kHz, and soft-limits peaks. Quiet moments (nobody died, tie, lowered bow) are mastered a little softer on purpose.
 
 ## What the game uses
 

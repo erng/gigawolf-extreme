@@ -14,7 +14,7 @@ test('outcome cards read every announcement form, with and without the role', ()
   assert.equal(parseLine('Nobody died.').type, 'calm');
   assert.equal(parseLine('Nobody was eliminated.').type, 'tie');
   assert.equal(parseLine('Hal is the Prince! The village cannot eliminate them.').type, 'prince');
-  assert.equal(parseLine('Gus lowered the gun.').type, 'spared');
+  assert.equal(parseLine('Gus lowered the bow.').type, 'spared');
   assert.equal(parseLine('Most suspected: Bob.').type, 'info');
 });
 

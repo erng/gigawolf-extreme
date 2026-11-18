@@ -16,7 +16,7 @@ test('each outcome card has its sound, deaths timed to the grave landing', () =>
   assert.equal(plan(['Ann was eliminated by vote.'])[0].name, 'voteOut');
   assert.equal(plan(['Nobody was eliminated.'])[0].name, 'tie');
   assert.equal(plan(['Gus shot Dev.'])[0].name, 'shot');
-  assert.equal(plan(['Gus lowered the gun.'])[0].name, 'spared');
+  assert.equal(plan(['Gus lowered the bow.'])[0].name, 'spared');
   assert.equal(plan(['Hal is the Prince! The village cannot eliminate them.'])[0].name, 'prince');
   assert.deepEqual(plan(['Most suspected: Bob.']), [], 'plain lines are silent');
 });

@@ -612,7 +612,7 @@ function nextPhase(state, _a, isHost, rng, fx) {
     case PHASE.SHOT: {
       const h = byId(state, state.shots[0]);
       hist(state, state.afterShot === 'day' ? 'night' : 'day', `${who(h)} chose not to shoot anyone.`);
-      say(state, `${h.name} lowered the gun.`);
+      say(state, `${h.name} lowered the bow.`);
       nextShot(state, fx);
       return null;
     }

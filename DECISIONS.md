@@ -93,7 +93,7 @@ Ambiguities in the plan, resolved with the simplest option.
 
 ## Outcome reveal (v1.20.0)
 
-- **What it covers**: every dawn, vote-result and hunter-shot announcement. A death gets a card with a pixel grave, a "Killed in the night" / "Voted out" / "Shot by X" label, the name struck out, and the role when `revealOnDeath` is on. "Nobody died", ties, the Prince, a lowered gun and the Jester twist get their own cards. The suspicion line stays plain text.
+- **What it covers**: every dawn, vote-result and hunter-shot announcement. A death gets a card with a pixel grave, a "Killed in the night" / "Voted out" / "Shot by X" label, the name struck out, and the role when `revealOnDeath` is on. "Nobody died", ties, the Prince, a lowered bow and the Jester twist get their own cards. The suspicion line stays plain text.
 - **Full-screen first, then the cards**: new news plays as big cards over a dark full-screen layer (grave drops, dust, red flash, strike), then each big card's grave, name and role fly into the small card on the screen while the dark fades. It lands by itself; a tap only lands it sooner. No extra button press anywhere, and the host's controls are back within about 3 seconds.
 - **UI only, built from the public lines**: `js/ui/fx.js` reads only `view.announce`, the same English text every phone gets, so every phone shows the same thing and nothing private can leak. No engine, view or protocol change. Night deaths look identical whatever the cause (wolves or poison), as the text already is. "X was the Jester!" (said when roles stay hidden) folds into X's vote-out card.
 - **Plays once**: the screen is rebuilt on every view, so each line remembers it was shown and only plays the first time. The full-screen layer lives on `<body>`, outside the rebuilt screen, so a rebuild can't cut it off. A phone that reloads mid-day sees it again; accepted.
@@ -104,7 +104,7 @@ Ambiguities in the plan, resolved with the simplest option.
 
 ## Sound effects (v1.21.0)
 
-- **What sounds**: nightfall, every outcome card (night death, nobody died, voted out, tie, hunter shot, lowered gun, Prince, Jester) and the village or wolves winning. Each is a short synthesized clip in `assets/sfx/`, picked by ear from three packs; how they were made is in `tools/sfx/README.md`.
+- **What sounds**: nightfall, every outcome card (night death, nobody died, voted out, tie, hunter shot, lowered bow, Prince, Jester) and the village or wolves winning. Each is a short synthesized clip in `assets/sfx/`, picked by ear from three packs; how they were made is in `tools/sfx/README.md`.
 - **Own button**: an Effects button sits beside Music and Narrator, so effects mute without touching music. Same defaults and memory as the other two: on for the host, off for other players (a room of phones shouldn't fire the same sound a dozen times), the host's choice kept across games, a player's for that room. Choices saved before 1.21.0 get the default for effects.
 - **Nothing secret**: only moments every phone already shows get a sound. Night deaths sound the same whatever the cause, as the card looks the same. No sound for night actions or anything only one phone sees.
 - **Timing**: a death sounds as its grave lands, each card's sound on its own card, so two night deaths are two hits a second apart. With reduced motion, one sound for the news. Nightfall and the winner sound only on a real change of phase: a phone that joins or reconnects mid-phase stays quiet.
@@ -126,3 +126,13 @@ Ambiguities in the plan, resolved with the simplest option.
 - **When it plays**: while the lobby is up, from the Host or Join tap. It stops when a game starts and stays off through the reveal, night, day, vote and game-over screens. On Play again the lobby returns and the track continues where it left off, as with any pause. Before the first view arrives (just after the tap) it is allowed, so the tap can start it, which phones require. A phone that rejoins a game in progress never starts it.
 - **The button**: the Music button is hidden while a game is on, since pressing it could not do anything. The choice is kept as before (host: across games; player: for that room).
 - **Rule**: `musicAllowed(phase)` in `js/ui/soundprefs.js`; `sound.js` applies it on each view's phase.
+
+## Nightfall, win and hunter moments (v1.23.0)
+
+- **Nightfall**: on every change into the night, a full-screen moment: the screen dusks over, the town's windows go dark one by one, the moon rises and "Night N" appears. It shows nothing private, so every phone (alive or dead) gets the same one.
+- **Wins**: when the wolves or the village win, a full-screen moment: a blood moon and the pack, or a sunrise and the hopping villagers. At game over every role is public, so showing the team is fine. A Jester win and a host-ended game get none.
+- **Fold, no button**: each moment ends by itself and folds into the screen underneath, like the outcome cards: the big title flies onto the screen's own heading ("Night N" label, game-over title) and each team sprite onto that player's row while the sky fades. A tap only ends it sooner. Only shown for a phase change seen live, not on the first view after joining or rejoining.
+- **Hunter**: everyone waiting on the hunter's last shot sees a red crosshair drift over the player list (the hunter's own screen is unchanged). "Lowered the bow" is now a real card with a lowered-bow picture that folds in with the dawn news.
+- **Bow, not gun**: the Hunter's sprite holds a bow, so the text says bow: "X lowered the bow." and the Thai lines say ธนู. The card parser and Thai rules still read the old "lowered the gun" from a host on an older version.
+- **Failed vote**: "Nobody was eliminated" now has a picture (balanced scales), like "Nobody died" has the sun.
+- **Reduced motion**: no full-screen moments, no drifting crosshair.
