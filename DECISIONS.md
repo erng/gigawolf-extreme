@@ -90,3 +90,14 @@ Ambiguities in the plan, resolved with the simplest option.
 - Answers about a player who died that night are dropped. Wolves, Seer, Bodyguard and Witch never answer, so the line is village sentiment and proves nothing about roles. The outcome is not fixed by it, so `validate()` is unchanged.
 - Known small leak, accepted: when the line appears, at least two no-power players are alive.
 - An invalid answer (self, dead player) is ignored, never an error, as before. With the setting off nothing changes.
+
+## Outcome reveal (v1.20.0)
+
+- **What it covers**: every dawn, vote-result and hunter-shot announcement. A death gets a card with a pixel grave, a "Killed in the night" / "Voted out" / "Shot by X" label, the name struck out, and the role when `revealOnDeath` is on. "Nobody died", ties, the Prince, a lowered gun and the Jester twist get their own cards. The suspicion line stays plain text.
+- **Full-screen first, then the cards**: new news plays as big cards over a dark full-screen layer (grave drops, dust, red flash, strike), then each big card's grave, name and role fly into the small card on the screen while the dark fades. It lands by itself; a tap only lands it sooner. No extra button press anywhere, and the host's controls are back within about 3 seconds.
+- **UI only, built from the public lines**: `js/ui/fx.js` reads only `view.announce`, the same English text every phone gets, so every phone shows the same thing and nothing private can leak. No engine, view or protocol change. Night deaths look identical whatever the cause (wolves or poison), as the text already is. "X was the Jester!" (said when roles stay hidden) folds into X's vote-out card.
+- **Plays once**: the screen is rebuilt on every view, so each line remembers it was shown and only plays the first time. The full-screen layer lives on `<body>`, outside the rebuilt screen, so a rebuild can't cut it off. A phone that reloads mid-day sees it again; accepted.
+- **Dead players** now see the dawn cards on their screen too (they used to see only "You are out"), so the killed player gets the moment as well.
+- **Buzz**: a death also vibrates a heartbeat pattern (Android; iPhone browsers have no vibration).
+- **Reduced motion**: no full-screen layer, cards shown at rest.
+- **Tests**: `tests/fx.test.js` (every announcement form, Jester fold, Thai labels); the random-game sim checks that every announcement it produces becomes a card and that each card type comes up.
