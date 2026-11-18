@@ -9,6 +9,7 @@ import { storage } from './util/storage.js';
 import { keepAwake, releaseAwake } from './util/wakelock.js';
 import { speak } from './ui/narrator.js';
 import { enterRoom, leaveRoom, refreshSoundLabels } from './ui/sound.js';
+import { playSfx, phaseSfx } from './ui/sfx.js';
 import { APP_VERSION, normalizeRoomCode } from './config.js';
 import { homeScreen } from './ui/screens/home.js';
 import { lobbyScreen } from './ui/screens/lobby.js';
@@ -80,6 +81,8 @@ function sayNarration(view) {
 }
 
 function onViewChange(prev, next) {
+  const sfx = phaseSfx(prev, next);
+  if (sfx) playSfx(sfx);
   const key = `${next.phase}:${next.round}:${next.you.alive}`;
   if (key !== app.prevKey) {
     if (app.prevKey) { try { navigator.vibrate?.(next.phase === 'gameover' ? [200, 100, 200] : 200); } catch { /* iOS */ } }

@@ -77,7 +77,7 @@ const TH = {
   'main.noService': 'ต่อบริการจับคู่ไม่ติด เน็ตเธอโอเคไหม? เช็กแล้วลองใหม่นะ',
   'lang.button': 'English',
   'night.protectedLast': 'ปกป้องไปเมื่อคืน (เว้น 1 คืน)',
-  'sound.music': 'เพลง', 'sound.narrator': 'เสียงเล่า',
+  'sound.music': 'เพลง', 'sound.narrator': 'เสียงเล่า', 'sound.effects': 'เอฟเฟกต์',
   'refresh.button': 'รีเฟรชแอป', 'refresh.busy': 'กำลังโหลดใหม่…', 'refresh.hostWarn': 'เธอเป็นเจ้าของห้อง รีเฟรชแล้วเกมจะจบนะ ทำต่อไหม?',
   // extra roles
   'role.wolfcub': 'ลูกหมาป่า', 'role.hunter': 'นายพราน', 'role.prince': 'เจ้าชาย', 'role.witch': 'แม่มด', 'role.jester': 'ตัวตลก', 'role.diseased': 'ชาวบ้านป่วย',
@@ -290,7 +290,7 @@ const EN = {
   'main.noService': "Can't reach the matchmaking service. Check your internet connection and try again.",
   'lang.button': 'ไทย',
   'night.protectedLast': 'Protected last night: can\'t again',
-  'sound.music': 'Music', 'sound.narrator': 'Narrator',
+  'sound.music': 'Music', 'sound.narrator': 'Narrator', 'sound.effects': 'Effects',
   'refresh.button': 'Force refresh', 'refresh.busy': 'Refreshing…', 'refresh.hostWarn': 'You are hosting. Refreshing will end the game for everyone. Continue?',
   'role.wolfcub': 'Wolf Cub', 'role.hunter': 'Hunter', 'role.prince': 'Prince', 'role.witch': 'Witch', 'role.jester': 'Jester', 'role.diseased': 'Diseased Villager',
   'blurb.wolfcub': 'Wolf team. You count as a wolf (the Seer sees you as one). If you die, the pack kills two people the next night.',

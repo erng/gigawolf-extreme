@@ -10,6 +10,7 @@ import { h, ROLE_LABEL } from './dom.js';
 import { t, tr } from '../i18n.js';
 import { roleSprite, propSprite } from './pixel.js';
 import { ROLES } from '../game/roles.js';
+import { playSfx } from './sfx.js';
 
 const ROLE_BY_NAME = Object.fromEntries(Object.values(ROLES).map((r) => [r.name, r.id]));
 const roleOf = (name) => (name ? ROLE_BY_NAME[name] ?? null : null);
@@ -25,6 +26,9 @@ const RULES = [
   [new RegExp(`^(.+?) shot (.+?)\\.${REVEAL}$`), (m) => ({ type: 'shot', by: m[1], name: m[2], role: roleOf(m[3]) })],
 ];
 const DEATHS = new Set(['night', 'vote', 'shot']);
+const SFX = { night: 'nightDeath', vote: 'voteOut', shot: 'shot', calm: 'calm', tie: 'tie', prince: 'prince', jester: 'jester', spared: 'spared' };
+const CARD_MS = (i) => 450 + i * 1000; // when big card i starts (its --d)
+const GRAVE_LANDS_MS = 420;             // fx-drop reaches the ground at 56% of .75s
 const CONFETTI = Array.from({ length: 14 }, (_, i) => ['#f472b6', '#facc15', '#60a5fa', '#4ade80'][i % 4]);
 
 export function parseLine(text) {
@@ -47,6 +51,15 @@ export function parseLines(lines) {
   return out;
 }
 
+// Which sound each big card plays, and when (ms after the news arrives). A death sounds as its grave
+// lands. A voted-out Jester (twist card, or role shown) gets the Jester sound instead of the vote one.
+export function sfxPlan(cards) {
+  return cards.map((e, i) => {
+    const name = e.type === 'vote' && e.role === 'jester' ? 'jester' : SFX[e.type];
+    return name ? { name, at: CARD_MS(i) + (DEATHS.has(e.type) ? GRAVE_LANDS_MS : 0) } : null;
+  }).filter(Boolean);
+}
+
 // The whole screen is rebuilt on every view, so each line remembers that it was already shown and
 // only plays the first time.
 const seen = new Set();
@@ -66,7 +79,10 @@ export function fxAnnounce(view, lines, scope) {
     try { navigator.vibrate?.([70, 90, 70, 90, 450]); } catch { /* iOS has no vibration */ }
   }
   const big = fresh.filter((e) => e.type !== 'info');
-  if (big.length && !reducedMotion() && typeof document !== 'undefined') takeover(view, big, scope);
+  const motion = !reducedMotion() && typeof document !== 'undefined';
+  if (big.length && motion) takeover(view, big, scope);
+  // With the full-screen cards each sound lands on its card; without them, one sound for the news.
+  for (const s of motion ? sfxPlan(big) : sfxPlan(big).slice(0, 1).map((s) => ({ ...s, at: 0 }))) playSfx(s.name, s.at);
   return h('div', { class: 'fxlist', role: 'status' }, events.map((e) => card(view, e)));
 }
 
@@ -74,7 +90,7 @@ function card(view, e, { big = false, index = 0 } = {}) {
   const you = e.name && e.name === view.you?.name;
   const death = DEATHS.has(e.type);
   const cls = ['fx', `fx-${e.type}`, death && 'fx-death', you && 'fx-you', e.jester && 'fx-twist', big && 'fx-big fx-play'].filter(Boolean).join(' ');
-  const attrs = { class: cls, 'data-fxkey': e.key, style: `--d:${big ? 450 + index * 1000 : 0}ms`, 'aria-label': tr(e.text) };
+  const attrs = { class: cls, 'data-fxkey': e.key, style: `--d:${big ? CARD_MS(index) : 0}ms`, 'aria-label': tr(e.text) };
   if (e.type === 'info' || e.type === 'spared') return h('div', attrs, h('div', { class: 'fx-text' }, tr(e.text)));
   if (e.type === 'calm' || e.type === 'tie') {
     return h('div', attrs,

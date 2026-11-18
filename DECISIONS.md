@@ -101,3 +101,14 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Buzz**: a death also vibrates a heartbeat pattern (Android; iPhone browsers have no vibration).
 - **Reduced motion**: no full-screen layer, cards shown at rest.
 - **Tests**: `tests/fx.test.js` (every announcement form, Jester fold, Thai labels); the random-game sim checks that every announcement it produces becomes a card and that each card type comes up.
+
+## Sound effects (v1.21.0)
+
+- **What sounds**: nightfall, every outcome card (night death, nobody died, voted out, tie, hunter shot, lowered gun, Prince, Jester) and the village or wolves winning. Each is a short synthesized clip in `assets/sfx/`, picked by ear from three packs; how they were made is in `tools/sfx/README.md`.
+- **Own button**: an Effects button sits beside Music and Narrator, so effects mute without touching music. Same defaults and memory as the other two: on for the host, off for other players (a room of phones shouldn't fire the same sound a dozen times), the host's choice kept across games, a player's for that room. Choices saved before 1.21.0 get the default for effects.
+- **Nothing secret**: only moments every phone already shows get a sound. Night deaths sound the same whatever the cause, as the card looks the same. No sound for night actions or anything only one phone sees.
+- **Timing**: a death sounds as its grave lands, each card's sound on its own card, so two night deaths are two hits a second apart. With reduced motion, one sound for the news. Nightfall and the winner sound only on a real change of phase: a phone that joins or reconnects mid-phase stays quiet.
+- **Jester**: voting out the Jester plays the Jester sound on the vote card (twist or role shown) and nothing more on the game-over screen, since it is the same moment.
+- **Web Audio**: a sound starts when a view arrives, long after the last tap, which phones only allow from an audio context started by a tap. The context starts from the Host or Join tap, or the next tap anywhere. Files load only once a phone turns effects on. A sound that finishes loading after its moment is skipped, never played late. On iPhone, effects play through the silent switch, like the music.
+- **Reserved**: `tools/sfx/reserved/dread.mp3` ("Two-note dread") is kept for future random events.
+- **Tests**: `tests/sfx.test.js` (each card's sound and timing, Jester once, phase sounds, every file exists), `tests/sound.test.js` (the effects switch and old saved choices); the random-game sim checks that every card it produces has a sound and that each sound comes up.

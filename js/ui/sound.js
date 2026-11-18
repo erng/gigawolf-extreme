@@ -1,19 +1,21 @@
-// Per-phone sound controls: separate Music and Narrator buttons in the tools row, shown while in a room.
+// Per-phone sound controls: separate Music, Narrator and Effects buttons in the tools row, shown while in a room.
 // Defaults and what is remembered live in soundprefs.js.
 import { t } from '../i18n.js';
 import { storage } from '../util/storage.js';
 import { loadSoundPrefs, saveSoundPrefs } from './soundprefs.js';
 import { setMusic } from './music.js';
 import { setNarrator, unlock } from './narrator.js';
+import { setEffects } from './sfx.js';
 
 let room = null;   // { isHost, roomCode } while in a room
-let prefs = { music: false, narrator: false };
+let prefs = { music: false, narrator: false, effects: false };
 let panel = null;
 const buttons = {};
 
 function apply() {
   setMusic(!!room && prefs.music);
   setNarrator(!!room && prefs.narrator);
+  setEffects(!!room && prefs.effects);
   if (room && prefs.narrator) unlock();
   sync();
 }
@@ -21,7 +23,7 @@ function apply() {
 function sync() {
   if (!panel) return;
   panel.hidden = !room;
-  for (const [kind, icon] of [['music', '🎵'], ['narrator', '🗣️']]) {
+  for (const [kind, icon] of [['music', '🎵'], ['narrator', '🗣️'], ['effects', '💥']]) {
     const b = buttons[kind]; const label = t(`sound.${kind}`);
     b.textContent = `${icon} ${label}`;
     b.setAttribute('aria-pressed', String(prefs[kind]));
@@ -33,7 +35,7 @@ function init() {
   if (panel) return;
   panel = document.createElement('div');
   panel.id = 'sound'; panel.hidden = true;
-  for (const kind of ['music', 'narrator']) {
+  for (const kind of ['music', 'narrator', 'effects']) {
     const b = document.createElement('button');
     b.type = 'button';
     b.addEventListener('click', () => {
