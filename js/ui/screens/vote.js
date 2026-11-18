@@ -1,6 +1,7 @@
 import { h, playerList } from '../dom.js';
 import { t, tr } from '../../i18n.js';
 import { hostAdvance } from './hostbar.js';
+import { fxAnnounce } from '../fx.js';
 
 export function voteScreen(view, ctx) {
   const ui = ctx.ui;
@@ -9,7 +10,7 @@ export function voteScreen(view, ctx) {
     const r = view.voteResult;
     return h('main', { class: 'screen vote' },
       h('div', { class: 'phase' }, t('vote.result')),
-      h('div', { class: 'announce', role: 'status' }, (view.announce?.length ? view.announce : [view.log.at(-1)?.text ?? '']).map((l) => h('h2', null, tr(l)))),
+      fxAnnounce(view, view.announce?.length ? view.announce : [view.log.at(-1)?.text ?? ''], `vote:${view.round}`),
       r.hidden
         ? h('p', { class: 'sub' }, t('vote.hidden'))
         : h('ul', { class: 'tally' }, Object.entries(r.votes).map(([voter, t]) =>

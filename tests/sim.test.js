@@ -8,6 +8,7 @@ import { presetFor, validate, COUNT_KEYS, EXTRA_KEYS, randomCounts as realRandom
 import { isWolf } from '../js/game/roles.js';
 import { createRng } from '../js/util/rng.js';
 import { setLang, tr } from '../js/i18n.js';
+import { parseLine, parseLines, sfxPlan } from '../js/ui/fx.js';
 
 const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
 
@@ -255,6 +256,7 @@ const SEEDS = Number(process.env.SIM_SEEDS ?? 150);
 setLang('th');
 
 test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, () => {
+  const cards = {}; const sounds = {};
   const totals = { games: 0, village: 0, wolves: 0, jester: 0, deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0, sickNights: 0, hauntOffers: 0, hauntVotes: 0, promotions: 0 };
   for (let n = 5; n <= 15; n++) {
     for (let seed = 1; seed <= SEEDS; seed++) {
@@ -265,6 +267,15 @@ test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, ()
       for (const text of [...end.log.map((l) => l.text), ...end.history.map((e) => e.text)]) {
         const out = tr(text).replace(/\bRIP\b/g, '');
         assert.ok(!/[A-Za-z]{3,}/.test(out), `untranslated: "${text}" -> "${out}"`);
+      }
+      // Every announcement becomes an outcome card; only the suspicion line and the winner (shown on the game-over screen) stay plain text.
+      for (const { text } of end.log) {
+        const type = parseLine(text).type;
+        assert.ok(type !== 'info' || /^Most suspected: |^The (wolves win|village wins|Jester wins)!$|^The host ended the game early\.$/.test(text), `no card for: "${text}"`);
+        cards[type] = (cards[type] ?? 0) + 1;
+        // Every card has a sound.
+        if (type !== 'info') for (const { name } of sfxPlan(parseLines([text]))) sounds[name] = (sounds[name] ?? 0) + 1;
+        if (type !== 'info') assert.equal(sfxPlan(parseLines([text])).length, 1, `no sound for: "${text}"`);
       }
       for (const k of ['deaths', 'shots', 'doubleKills', 'heals', 'poisons', 'princeSaves', 'sickNights', 'hauntOffers', 'hauntVotes', 'promotions']) totals[k] += sim.stats[k];
       // play again resets everything and a second game on the same state works
@@ -278,7 +289,10 @@ test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, ()
       }
     }
   }
-  console.log('sim totals', JSON.stringify(totals));
+  console.log('sim totals', JSON.stringify(totals), 'cards', JSON.stringify(cards));
+  for (const type of ['night', 'vote', 'shot', 'calm', 'tie', 'prince', 'spared']) assert.ok(cards[type] > 3, `${type} cards happened`);
+  for (const name of ['nightDeath', 'voteOut', 'shot', 'calm', 'tie', 'prince', 'spared']) assert.ok(sounds[name] > 3, `${name} sound happened`);
+  if (totals.jester > 0) assert.ok(sounds.jester > 0, 'jester sound happened');
   // The sim must actually exercise the new mechanics, or it proves nothing.
   assert.ok(totals.shots > 20, 'hunter shots happened');
   assert.ok(totals.doubleKills > 5, 'cub revenge nights happened');

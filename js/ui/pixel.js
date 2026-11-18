@@ -262,12 +262,65 @@ const SPRITES = {
 export { SPRITES };
 
 export function roleSprite(role, { scale = 4 } = {}) {
-  const def = SPRITES[role];
+  return drawSprite(SPRITES[role], `sprite sprite-${role}`, scale);
+}
+
+// Props for announcement cards (not roles): same grid format.
+const PROPS = {
+  grave: {
+    pal: { o: '#2b2f3a', G: '#a3abbd', g: '#7c8496', k: '#4b5162', d: '#3f8f4a', D: '#6b4528' },
+    grid: [
+      '................',
+      '.....oooooo.....',
+      '....oGGGGGGo....',
+      '...oGGGGGGGGo...',
+      '...oGGGkkGGGo...',
+      '...oGGkkkkGGo...',
+      '...oGGGkkGGGo...',
+      '...oGGGkkGGGo...',
+      '...oGGGGGGGGo...',
+      '...oGgGGGGgGo...',
+      '...oGGGGGGGGo...',
+      '...oGGGGgGGGo...',
+      '.d.oooooooooo.d.',
+      '.dDddddddddddDd.',
+      'DDDDDDDDDDDDDDDD',
+      '................',
+    ],
+  },
+  sun: {
+    pal: { y: '#ffd166', Y: '#ffe08a', o: '#f59e0b' },
+    grid: [
+      '................',
+      '.......y........',
+      '...y...y...y....',
+      '....y.....y.....',
+      '......ooo.......',
+      '....ooYYYoo.....',
+      '...oYYYYYYYo....',
+      'yy.oYYYYYYYo.yy.',
+      '...oYYYYYYYo....',
+      '....ooYYYoo.....',
+      '......ooo.......',
+      '....y.....y.....',
+      '...y...y...y....',
+      '.......y........',
+      '................',
+      '................',
+    ],
+  },
+};
+
+export function propSprite(prop, { scale = 4 } = {}) {
+  return drawSprite(PROPS[prop], `sprite prop-${prop}`, scale);
+}
+
+function drawSprite(def, cls, scale) {
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', `0 0 ${SIZE} ${SIZE}`);
   svg.setAttribute('width', String(SIZE * scale));
   svg.setAttribute('height', String(SIZE * scale));
-  svg.setAttribute('class', `sprite sprite-${role}`);
+  svg.setAttribute('class', cls);
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('focusable', 'false');
   svg.setAttribute('shape-rendering', 'crispEdges');

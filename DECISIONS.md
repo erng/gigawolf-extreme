@@ -90,3 +90,25 @@ Ambiguities in the plan, resolved with the simplest option.
 - Answers about a player who died that night are dropped. Wolves, Seer, Bodyguard and Witch never answer, so the line is village sentiment and proves nothing about roles. The outcome is not fixed by it, so `validate()` is unchanged.
 - Known small leak, accepted: when the line appears, at least two no-power players are alive.
 - An invalid answer (self, dead player) is ignored, never an error, as before. With the setting off nothing changes.
+
+## Outcome reveal (v1.20.0)
+
+- **What it covers**: every dawn, vote-result and hunter-shot announcement. A death gets a card with a pixel grave, a "Killed in the night" / "Voted out" / "Shot by X" label, the name struck out, and the role when `revealOnDeath` is on. "Nobody died", ties, the Prince, a lowered gun and the Jester twist get their own cards. The suspicion line stays plain text.
+- **Full-screen first, then the cards**: new news plays as big cards over a dark full-screen layer (grave drops, dust, red flash, strike), then each big card's grave, name and role fly into the small card on the screen while the dark fades. It lands by itself; a tap only lands it sooner. No extra button press anywhere, and the host's controls are back within about 3 seconds.
+- **UI only, built from the public lines**: `js/ui/fx.js` reads only `view.announce`, the same English text every phone gets, so every phone shows the same thing and nothing private can leak. No engine, view or protocol change. Night deaths look identical whatever the cause (wolves or poison), as the text already is. "X was the Jester!" (said when roles stay hidden) folds into X's vote-out card.
+- **Plays once**: the screen is rebuilt on every view, so each line remembers it was shown and only plays the first time. The full-screen layer lives on `<body>`, outside the rebuilt screen, so a rebuild can't cut it off. A phone that reloads mid-day sees it again; accepted.
+- **Dead players** now see the dawn cards on their screen too (they used to see only "You are out"), so the killed player gets the moment as well.
+- **Buzz**: a death also vibrates a heartbeat pattern (Android; iPhone browsers have no vibration).
+- **Reduced motion**: no full-screen layer, cards shown at rest.
+- **Tests**: `tests/fx.test.js` (every announcement form, Jester fold, Thai labels); the random-game sim checks that every announcement it produces becomes a card and that each card type comes up.
+
+## Sound effects (v1.21.0)
+
+- **What sounds**: nightfall, every outcome card (night death, nobody died, voted out, tie, hunter shot, lowered gun, Prince, Jester) and the village or wolves winning. Each is a short synthesized clip in `assets/sfx/`, picked by ear from three packs; how they were made is in `tools/sfx/README.md`.
+- **Own button**: an Effects button sits beside Music and Narrator, so effects mute without touching music. Same defaults and memory as the other two: on for the host, off for other players (a room of phones shouldn't fire the same sound a dozen times), the host's choice kept across games, a player's for that room. Choices saved before 1.21.0 get the default for effects.
+- **Nothing secret**: only moments every phone already shows get a sound. Night deaths sound the same whatever the cause, as the card looks the same. No sound for night actions or anything only one phone sees.
+- **Timing**: a death sounds as its grave lands, each card's sound on its own card, so two night deaths are two hits a second apart. With reduced motion, one sound for the news. Nightfall and the winner sound only on a real change of phase: a phone that joins or reconnects mid-phase stays quiet.
+- **Jester**: voting out the Jester plays the Jester sound on the vote card (twist or role shown) and nothing more on the game-over screen, since it is the same moment.
+- **Web Audio**: a sound starts when a view arrives, long after the last tap, which phones only allow from an audio context started by a tap. The context starts from the Host or Join tap, or the next tap anywhere. Files load only once a phone turns effects on. A sound that finishes loading after its moment is skipped, never played late. On iPhone, effects play through the silent switch, like the music.
+- **Reserved**: `tools/sfx/reserved/dread.mp3` ("Two-note dread") is kept for future random events.
+- **Tests**: `tests/sfx.test.js` (each card's sound and timing, Jester once, phase sounds, every file exists), `tests/sound.test.js` (the effects switch and old saved choices); the random-game sim checks that every card it produces has a sound and that each sound comes up.

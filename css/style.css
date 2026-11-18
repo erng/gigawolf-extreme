@@ -134,3 +134,87 @@ label.row.toggle { flex-direction: row; gap: 12px; color: var(--text); font-size
 /* Host vote screen: who has not voted yet, so the host can chase them. */
 .hostvote { display: flex; flex-direction: column; gap: 6px; }
 .hostvote .waiting { font-size: 0.9rem; text-align: center; color: var(--bad); }
+
+/* ---------- Outcome cards: deaths, votes, shots (js/ui/fx.js) ----------
+   Small cards sit on the screen, always static. New news first plays as big cards in a full-screen
+   takeover (.fx-big, animated), which then shrink into the small cards. Delays go through --at. */
+.fxlist { display: flex; flex-direction: column; gap: 10px; }
+.fx { --at: var(--d, 0ms); position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; min-height: 88px; padding: 12px 16px; border-radius: 14px; background: var(--panel); border: 2px solid var(--panel2); text-align: left; }
+.fx-prop { position: relative; flex: none; width: 64px; height: 64px; }
+.fx-prop > .sprite { width: 100%; height: 100%; }
+.fx-body { position: relative; z-index: 1; min-width: 0; flex: 1; }
+.fx-kicker { font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #fca5a5; }
+.fx-name { position: relative; display: inline-block; font-size: 1.9rem; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+.fx-death .fx-name::after { content: ""; position: absolute; left: -4px; right: -4px; top: 55%; height: 3px; border-radius: 2px; background: rgba(239,68,68,.85); transform-origin: left; }
+.fx-me { font-size: 1rem; font-weight: 600; color: var(--muted); }
+.fx-role { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-weight: 700; color: var(--muted); }
+.fx-role .sprite { width: 24px; height: 24px; }
+.fx-text { flex: 1; font-size: 1.35rem; font-weight: 700; text-align: center; }
+.fx-info, .fx-spared { background: transparent; border: 0; min-height: 0; padding: 2px 8px; }
+.fx-info .fx-text, .fx-spared .fx-text { font-size: 1.1rem; font-weight: 600; }
+.fx-twistline { margin-top: 4px; color: #f472b6; font-weight: 800; }
+.fx-death { background: linear-gradient(135deg, #3a1419, var(--panel) 70%); border-color: #7f1d1d; }
+.fx-you { border-color: #ef4444; }
+.fx-calm { background: linear-gradient(135deg, #3d2f12, var(--panel) 75%); border-color: #a16207; }
+.fx-calm .fx-text { color: #fde68a; }
+.fx-calm .fx-prop > .sprite { filter: drop-shadow(0 0 10px rgba(245,158,11,.8)); }
+.fx-prince { background: linear-gradient(135deg, #3a2a0b, var(--panel) 70%); border-color: #b45309; }
+.fx-prince .fx-kicker { color: #fbbf24; }
+.fx-twist, .fx-jester { border-color: #db2777; }
+.fx-dust { position: absolute; left: 0; right: 0; bottom: 4px; height: 0; }
+.fx-dust b { position: absolute; bottom: 0; left: 50%; width: 8px; height: 8px; background: #8b6a4a; opacity: 0; animation: fx-dust .6s ease-out both; animation-delay: calc(var(--at) + .42s); }
+.fx-dust b:nth-child(1) { --dx: -54px; --dy: -20px; } .fx-dust b:nth-child(2) { --dx: -30px; --dy: -36px; }
+.fx-dust b:nth-child(3) { --dx: 30px; --dy: -34px; } .fx-dust b:nth-child(4) { --dx: 54px; --dy: -18px; }
+.confetti { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.confetti b { position: absolute; top: -10px; left: var(--x); width: 8px; height: 8px; background: var(--c); opacity: 0; animation: fx-confetti 1.8s ease-in both; animation-delay: calc(var(--at) + .9s + var(--w)); }
+
+/* Big cards: same look as the small ones, stacked and larger. */
+.fx-big { flex-direction: column; justify-content: center; gap: 8px; width: min(100%, 380px); min-height: 0; padding: 22px 20px 20px; border-radius: 18px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+.fx-big .fx-prop { width: 128px; height: 128px; }
+.fx-big .fx-body { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.fx-big .fx-kicker { font-size: .9rem; }
+.fx-big .fx-name { font-size: clamp(2.6rem, 13vw, 3.4rem); font-weight: 900; }
+.fx-big.fx-death .fx-name::after { height: 5px; top: 54%; }
+.fx-big .fx-role { justify-content: center; font-size: 1.15rem; }
+.fx-big .fx-role .sprite { width: 32px; height: 32px; }
+.fx-big .fx-text { font-size: 2rem; }
+.fx-big.fx-calm .fx-prop > .sprite { filter: drop-shadow(0 0 22px rgba(245,158,11,.9)); }
+.many .fx-big { padding: 12px 16px; gap: 4px; }
+.many .fx-big .fx-prop { width: 64px; height: 64px; }
+.many .fx-big .fx-name { font-size: 2.2rem; }
+.fx-big.fx-death { animation: fx-shake .35s both; animation-delay: calc(var(--at) + .42s); }
+.fx-big.fx-death::before { content: ""; position: absolute; inset: 0; background: #ef4444; opacity: 0; animation: fx-flash .6s both; animation-delay: calc(var(--at) + .42s); }
+.fx-big.fx-death .fx-prop > .sprite { animation: fx-drop .75s cubic-bezier(.4,0,1,1) both; animation-delay: var(--at); }
+.fx-big.fx-death .fx-body { animation: fx-rise .45s both; animation-delay: calc(var(--at) + .5s); }
+.fx-big.fx-death .fx-name::after { animation: fx-strike .35s ease-out both; animation-delay: calc(var(--at) + 1.05s); }
+.fx-big:is(.fx-prince, .fx-jester) .fx-prop > .sprite { animation: fx-pop .6s both; animation-delay: var(--at); }
+.fx-big:is(.fx-prince, .fx-jester) .fx-body { animation: fx-rise .45s both; animation-delay: calc(var(--at) + .4s); }
+.fx-big.fx-calm .fx-prop > .sprite { animation: fx-sunrise 1.1s ease-out both; animation-delay: var(--at); }
+.fx-big:is(.fx-calm, .fx-tie, .fx-spared) .fx-text { animation: fx-rise .5s both; animation-delay: calc(var(--at) + .3s); }
+@keyframes fx-drop { 0% { opacity: 0; transform: translateY(-150%); } 8% { opacity: 1; } 56% { transform: translateY(0); } 70% { transform: translateY(-14%); } 84% { transform: translateY(0); } 92% { transform: translateY(-4%); } 100% { transform: none; } }
+@keyframes fx-shake { 0%, 100% { transform: none; } 20% { transform: translate(-6px, 2px); } 40% { transform: translate(5px, -2px); } 60% { transform: translate(-3px, 1px); } 80% { transform: translate(2px, 0); } }
+@keyframes fx-flash { 0% { opacity: 0; } 15% { opacity: .5; } 100% { opacity: 0; } }
+@keyframes fx-strike { from { transform: scaleX(0); } }
+@keyframes fx-rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes fx-sunrise { from { opacity: 0; transform: translateY(60%); } }
+@keyframes fx-pop { 0% { opacity: 0; transform: scale(.2); } 70% { transform: scale(1.15); } 100% { transform: none; } }
+@keyframes fx-dust { 0% { opacity: 0; transform: translate(-4px, 0); } 1% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(var(--dx) - 4px), var(--dy)); } }
+@keyframes fx-confetti { 0% { opacity: 1; transform: translateY(0) rotate(0); } 85% { opacity: 1; } 100% { opacity: 0; transform: translateY(260px) rotate(540deg); } }
+
+/* The takeover: dark with a red glow (warm for calm news). Lands by itself; a tap lands it sooner. */
+.fx-takeover { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); cursor: pointer; }
+.tk-bg { position: absolute; inset: 0; background: radial-gradient(circle at 50% 45%, rgba(220,38,38,.45), transparent 62%), #060508; animation: tk-in .3s ease-out both; transition: opacity .6s ease; }
+.calm .tk-bg { background: radial-gradient(circle at 50% 40%, rgba(245,158,11,.4), transparent 62%), #140e04; }
+.tk-stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 18px; width: 100%; max-width: 420px; }
+.many .tk-stage { gap: 10px; }
+.tk-cap { font-size: .85rem; letter-spacing: .4em; text-transform: uppercase; color: #fca5a5; animation: tk-in .8s .1s both; transition: opacity .4s ease; }
+.fx-takeover.landing { pointer-events: none; }
+.fx-takeover.landing .tk-bg, .fx-takeover.landing .tk-cap { opacity: 0; }
+.fx-big.fx-play { animation-fill-mode: both; }
+
+/* Landing: the flying parts sit in a layer that keeps the big card's classes but draws no box of its own. */
+.fx.tk-parts { position: fixed; inset: 0; z-index: 2; display: block; padding: 0; border: 0; background: none; box-shadow: none; overflow: visible; animation: none; pointer-events: none; }
+.fx.tk-parts::before { display: none; }
+.fx.tk-parts *, .fx.tk-parts *::after { animation: none !important; }
+@keyframes tk-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .fx-takeover { display: none; } }
