@@ -14,6 +14,10 @@ import { BotMind, PERSONA } from '../bots/mind.js';
 // The table as a whole talks at most this many lines per round outside the vote, so a big bot room does
 // not bury the phones in chatter. Votes said out loud are not counted.
 export const TABLE_LINES = (bots) => Math.min(14, 5 + Math.round(2 * Math.sqrt(bots)));
+// A person types slowly, often after the bots have said their share. So every line a person posts earns its own
+// small budget: at most this many bots answer it, even when the table's cap is used up. Those answers are
+// "quiet": they start no further replies, so one message from a person never sets off a chain.
+export const HUMAN_REPLIES = 2;
 const SEER_KEYS = new Set(['claimWolf', 'claimClean', 'reportWolf', 'reportClean', 'counter']);
 const REPLY_KEYS = new Set(['accuse', 'agree', 'claimWolf', 'claimClean', 'reportWolf', 'reportClean', 'counter', 'detective']);
 
@@ -22,6 +26,7 @@ export class HostBots {
     this.host = host; this.minDelay = minDelay; this.maxDelay = maxDelay; this.rand = rand;
     this.key = null; this.timers = new Set();
     this.minds = new Map(); this.chatSeq = null;
+    this.quiet = false; // true while a quiet answer to a person is being posted
   }
 
   smart() { return !this.host.state?.settings?.dumbBots; }
@@ -73,45 +78,54 @@ export class HostBots {
   }
 
   // New lines give bots a chance to answer: the player a line names, and anyone when it is about the Seer.
+  // A line from a person gets a budget of HUMAN_REPLIES answers (see above), named bots first.
   _watchChat(s) {
     const chat = s.chat ?? [];
     const last = chat.at(-1)?.seq ?? 0;
     if (this.chatSeq === null || last < this.chatSeq) { this.chatSeq = last; return; } // first look, or a new game
     const fresh = chat.filter((c) => c.seq > this.chatSeq);
     this.chatSeq = last;
-    if (!fresh.length) return;
+    if (!fresh.length || this.quiet) return; // quiet answers start nothing new
     const key = this._key(s);
     const alive = s.players.filter((p) => isBotId(p.id) && p.alive);
     for (const c of fresh) {
       if (!REPLY_KEYS.has(c.key)) continue;
       const seerTalk = c.key !== 'accuse' && c.key !== 'agree' && c.key !== 'detective';
+      const grant = isBotId(c.by) ? null : { left: HUMAN_REPLIES };
       // Everyone gets the chance to react to Seer talk, so whether a bot answers says nothing about its role.
       const named = new Set(c.ids);
       const listeners = seerTalk ? alive : alive.filter((p) => named.has(p.id) || this.rand() < 0.25);
       for (const p of listeners) {
         if (p.id === c.by) continue;
-        this._later(key, this._delay(PERSONA[this._mind(p).persona].speed * 0.8), () => this._talk(p.id, 'reply'));
+        const speed = PERSONA[this._mind(p).persona].speed * (grant && named.has(p.id) ? 0.5 : 0.8);
+        this._later(key, this._delay(speed), () => this._talk(p.id, 'reply', grant));
       }
     }
   }
 
-  _talk(id, moment) {
+  // grant: the budget of an answer to a person's line ({ left }), or null for ordinary talk. An answer to a
+  // person skips the table's line cap and may use the bot's spare line, but only while the budget lasts.
+  _talk(id, moment, grant = null) {
     const s = this.host.state;
     const p = s.players.find((x) => x.id === id);
     if (!p?.alive || !this.smart()) return;
+    if (grant && grant.left <= 0) return;
     const view = viewFor(s, id);
     if (!view) return;
     const s2 = this.host.state;
     const bots = s2.players.filter((x) => isBotId(x.id) && x.alive).length;
-    const said = (s2.chat ?? []).filter((c) => c.round === s2.round && c.key !== 'voteFor' && c.key !== 'voteSkip').length;
-    if (said >= TABLE_LINES(bots) + 3) return; // room for a few Seer lines past the cap
-    const line = this._mind(p).talk(view, moment);
-    if (line && said >= TABLE_LINES(bots) && !SEER_KEYS.has(line.key)) return; // Seer talk still gets through
-    this._say(id, line);
+    const said = (s2.chat ?? []).filter((c) => c.round === s2.round && isBotId(c.by) && c.key !== 'voteFor' && c.key !== 'voteSkip').length; // a person's lines don't use up the bots' share
+    if (!grant && said >= TABLE_LINES(bots) + 3) return; // room for a few Seer lines past the cap
+    const line = this._mind(p).talk(view, moment, !!grant);
+    if (!grant && line && said >= TABLE_LINES(bots) && !SEER_KEYS.has(line.key)) return; // Seer talk still gets through
+    const r = this._say(id, line, !!grant);
+    if (grant && r && !r.error) grant.left--; // only a line that was posted uses the budget
   }
 
-  _say(id, line) {
-    if (line) this.host.apply({ kind: 'botSay', by: id, now: this.host.now(), key: line.key, v: line.v, ids: line.ids });
+  _say(id, line, quiet = false) {
+    if (!line) return null;
+    this.quiet = quiet;
+    try { return this.host.apply({ kind: 'botSay', by: id, now: this.host.now(), key: line.key, v: line.v, ids: line.ids }); } finally { this.quiet = false; }
   }
 
   _schedule(id, key, tries = 0) {

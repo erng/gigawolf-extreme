@@ -24,6 +24,29 @@ export const CHAT = Object.freeze({
 export const CHAT_KEYS = Object.keys(CHAT);
 export const CHAT_MAX = 60;          // lines kept in state (and sent in views); older ones drop off
 export const CHAT_PER_ROUND = 4;     // most lines one bot may post in one round
+// The lines a human can post from the Say sheet (js/ui/quickchat.js), in menu order. Only lines a person can
+// stand behind on their own: no news reactions (rip, gotOne, oops), no Detective facts (a human has no
+// verified record to quote). The engine checks key, wording and names but never the sender's role, so any
+// role can post any of them, a lie included, just like a bot's claim. A human line has exactly the weight a
+// bot's has: bots read chat by kind, never by who wrote it.
+export const HUMAN_KEYS = Object.freeze([
+  'accuse', 'agree', 'vouch', 'defend', 'bait', 'claimWolf', 'claimClean', 'counter', 'voteFor', 'voteSkip',
+]);
+// Day 0 ("The Day Before") has no deaths, no vote and no night behind it, so a line that leans on any of those
+// makes no sense there. Audit of every kind of line:
+//   allowed  accuse, agree, vouch, defend, filler   (a hunch, a reaction, a reply to being accused, small talk)
+//   refused  rip, gotOne, oops          nobody has died or been voted out
+//            detective                  no vote to quote
+//            claimWolf, claimClean, reportWolf, reportClean, counter
+//                                       nobody can have a Seer result before night 1
+//            bait, voteFor, voteSkip    there is no vote ("vote me", "I'm skipping this one")
+// The engine refuses the refused kinds on round 0 for bots and people alike, the bot mind never picks them there,
+// and the Say sheet does not list them.
+export const DAY_BEFORE_KEYS = Object.freeze(['accuse', 'agree', 'vouch', 'defend', 'filler']);
+export const validOnRound = (key, round) => round !== 0 || DAY_BEFORE_KEYS.includes(key);
+// The Say sheet's menu for a round.
+export const humanKeys = (round) => HUMAN_KEYS.filter((k) => validOnRound(k, round));
+
 export const PERSONALITIES = Object.freeze(['sheep', 'hothead', 'quiet', 'detective']);
 
 export function validChatLine(key, v, ids) {
