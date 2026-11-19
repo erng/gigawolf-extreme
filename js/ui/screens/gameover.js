@@ -1,15 +1,23 @@
 import { h, ROLE_LABEL } from '../dom.js';
 import { t, tr } from '../../i18n.js';
 import { roleSprite } from '../pixel.js';
+import { fxAnnounce, finalLines } from '../fx.js';
 
 export function gameoverScreen(view, ctx) {
   const wolves = view.winner === 'wolves'; const jester = view.winner === 'jester'; const ended = view.winner === 'ended';
   const me = view.you;
   const won = (me.team === view.winner);
+  // The deaths that ended the game. Played full-screen only when the game has just ended on them; a
+  // phone that joins later, or a game that ended out of a vote, just shows the cards.
+  const last = ended ? [] : finalLines(view);
+  const live = ctx.finalCardsLive?.() ?? false;
+  const lastCards = last.length ? fxAnnounce(view, last, `over:${view.round}`, { quiet: !live, onDone: live ? ctx.afterFinalCards : undefined }) : null;
   return h('main', { class: 'screen gameover' },
     h('h1', { class: ended ? '' : wolves ? 'wolfwin' : jester ? 'jesterwin' : 'villwin' },
       ended ? t('over.ended') : wolves ? t('over.wolves') : jester ? t('over.jester') : t('over.village')),
     !ended && h('p', { class: 'sub' }, won ? t('over.won') : t('over.lost')),
+    lastCards && h('h3', null, t('over.last')),
+    lastCards,
     h('ul', { class: 'players' }, view.players.map((p) =>
       h('li', null, h('div', { class: `player${p.alive ? '' : ' dead'}` },
         h('span', { class: 'pname' }, p.name, p.id === me.id ? t('you') : ''),

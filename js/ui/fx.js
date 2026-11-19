@@ -69,14 +69,24 @@ export function resetFx() { seen.clear(); } // preview: play again
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// The lines that ended the game: the deaths, shots and reveals of the last dawn or hunter chain.
+// Suspicions, random events and "nobody died" are left out; they say nothing about how it ended.
+const FINAL_TYPES = new Set(['night', 'vote', 'shot', 'prince', 'jester', 'spared']);
+export function finalLines(view) {
+  return (view.announce ?? []).filter((text) => FINAL_TYPES.has(parseLine(text).type));
+}
+
 // lines: view.announce. scope: changes every round and phase (e.g. "day:3").
-export function fxAnnounce(view, lines, scope) {
+// opts.quiet: show the cards but play nothing (a phone that joins a finished game, or news it already saw).
+// opts.onDone: called once the full-screen moment has landed, or at once if there is none to wait for.
+export function fxAnnounce(view, lines, scope, opts = {}) {
   const events = parseLines(lines);
   const fresh = [];
   events.forEach((e, i) => {
     e.key = `${scope}:${i}:${e.text}`;
     if (!seen.has(e.key)) { seen.add(e.key); fresh.push(e); }
   });
+  if (opts.quiet) fresh.length = 0;
   if (fresh.some((e) => DEATHS.has(e.type))) {
     try { navigator.vibrate?.([70, 90, 70, 90, 450]); } catch { /* iOS has no vibration */ }
   }
@@ -85,6 +95,7 @@ export function fxAnnounce(view, lines, scope) {
   if (big.length && motion) takeover(view, big, scope);
   // With the full-screen cards each sound lands on its card; without them, one sound for the news.
   for (const s of motion ? sfxPlan(big) : sfxPlan(big).slice(0, 1).map((s) => ({ ...s, at: 0 }))) playSfx(s.name, s.at);
+  if (opts.onDone) { if (current) current.after.push(opts.onDone); else opts.onDone(); }
   return h('div', { class: 'fxlist', role: 'status' }, events.map((e) => card(view, e)));
 }
 
@@ -126,6 +137,7 @@ function card(view, e, { big = false, index = 0 } = {}) {
 const LAND_MS = 750;
 let current = null;
 function takeover(view, events, scope) {
+  const carried = current?.after ?? []; // callbacks waiting on the one this replaces
   if (current) { clearTimeout(current.timer); current.remove(); }
   const calm = events.every((e) => !DEATHS.has(e.type) && e.type !== 'prince' && e.type !== 'jester');
   const caption = calm ? '' : events.every((e) => e.type === 'shot') ? t('fx.capShot')
@@ -137,6 +149,7 @@ function takeover(view, events, scope) {
       events.map((e, i) => card(view, e, { big: true, index: i }))));
   document.body.append(el);
   current = el;
+  el.after = carried;
   el.timer = setTimeout(() => land(el), calm ? 1300 + events.length * 1000 : 450 + events.length * 1000 + 1600);
 }
 
@@ -182,5 +195,6 @@ function land(el) {
     for (const { target } of moves) if (target) target.style.visibility = '';
     el.remove();
     if (current === el) current = null;
+    for (const fn of el.after ?? []) { try { fn(); } catch { /* a callback must not stop the rest */ } }
   }, LAND_MS + 40);
 }
