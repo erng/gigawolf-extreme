@@ -19,7 +19,10 @@ export const PERSONA = Object.freeze({
   quiet:     { talk: 0.3,  accuse: 0.3,  agree: 0.2,  follow: 0.5, noise: 0.8, skip: 0.35, claim: 0.6, speed: 1.5 },
   detective: { talk: 0.7,  accuse: 0.6,  agree: 0.25, follow: 0.4, noise: 0.4, skip: 0.12, claim: 0.9, speed: 1 },
 });
-const LINES_PER_ROUND = 3; // the engine allows 4; a mind keeps one spare
+// On day 0 (The Day Before) nothing has happened yet, so an accusation has nothing behind it. Bots of every
+// role and personality start those at this share of their usual rate. It depends only on the round.
+export const DAY_BEFORE_ACCUSE = 0.25;
+const LINES_PER_ROUND = 3; // the engine allows 4; a mind keeps one spare, for answering a person late
 const CLAIM_KEYS = new Set(['claimWolf', 'claimClean', 'reportWolf', 'reportClean', 'counter']);
 const POINT_KEYS = new Set(['accuse', 'agree', 'claimWolf', 'reportWolf', 'counter']);
 
@@ -249,9 +252,10 @@ export class BotMind {
   // ---------- table talk ----------
   // A line to say now, or null. moment: 'day' (talking while the day is on), 'reply' (reacting to a line
   // that just appeared), or 'vote' (handled by voteLine).
-  talk(view, moment = 'day') {
+  // spare: an answer to a person's line may use the one line a mind keeps back (the engine allows one more).
+  talk(view, moment = 'day', spare = false) {
     this.observe(view);
-    if (!view.you.alive || this.day.said >= LINES_PER_ROUND) return null;
+    if (!view.you.alive || this.day.said >= LINES_PER_ROUND + (spare ? 1 : 0)) return null;
     if (view.phase !== 'day' && !(view.phase === 'vote' && !view.voteResult)) return null;
     const l = (moment === 'reply' ? this.reply() : this.dayLine());
     if (l) this.day.said++;
@@ -267,6 +271,7 @@ export class BotMind {
   // Seer business first: a real Seer goes public or reports, and calls out a fake; a wolf may fight a claim.
   seerTalk() {
     const r = this.view.round;
+    if (r === 0) return null; // The Day Before: no checks, no claims, no counterclaims
     const living = new Set(this.living());
     if (this.role === 'seer') {
       const fake = [...this.fakeChecked].find((c) => living.has(c) && !this.countered.has(c));
@@ -321,9 +326,10 @@ export class BotMind {
     const lastVote = this.votes.get(v.round - 1);
     const out = lastVote?.eliminatedId && v.players.find((p) => p.id === lastVote.eliminatedId);
     if (out?.role && this.once('reaction') && this.chance(0.4)) return this.line(isWolf(out.role) ? 'gotOne' : 'oops', out.id);
-    if (this.underFire() && this.once('defend')) return this.role === 'jester' && this.chance(0.6) ? this.line('bait') : this.line('defend');
-    if (this.role === 'jester' && this.once('bait') && this.chance(0.35)) return this.line('bait');
-    if (this.persona === 'hothead' && this.once('bait') && this.chance(0.06)) return this.line('bait');
+    const early = v.round === 0; // The Day Before has no vote, so nobody baits one (see DAY_BEFORE_KEYS)
+    if (this.underFire() && this.once('defend')) return !early && this.role === 'jester' && this.chance(0.6) ? this.line('bait') : this.line('defend');
+    if (!early && this.role === 'jester' && this.once('bait') && this.chance(0.35)) return this.line('bait');
+    if (!early && this.persona === 'hothead' && this.once('bait') && this.chance(0.06)) return this.line('bait');
     if (this.persona === 'detective') {
       const f = this.facts.filter((x) => living.includes(x.voter) && x.voter !== this.id && !mates.has(x.voter)).at(-1);
       if (f && this.once(`fact:${f.voter}`) && this.chance(0.7)) return this.line('detective', f.voter, f.victim);
@@ -332,7 +338,7 @@ export class BotMind {
     const accusedToday = [...this.day.accused.keys()].filter((id) => others.includes(id) && !mates.has(id) && (this.wolf || this.score(id) > -1));
     if (accusedToday.length && this.chance(this.k.agree) && this.once('agree')) return this.line('agree', this.pick(accusedToday));
     const t = this.target(others);
-    if (t && this.chance(this.k.accuse) && this.once('accuse')) return this.line('accuse', t.id);
+    if (t && this.chance(this.k.accuse * (v.round === 0 ? DAY_BEFORE_ACCUSE : 1)) && this.once('accuse')) return this.line('accuse', t.id);
     if (this.chance(0.12) && this.once('vouch')) {
       const pool = others.filter((id) => !mates.has(id));
       const c = this.best(pool, (id) => -this.score(id));
@@ -346,7 +352,7 @@ export class BotMind {
   reply() {
     const seer = this.seerTalk();
     if (seer) return seer;
-    if (this.underFire() && this.once('defend') && this.chance(0.75)) return this.role === 'jester' && this.chance(0.6) ? this.line('bait') : this.line('defend');
+    if (this.underFire() && this.once('defend') && this.chance(0.75)) return this.view.round !== 0 && this.role === 'jester' && this.chance(0.6) ? this.line('bait') : this.line('defend');
     const mates = this.teammates();
     const latest = (this.view.chat ?? []).at(-1);
     const a = latest?.ids?.[0];

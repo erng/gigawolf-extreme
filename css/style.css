@@ -71,6 +71,8 @@ button.player { cursor: pointer; }
 .talk h3 { margin: 4px 0 0; font-size: .8rem; }
 .talk-box { position: relative; }
 .talk-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.talk-btns { display: flex; align-items: center; gap: 8px; }
+.talk-say { min-height: 36px; padding: 4px 14px; border-radius: 999px; border: 1px solid var(--accent); background: var(--panel); color: var(--accent); font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; }
 .talk-all { min-height: 36px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--panel2); background: var(--panel); color: var(--accent); font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; }
 .bubbles { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 /* On the screen: the latest lines only, each at most 3 lines tall. Nothing scrolls inside the page. */
@@ -78,6 +80,12 @@ button.player { cursor: pointer; }
 /* The sheet holds the whole round and is the only thing that scrolls while open. */
 html.sheet-open, html.sheet-open body { overflow: hidden; }
 .sheet-backdrop { touch-action: none; }
+.say-sheet { max-height: calc(88vh - env(safe-area-inset-top, 0px)); }
+.say-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; }
+.say-line, .say-pick { width: 100%; text-align: left; }
+.say-sheet .btn { min-height: 44px; padding-block: 8px; }
+.say-left, .say-who { margin: 0; text-align: center; }
+.say-line-preview { margin: 0; text-align: center; font-size: 1.05rem; font-weight: 700; }
 .talk-sheet { max-height: calc(88vh - env(safe-area-inset-top, 0px)); }
 .talk-sheet .talk-box { min-height: 0; display: flex; flex-direction: column; }
 .bubbles.full { padding: 10px 0 2px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; max-height: 64vh;

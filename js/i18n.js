@@ -116,6 +116,7 @@ const TH = {
   // Bot table talk (js/game/chat.js): {a} and {b} are player names.
   'chat.title': 'วงเม้าท์', 'chat.empty': 'ยังเงียบกันอยู่…', 'chat.newLines': 'มีข้อความใหม่ ↓', 'chat.seeAll': 'วงเม้าท์ทั้งหมด ({n})', 'chat.close': 'ปิด', 'lobby.dumbBots': 'บอทโง่ (สุ่มมั่ว ไม่พูด)', 'lobby.dumbBotsHint': 'บอทฉลาดจำได้ว่าเกิดอะไรขึ้น สงสัยคน คุยกัน และโหวตตามเหตุผล บอทแต่ละตัวมีนิสัยต่างกัน',
   'persona.sheep': 'ตามน้ำ', 'persona.hothead': 'ใจร้อน', 'persona.quiet': 'เงียบๆ', 'persona.detective': 'นักสืบ',
+  'chat.say': 'พูด…', 'chat.sayTitle': 'พูดอะไรสักอย่าง', 'chat.sayLeft': 'เหลืออีก {n} ครั้งในรอบนี้', 'chat.sayWho': 'ใคร?', 'chat.sayBack': 'กลับ',
   'chat.rip.0': 'RIP {a} จะคิดถึงนะ 😢', 'chat.rip.1': 'ไม่นะ! ทำไมต้องเป็น {a}!', 'chat.rip.2': '{a} ไม่สมควรโดนแบบนี้เลย', 'chat.rip.3': 'ใครใจร้ายทำ {a} ได้ลงคอ?!',
   'chat.accuse.0': 'เราไม่ไว้ใจ {a} เลย', 'chat.accuse.1': '{a} ทำตัวแปลกๆ นะ', 'chat.accuse.2': 'สัญชาตญาณบอกว่า {a} คือหมาป่า', 'chat.accuse.3': 'มีใครสังเกต {a} บ้างไหม 👀',
   'chat.agree.0': 'ใช่ {a} น่าสงสัยจริง', 'chat.agree.1': 'เห็นด้วย ดู {a} สิ', 'chat.agree.2': 'เหมือนกันเลย {a} กลิ่นหมาป่าแรงมาก',
@@ -363,6 +364,7 @@ const EN = {
   'chat.title': 'Table talk', 'chat.empty': 'Quiet so far…', 'chat.newLines': 'New lines ↓', 'chat.seeAll': 'Full discussion ({n})', 'chat.close': 'Close', 'lobby.dumbBots': 'Dumb bots (random, silent)', 'lobby.dumbBotsHint': 'Smart bots remember what happened, suspect people, talk and vote with reasons. Each one has its own personality.',
   'persona.sheep': 'Sheep', 'persona.hothead': 'Hothead', 'persona.quiet': 'Quiet', 'persona.detective': 'Detective',
   'chat.rip.0': 'RIP {a}. You will be missed. 😢', 'chat.rip.1': 'Noooo, not {a}!', 'chat.rip.2': '{a} didn\'t deserve that.', 'chat.rip.3': 'Who would hurt {a}?!',
+  'chat.say': 'Say…', 'chat.sayTitle': 'Say something', 'chat.sayLeft': '{n} left this round', 'chat.sayWho': 'Who?', 'chat.sayBack': 'Back',
   'chat.accuse.0': 'I don\'t trust {a}.', 'chat.accuse.1': '{a} is acting really weird.', 'chat.accuse.2': 'My gut says {a} is a wolf.', 'chat.accuse.3': 'Has anyone else noticed {a}? 👀',
   'chat.agree.0': 'Yeah, {a} is sus.', 'chat.agree.1': 'Agreed, look at {a}.', 'chat.agree.2': 'Same, {a} gives me wolf vibes.',
   'chat.vouch.0': '{a} is fine, trust me.', 'chat.vouch.1': 'Leave {a} alone, they seem clean.', 'chat.vouch.2': 'I think {a} is safe.',

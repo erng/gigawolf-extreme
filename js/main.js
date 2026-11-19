@@ -10,6 +10,8 @@ import { refetchAll } from './util/refresh.js';
 import { keepAwake, releaseAwake } from './util/wakelock.js';
 import { speak, speakChat } from './ui/narrator.js';
 import { chatAuthor, chatText, talkSheet } from './ui/talk.js';
+import { saySheet } from './ui/quickchat.js';
+import { isBotId } from './game/setup.js';
 import { enterRoom, leaveRoom, refreshSoundLabels, setSoundPhase } from './ui/sound.js';
 import { playSfx, phaseSfx, winSfx } from './ui/sfx.js';
 import { playMoment } from './ui/moments.js';
@@ -86,12 +88,13 @@ function sayNarration(view) {
   app.narrSeq = seq;
 }
 
-// Bot table talk is spoken too (with narration on), newest line only, each bot in its own voice.
+// Bot table talk is spoken too (with narration on), newest line only, each bot in its own voice. A person's
+// line is not read aloud: they can say it themselves.
 // Like narration, the first view after (re)connecting only records where the talk is.
 function sayChat(view) {
   const last = view.chat?.at(-1);
   const seq = last?.seq ?? 0;
-  if (last && app.chatSeq !== undefined && seq > app.chatSeq) speakChat(`${chatAuthor(view, last)}: ${chatText(view, last)}`, Number(last.by.slice(4)) || 0);
+  if (last && isBotId(last.by) && app.chatSeq !== undefined && seq > app.chatSeq) speakChat(`${chatAuthor(view, last)}: ${chatText(view, last)}`, Number(last.by.slice(4)) || 0);
   app.chatSeq = seq;
 }
 
@@ -228,6 +231,7 @@ function render() {
     }
     // The whole round's bot talk, when its "All" button opened it (null otherwise).
     $app.append(...(talkSheet(v, ctx) ?? []));
+    $app.append(...(saySheet(v, ctx) ?? []));
     $app.append(h('button', { class: 'btn leave', onClick: () => { if (confirm(t('main.leaveConfirm'))) leave(); } }, t('main.leave')));
     // Host only, while a game is running: remove a player (abuse, or a phone that is stuck). Kept out of the way.
     if (v.isHost && v.phase !== 'lobby') {
