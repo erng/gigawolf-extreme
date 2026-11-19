@@ -29,7 +29,21 @@ export const DEFAULT_SETTINGS = Object.freeze({
   suspicions: true, // dawn announces who the no-power players suspect most (names only, anonymous); the host can turn it off
   bodyguardSelfProtect: true,
   narration: true,
+  randomEvents: true, // about 1 game in 5 gets a random event (only Lucky Horseshoe so far); the host can turn it off
 });
+
+// Random events. Rolled in secret at the start; nobody knows one is coming until its dawn announcement.
+export const EVENT_CHANCE = 0.2;
+export const EVENT_LINES = Object.freeze({
+  horseshoe: 'Someone found a lucky horseshoe.',
+});
+
+// Which event a game gets, and the dawn it happens on, or null. Called once at start.
+// Lucky Horseshoe is the only event so far; it happens on dawn 1 or 2.
+export function rollEvent(settings, rng) {
+  if (!settings.randomEvents || rng() >= EVENT_CHANCE) return null;
+  return { kind: 'horseshoe', round: 1 + Math.floor(rng() * 2), fired: false };
+}
 
 export function createState({ hostId, roomCode }) {
   return {
@@ -47,6 +61,8 @@ export function createState({ hostId, roomCode }) {
     promotions: 0,          // Seers that died and still need an Apprentice promoted
     shots: [],              // dead hunters who still owe a shot
     afterShot: null,        // 'day' | 'vote': where the game goes once the shots are done
+    event: null,            // { kind:'horseshoe', round, fired }: the game's random event, host only
+    horseshoe: null,        // { id, round, used, usedRound }: who holds the lucky horseshoe
     lines: [],              // announcements for the current dawn / vote result
     winner: null,           // 'village' | 'wolves' | 'jester' | 'ended' (host stopped the game)
     log: [],                // { text }
@@ -111,7 +127,7 @@ export function reduce(prev, action, rng) {
     case 'nightPick': err = nightPick(state, action, sender, rng, fx); break;
     case 'startVote': err = startVote(state, action, sender, isHost, fx); break;
     case 'vote': err = vote(state, action, sender, fx); break;
-    case 'shoot': err = shoot(state, action, sender, fx); break;
+    case 'shoot': err = shoot(state, action, sender, fx, rng); break;
     case 'nextPhase': err = nextPhase(state, action, isHost, rng, fx); break;
     case 'playAgain': err = playAgain(state, isHost); break;
     case 'endEarly': err = endEarly(state, isHost, fx); break;
@@ -159,7 +175,7 @@ function settings(state, { patch }, isHost) {
   const s = state.settings;
   for (const [k, v] of Object.entries(patch ?? {})) {
     switch (k) {
-      case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': case 'randomize': case 'noVillagers': case 'hideVotes': case 'suspicions': s[k] = !!v; break;
+      case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': case 'randomize': case 'noVillagers': case 'hideVotes': case 'suspicions': case 'randomEvents': s[k] = !!v; break;
       case 'counts':
         s.randomize = false;
         if (v === null) s.counts = null;
@@ -218,6 +234,8 @@ function startGame(state, _a, isHost, rng, fx) {
   state.winner = null;
   state.night = null;
   state.vote = null;
+  state.event = rollEvent(state.settings, rng);
+  state.horseshoe = null;
   fx.push({ type: 'haptic' });
   return null;
 }
@@ -268,7 +286,7 @@ function hist(state, kind, text) {
 }
 
 // After a batch of deaths: hunters shoot first, then the game carries on at `after`.
-function afterDeaths(state, after, fx) {
+function afterDeaths(state, after, fx, rng) {
   promoteApprentices(state);
   if (!living(state).length) state.shots = []; // everyone is dead: nobody left to shoot
   if (state.shots.length) {
@@ -278,7 +296,7 @@ function afterDeaths(state, after, fx) {
     announceShot(state, fx);
     return;
   }
-  finishAfter(state, after, fx);
+  finishAfter(state, after, fx, rng);
 }
 
 function announceShot(state, fx) {
@@ -288,13 +306,14 @@ function announceShot(state, fx) {
   fx.push({ type: 'haptic' });
 }
 
-function finishAfter(state, after, fx) {
+function finishAfter(state, after, fx, rng) {
   state.afterShot = null;
   if (after === 'day') {
     state.night = null;
     const winner = checkWinner(state);
+    if (winner) return endGame(state, winner, fx, state.lines.join(' '));
+    fireEvent(state, rng);
     const text = state.lines.join(' ');
-    if (winner) return endGame(state, winner, fx, text);
     state.phase = PHASE.DAY;
     fx.push({ type: 'narrate', text });
     fx.push({ type: 'haptic' });
@@ -304,6 +323,27 @@ function finishAfter(state, after, fx) {
   state.phase = PHASE.VOTE;
   if (state.winner !== TEAM.JESTER) state.winner = checkWinner(state);
   return null;
+}
+
+// The game's random event happens at the start of its day, after the dawn news, if the game is still on.
+// Its line goes before the suspicion line, so the news reads deaths, event, then suspicions.
+function fireEvent(state, rng) {
+  const ev = state.event;
+  if (!ev || ev.fired || ev.round !== state.round) return;
+  ev.fired = true;
+  if (ev.kind === 'horseshoe') {
+    // Any living player, wolves included: a wolf is never attacked, so on a wolf it is wasted, and nobody is told.
+    const alive = living(state);
+    const holder = alive[Math.floor(rng() * alive.length)];
+    state.horseshoe = { id: holder.id, round: state.round, used: false, usedRound: null };
+    hist(state, 'day', isWolf(holder.role)
+      ? `${who(holder)} found the lucky horseshoe, but wolves are never attacked, so it did nothing.`
+      : `${who(holder)} found the lucky horseshoe.`);
+  }
+  const text = EVENT_LINES[ev.kind];
+  const at = state.lines.findIndex((l) => l.startsWith('Most suspected:'));
+  state.log.push({ text });
+  if (at < 0) state.lines.push(text); else state.lines.splice(at, 0, text);
 }
 
 // ---------- night ----------
@@ -427,11 +467,15 @@ function resolveNight(state, rng, fx) {
   }
 
   const dying = new Set(victims.filter((id) => id !== protectedId && !healed.has(id)));
+  // The lucky horseshoe blocks one wolf attack that would have killed its holder (not the Witch's poison).
+  const hs = state.horseshoe;
+  const shoed = hs && !hs.used && dying.has(hs.id) ? hs.id : null;
+  if (shoed) { dying.delete(shoed); hs.used = true; hs.usedRound = state.round; }
   for (const id of poisoned) dying.add(id);
 
   // Keep seating order so the announcement order is stable.
   const dead = state.players.filter((p) => dying.has(p.id) && p.alive);
-  recordNight(state, n, victims, protectedId, bg, healed, poisoned, dead);
+  recordNight(state, n, victims, protectedId, bg, healed, poisoned, dead, shoed);
   for (const p of dead) killPlayer(state, p);
   // Only a wolf night-kill of the Diseased makes the next night a sick one (not poison, vote or shot).
   if (dead.some((p) => p.role === 'diseased' && victims.includes(p.id))) {
@@ -441,7 +485,7 @@ function resolveNight(state, rng, fx) {
   if (dead.length === 0) say(state, 'Nobody died.');
   for (const p of dead) say(state, `${p.name} was killed in the night.${roleNote(state, p)}`);
   suspicionLine(state, n);
-  afterDeaths(state, 'day', fx);
+  afterDeaths(state, 'day', fx, rng);
 }
 
 // Opt-in. Announces the living player(s) most suspected by the players with no night power.
@@ -456,7 +500,7 @@ function suspicionLine(state, n) {
   say(state, `Most suspected: ${state.players.filter((p) => counts.get(p.id) === top).map((p) => p.name).join(' and ')}.`);
 }
 
-function recordNight(state, n, victims, protectedId, bg, healed, poisoned, dead) {
+function recordNight(state, n, victims, protectedId, bg, healed, poisoned, dead, shoed) {
   const at = (id) => who(byId(state, id));
   for (const w of livingWolves(state)) {
     const targets = [n.picks[w.id], n.picks2[w.id]].filter((x) => x != null);
@@ -479,10 +523,11 @@ function recordNight(state, n, victims, protectedId, bg, healed, poisoned, dead)
   for (const id of victims) {
     if (id === protectedId) hist(state, 'night', `${at(id)} was attacked but the Bodyguard's protection saved them.`);
     else if (healed.has(id)) hist(state, 'night', `${at(id)} was attacked but the Witch's heal potion saved them.`);
+    else if (id === shoed) hist(state, 'night', `${at(id)} was attacked but the lucky horseshoe saved them.`);
   }
   if (!dead.length) hist(state, 'night', 'Nobody died.');
   for (const p of dead) {
-    const wolfKill = victims.includes(p.id) && p.id !== protectedId && !healed.has(p.id);
+    const wolfKill = victims.includes(p.id) && p.id !== protectedId && !healed.has(p.id) && p.id !== shoed;
     const poison = poisoned.has(p.id);
     const cause = wolfKill && poison ? 'killed by the wolves and poisoned by the Witch' : poison ? 'poisoned by the Witch' : 'killed by the wolves';
     hist(state, 'night', `${who(p)} died: ${cause}.`);
@@ -582,7 +627,7 @@ function resolveVote(state, fx) {
 }
 
 // ---------- hunter ----------
-function shoot(state, { targetId }, sender, fx) {
+function shoot(state, { targetId }, sender, fx, rng) {
   if (state.phase !== PHASE.SHOT) return { code: 'badPhase', message: 'Nobody is shooting.' };
   if (!sender || sender.id !== state.shots[0]) return { code: 'forbidden', message: 'It is not your shot.' };
   const target = byId(state, targetId);
@@ -591,16 +636,16 @@ function shoot(state, { targetId }, sender, fx) {
   promoteApprentices(state);
   hist(state, state.afterShot === 'day' ? 'night' : 'day', `${who(target)} died: shot by the Hunter ${sender.name}.`);
   say(state, `${sender.name} shot ${target.name}.${roleNote(state, target)}`);
-  nextShot(state, fx);
+  nextShot(state, fx, rng);
   return null;
 }
 
 // Moves on after a shot was taken or skipped.
-function nextShot(state, fx) {
+function nextShot(state, fx, rng) {
   state.shots.shift();
   if (!living(state).length) state.shots = []; // the last shot killed the last player
   if (state.shots.length) { announceShot(state, fx); return; }
-  finishAfter(state, state.afterShot, fx);
+  finishAfter(state, state.afterShot, fx, rng);
 }
 
 // The host's single "advance" control. Missing players simply count as no pick / Skip / no shot.
@@ -613,7 +658,7 @@ function nextPhase(state, _a, isHost, rng, fx) {
       const h = byId(state, state.shots[0]);
       hist(state, state.afterShot === 'day' ? 'night' : 'day', `${who(h)} chose not to shoot anyone.`);
       say(state, `${h.name} lowered the bow.`);
-      nextShot(state, fx);
+      nextShot(state, fx, rng);
       return null;
     }
     case PHASE.VOTE:
@@ -672,6 +717,8 @@ function playAgain(state, isHost) {
   state.seerLog = [];
   state.log = [];
   state.history = [];
+  state.event = null;
+  state.horseshoe = null;
   state.players.forEach((p) => { p.role = null; p.alive = true; p.ready = false; p.revealed = false; p.potions = null; p.promoted = false; p.haunt = false; });
   return null;
 }

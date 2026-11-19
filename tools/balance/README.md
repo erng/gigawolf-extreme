@@ -35,7 +35,9 @@ node tools/balance/calibrate.js                       # rewrites alpha.json (see
 - the output file;
 - a comma-separated event list.
 
-Each event is forced once on day 1 and compared with the same seeds and no event.
+Each event is forced once on day 1 and compared with the same seeds and no event. Add `@N` to an event name
+to force it on day N instead (`horseshoe@2`); the game fires Lucky Horseshoe on day 1 or 2. `restless` is
+`seance` on a chosen day; `restlessVoted` is a variant where only the voted-out dead rise.
 
 At 20,000 games per cell, the standard error is about 0.5 points, so a difference under 1.5 is noise. Rule
 of thumb: within ±2.5 points is fine, over 5 is game-breaking. Always check `low` skill: effects are
@@ -72,6 +74,25 @@ all three skill levels. Role reveal was off; a check with it on gave similar num
 | `secret`: votes hidden for one vote | −11 to +1 | cut |
 | `open`: votes shown live for one vote | 0 to +9 | cut |
 | `rumor`, `rumorFakes`, `rumorNoisy`, `rumor3`: a private clue about a pair of players that the holder can claim | +2 to +42 per cell, +6 to +38 on average | cut |
+
+### Lucky Horseshoe shipped, Restless Dead cut (2026-11-19)
+
+Same setup, each event on the days the game would use. Lucky Horseshoe shipped in v1.27.0. Restless Dead
+(the Séance, on day 2 or 3) was cut for being game-breaking at 8 players. Role reveal off; a check at low skill with it on gave similar numbers.
+
+| Event | low | mid | high |
+|---|---|---|---|
+| `horseshoe@1` (holder quiet) | +1.5 to +2.9 | +1.7 to +2.5 | +1.5 to +2.4 |
+| `horseshoe@2` | +1.0 to +1.7 | +1.1 to +1.5 | +1.0 to +1.3 |
+| `horseshoeClaimed@1/2` (holder claims) | about 0 | about 0 | about 0 |
+| `restless@2` | +1.2 to +3.2 | +2.0 to +8.0 | +1.9 to +10.0 |
+| `restless@3` | +0.4 to +2.0 | +0.8 to +5.1 | +0.5 to +7.4 |
+| `restless@1` | +0.4 to +1.0 | +0.1 to +2.1 | +0.4 to +2.1 |
+| `restlessVoted@2` | −1.8 to +1.1 | −1.3 to +3.5 | −1.4 to +4.9 |
+| `restlessVoted@3` | −0.4 to +1.2 | −0.2 to +2.6 | −0.2 to +3.8 |
+
+Restless Dead grows with skill, unlike the other events: the dead vote with their reads, and night victims are
+never wolves, so the dead lean village.
 
 Takeaways:
 - True information made public helps only the village, because wolves already know everything. Letting

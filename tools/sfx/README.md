@@ -31,7 +31,8 @@ Mastering matches loudness on what a phone speaker plays (above about 250 Hz), c
 | jester | pixel-jester (Pixel boing) |
 | villageWin | story-villageWin (Storybook triumph) |
 | wolvesWin | midnight-wolvesWin (Midnight pack) |
+| event | night-nightfall-dread (Two-note dread) |
 
-## Reserved
+## Random events
 
-`reserved/dread.mp3` (night-nightfall-dread, "Two-note dread": low strings, a half step up) is kept for future random events. It is not used yet.
+`event` (night-nightfall-dread, "Two-note dread": low strings, a half step up) was kept in `reserved/` for random events and is now `assets/sfx/event.mp3`.
