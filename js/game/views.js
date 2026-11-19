@@ -70,10 +70,12 @@ export function viewFor(state, playerId) {
       role: inGame ? (p.id === me.id ? p.role : publicRole(state, p)) : null,
       ...(inGame && p.revealed ? { revealed: true } : {}),
       ...(state.phase === PHASE.REVEAL ? { ready: p.ready } : {}),
+      ...(p.persona && !state.settings.dumbBots ? { persona: p.persona } : {}), // a bot's personality is public
     })),
     prompt: null,
     announce: state.lines.map((x) => x),
     log: state.log.map((l) => ({ text: l.text })),
+    chat: (state.chat ?? []).map((c) => ({ ...c, ids: [...c.ids] })), // bot table talk: public
   };
 
   // Host-only aggregate progress (never says who), so the host knows when to advance.

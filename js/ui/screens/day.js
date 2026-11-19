@@ -2,6 +2,7 @@ import { h, playerList } from '../dom.js';
 import { t } from '../../i18n.js';
 import { hostAdvance } from './hostbar.js';
 import { fxAnnounce } from '../fx.js';
+import { talkFeed } from '../talk.js';
 
 export function dayScreen(view, ctx) {
   const last = view.log.at(-1)?.text ?? '';
@@ -11,6 +12,7 @@ export function dayScreen(view, ctx) {
     view.you.private.promoted && h('div', { class: 'card result' }, t('role.promoted')),
     view.you.private.horseshoe?.fresh && h('div', { class: 'card result' }, t(view.you.private.horseshoe.used ? 'horseshoe.used' : 'horseshoe.found')),
     h('p', { class: 'sub' }, t('day.sub')),
+    talkFeed(view),
     playerList(view),
     hostAdvance(view, ctx),
   );

@@ -112,7 +112,28 @@ const TH = {
   'horseshoe.found': 'คนที่เจอคือเธอ! เกือกม้านำโชคกันหมาป่างับเธอได้ 1 ครั้ง จะบอกทุกคนหรือเก็บเงียบไว้ก็ได้',
   'horseshoe.held': 'เธอมีเกือกม้านำโชค: กันหมาป่างับได้ 1 ครั้ง',
   'horseshoe.used': 'เมื่อคืนหมาป่ามางับเธอ แต่เกือกม้านำโชคช่วยไว้ได้ ตอนนี้หมดฤทธิ์แล้วนะ',
+  // Bot table talk (js/game/chat.js): {a} and {b} are player names.
+  'chat.title': 'วงเม้าท์', 'chat.empty': 'ยังเงียบกันอยู่…', 'lobby.dumbBots': 'บอทโง่ (สุ่มมั่ว ไม่พูด)', 'lobby.dumbBotsHint': 'บอทฉลาดจำได้ว่าเกิดอะไรขึ้น สงสัยคน คุยกัน และโหวตตามเหตุผล บอทแต่ละตัวมีนิสัยต่างกัน',
+  'persona.sheep': 'ตามน้ำ', 'persona.hothead': 'ใจร้อน', 'persona.quiet': 'เงียบๆ', 'persona.detective': 'นักสืบ',
+  'chat.rip.0': 'RIP {a} จะคิดถึงนะ 😢', 'chat.rip.1': 'ไม่นะ! ทำไมต้องเป็น {a}!', 'chat.rip.2': '{a} ไม่สมควรโดนแบบนี้เลย', 'chat.rip.3': 'ใครใจร้ายทำ {a} ได้ลงคอ?!',
+  'chat.accuse.0': 'เราไม่ไว้ใจ {a} เลย', 'chat.accuse.1': '{a} ทำตัวแปลกๆ นะ', 'chat.accuse.2': 'สัญชาตญาณบอกว่า {a} คือหมาป่า', 'chat.accuse.3': 'มีใครสังเกต {a} บ้างไหม 👀',
+  'chat.agree.0': 'ใช่ {a} น่าสงสัยจริง', 'chat.agree.1': 'เห็นด้วย ดู {a} สิ', 'chat.agree.2': 'เหมือนกันเลย {a} กลิ่นหมาป่าแรงมาก',
+  'chat.vouch.0': '{a} ไม่ใช่หรอก เชื่อเรา', 'chat.vouch.1': 'ปล่อย {a} ไปเถอะ ดูใสๆ', 'chat.vouch.2': 'เราว่า {a} ปลอดภัยนะ',
+  'chat.defend.0': 'ไม่ใช่เรานะ สาบานเลย!', 'chat.defend.1': 'ทำไมทุกคนมองเราแบบนั้นอ่ะ?!', 'chat.defend.2': 'เราเป็นชาวบ้าน ปล่อยเราไปเถอะ!', 'chat.defend.3': 'ว้าว กล้ามากที่มาสงสัยเรา',
+  'chat.bait.0': 'เอาเลย โหวตเราสิ ท้าเลย', 'chat.bait.1': 'จริงๆ นะ… เราอาจจะเป็นหมาป่าก็ได้ 😏', 'chat.bait.2': 'โหวตเราออกสิ แล้วจะรู้ว่าเกิดอะไรขึ้น',
+  'chat.claimWolf.0': 'เราคือหมอดู! {a} เป็นหมาป่า!', 'chat.claimWolf.1': 'หมอดูพูดเอง ส่อง {a} แล้ว: หมาป่า โหวตเลย',
+  'chat.claimClean.0': 'เราคือหมอดู {a} ไม่ใช่หมาป่านะ', 'chat.claimClean.1': 'หมอดูพูดเอง {a} ใสสะอาด',
+  'chat.reportWolf.0': 'เมื่อคืนส่อง {a}: หมาป่า!', 'chat.reportWolf.1': 'ผลส่องล่าสุด: {a} คือหมาป่า!',
+  'chat.reportClean.0': 'เมื่อคืนส่อง {a}: ไม่ใช่หมาป่า', 'chat.reportClean.1': 'ผลส่องล่าสุด: {a} ใสสะอาด',
+  'chat.counter.0': '{a} โกหก! หมอดูตัวจริงคือเรา', 'chat.counter.1': 'อย่าไปเชื่อ {a} ไม่ใช่หมอดูหรอก',
+  'chat.detective.0': '{a} โหวตเตะ {b} ซึ่งเป็นชาวบ้าน… อืมมม', 'chat.detective.1': 'จำไว้นะ {a} เป็นคนเตะ {b} ออก',
+  'chat.voteFor.0': 'เราโหวต {a}', 'chat.voteFor.1': 'ขอโทษนะ {a} วันนี้ต้องเป็นเธอ', 'chat.voteFor.2': 'คะแนนเรา: {a}',
+  'chat.voteSkip.0': 'รอบนี้ขอข้ามก่อน', 'chat.voteSkip.1': 'ข้อมูลยังไม่พอ ข้ามดีกว่า',
+  'chat.filler.0': 'อืมมม…', 'chat.filler.1': 'รู้สึกไม่ค่อยดีเลยแฮะ', 'chat.filler.2': 'ทุกคนใจเย็นๆ ก่อนนะ', 'chat.filler.3': 'เราก็แค่ชาวบ้านธรรมดาคนนึง 🌾', 'chat.filler.4': 'ได้กลิ่นหมาเปียกๆ ลอยมา… 🐺',
+  'chat.gotOne.0': 'จับได้หนึ่งตัว! {a} คือหมาป่า 🎉', 'chat.gotOne.1': 'บ๊ายบาย {a} หมาป่าหายไปหนึ่ง เย้!',
+  'chat.oops.0': 'แย่ละ {a} เป็นชาวบ้าน', 'chat.oops.1': 'เราพลาดแล้ว… ขอโทษนะ {a}',
 };
+
 
 // Engine / host strings: [regex, replacer]. Applied globally so combined narration lines work.
 const ROLE_KEYS = { "Seer's Apprentice": 'apprentice', 'Graveyard Voter': 'poltergeist', 'Diseased Villager': 'diseased' };
@@ -225,6 +246,8 @@ const TR = [
   [/Wolves would win on the first night\./g, () => 'หมาป่าชนะตั้งแต่คืนแรกแน่ๆ ไม่สนุกแล้ว ลดหมาป่า หรือใส่บอดี้การ์ด/แม่มดมาช่วยหน่อย'],
   [/A lone wolf cannot beat a village made only of Hunters\./g, () => 'หมาป่าตัวเดียวสู้หมู่บ้านนายพรานล้วนไม่ได้หรอก ยิงต่อกันตายหมดแน่ ใส่บทอื่นมาด้วย'],
   [/The village needs at least one player who is not a Jester\./g, () => 'ต้องมีคนฝั่งหมู่บ้านที่ไม่ใช่ตัวตลกอย่างน้อย 1 คนนะ ไม่งั้นโหวตทีเดียวตัวตลกชนะเลย'],
+  [/Only bots can talk here\./g, () => 'แค่บอทที่พูดตรงนี้ได้นะ'],
+  [/Too many lines this round\./g, () => 'รอบนี้พูดเยอะไปแล้ว พักก่อน'],
   [/Invalid target\./g, () => 'เลือกใครอยู่เนี่ย ไม่ถูกนะ'],
   [/Nothing to continue\./g, () => 'ไม่มีอะไรให้ไปต่อแล้วจ้า'],
   [/Game is not over\./g, () => 'เกมยังไม่จบ รีบไปไหน'],
@@ -334,4 +357,25 @@ const EN = {
   'horseshoe.found': 'It was you! The lucky horseshoe blocks one wolf attack on you. Tell everyone, or keep it quiet.',
   'horseshoe.held': 'You have the lucky horseshoe: it blocks one wolf attack.',
   'horseshoe.used': 'The wolves came for you last night. Your lucky horseshoe saved you. It is used up now.',
+  // Bot table talk (js/game/chat.js): {a} and {b} are player names.
+  'chat.title': 'Table talk', 'chat.empty': 'Quiet so far…', 'lobby.dumbBots': 'Dumb bots (random, silent)', 'lobby.dumbBotsHint': 'Smart bots remember what happened, suspect people, talk and vote with reasons. Each one has its own personality.',
+  'persona.sheep': 'Sheep', 'persona.hothead': 'Hothead', 'persona.quiet': 'Quiet', 'persona.detective': 'Detective',
+  'chat.rip.0': 'RIP {a}. You will be missed. 😢', 'chat.rip.1': 'Noooo, not {a}!', 'chat.rip.2': '{a} didn\'t deserve that.', 'chat.rip.3': 'Who would hurt {a}?!',
+  'chat.accuse.0': 'I don\'t trust {a}.', 'chat.accuse.1': '{a} is acting really weird.', 'chat.accuse.2': 'My gut says {a} is a wolf.', 'chat.accuse.3': 'Has anyone else noticed {a}? 👀',
+  'chat.agree.0': 'Yeah, {a} is sus.', 'chat.agree.1': 'Agreed, look at {a}.', 'chat.agree.2': 'Same, {a} gives me wolf vibes.',
+  'chat.vouch.0': '{a} is fine, trust me.', 'chat.vouch.1': 'Leave {a} alone, they seem clean.', 'chat.vouch.2': 'I think {a} is safe.',
+  'chat.defend.0': 'It\'s not me, I swear!', 'chat.defend.1': 'Why is everyone looking at me?!', 'chat.defend.2': 'I\'m a villager, leave me alone!', 'chat.defend.3': 'Wow. Bold of you to suspect me.',
+  'chat.bait.0': 'Go on, vote me. I dare you.', 'chat.bait.1': 'Honestly? I might be the wolf. 😏', 'chat.bait.2': 'Vote me out, see what happens.',
+  'chat.claimWolf.0': 'I\'m the Seer! {a} is a WOLF!', 'chat.claimWolf.1': 'Seer here. I checked {a}: wolf. Vote them.',
+  'chat.claimClean.0': 'I\'m the Seer. {a} is not a wolf.', 'chat.claimClean.1': 'Seer here: {a} is clean.',
+  'chat.reportWolf.0': 'Last night I checked {a}: WOLF!', 'chat.reportWolf.1': 'New check: {a} is a wolf!',
+  'chat.reportClean.0': 'Last night I checked {a}: not a wolf.', 'chat.reportClean.1': 'New check: {a} is clean.',
+  'chat.counter.0': '{a} is lying! I\'m the real Seer.', 'chat.counter.1': 'Don\'t trust {a}, they\'re no Seer.',
+  'chat.detective.0': '{a} voted out {b}, and {b} was a villager. Hmm…', 'chat.detective.1': 'Remember: {a} voted for {b}.',
+  'chat.voteFor.0': 'I\'m voting {a}.', 'chat.voteFor.1': 'Sorry {a}, it\'s you today.', 'chat.voteFor.2': 'My vote: {a}.',
+  'chat.voteSkip.0': 'I\'m skipping this one.', 'chat.voteSkip.1': 'Not enough info. Skip.',
+  'chat.filler.0': 'Hmm…', 'chat.filler.1': 'I have a bad feeling about this.', 'chat.filler.2': 'Everyone stay calm.', 'chat.filler.3': 'I\'m just a simple villager. 🌾', 'chat.filler.4': 'Something smells like wet dog… 🐺',
+  'chat.gotOne.0': 'Got one! {a} was a wolf! 🎉', 'chat.gotOne.1': 'Bye {a}. One wolf down!',
+  'chat.oops.0': 'Oops. {a} was a villager.', 'chat.oops.1': 'We messed up… sorry {a}.',
 };
+

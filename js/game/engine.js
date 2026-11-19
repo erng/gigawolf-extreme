@@ -4,6 +4,7 @@
 // Actions: { kind, by, ...payload, nonce? }
 //   join{name} setConnected{connected} leave kick{targetId} settings{patch} startGame ready
 //   nightPick{targetId, targetId2?} startVote vote{targetId|'skip'} shoot{targetId} nextPhase playAgain
+//   botSay{key, v, ids} (host-run bots only: a table-talk line, see js/game/chat.js)
 //   Witch nightPick targetId is 'heal:<id>' | 'poison:<id>' | 'pass'.
 //
 // Effects: { type:'views' }            host should resend every player's view
@@ -13,6 +14,7 @@
 import { ROLES, isWolf, isDecoy, teamOf, TEAM } from './roles.js';
 import { MAX_PLAYERS, MAX_HUMANS, MAX_BOTS, BOT_NAMES, BOT_TAG, isBotId, MIN_PLAYERS, COUNT_KEYS, presetFor, validate, roleList, fullCounts, randomCounts } from './setup.js';
 import { shuffle } from '../util/rng.js';
+import { CHAT_MAX, CHAT_PER_ROUND, PERSONALITIES, validChatLine } from './chat.js';
 
 export const PHASE = Object.freeze({
   LOBBY: 'lobby', REVEAL: 'reveal', NIGHT: 'night', DAY: 'day', VOTE: 'vote', SHOT: 'shot', GAMEOVER: 'gameover',
@@ -31,6 +33,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   bodyguardSelfProtect: true,
   narration: true,
   randomEvents: true, // about 1 game in 5 gets a random event (only Lucky Horseshoe so far); the host can turn it off
+  dumbBots: false, // bots act at random and never talk (how bots worked before v1.29.0)
 });
 
 // Random events. Rolled in secret at the start; nobody knows one is coming until its dawn announcement.
@@ -70,6 +73,8 @@ export function createState({ hostId, roomCode }) {
     history: [],            // { kind: 'night'|'day'|'end', round, text }: full detail, only shown at game over
     nonces: {},             // playerId -> recent applied nonces
     kickNotes: [],          // removal lines waiting for the next dawn / vote result
+    chat: [],               // bot table talk { seq, round, by, key, v, ids } (public), at most CHAT_MAX
+    chatSeq: 0,
   };
 }
 
@@ -134,6 +139,7 @@ export function reduce(prev, action, rng) {
     case 'nextPhase': err = nextPhase(state, action, isHost, rng, fx); break;
     case 'playAgain': err = playAgain(state, isHost); break;
     case 'endEarly': err = endEarly(state, isHost, fx); break;
+    case 'botSay': err = botSay(state, action, sender); break;
     default: err = { code: 'badAction', message: `Unknown action ${action.kind}` };
   }
   if (err) return { state: prev, effects: [], error: err };
@@ -227,7 +233,7 @@ function settings(state, { patch }, isHost) {
   const s = state.settings;
   for (const [k, v] of Object.entries(patch ?? {})) {
     switch (k) {
-      case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': case 'randomize': case 'noVillagers': case 'hideVotes': case 'suspicions': case 'randomEvents': s[k] = !!v; break;
+      case 'revealOnDeath': case 'bodyguardSelfProtect': case 'narration': case 'randomize': case 'noVillagers': case 'hideVotes': case 'suspicions': case 'randomEvents': case 'dumbBots': s[k] = !!v; break;
       case 'counts':
         s.randomize = false;
         if (v === null) s.counts = null;
@@ -253,7 +259,9 @@ function setBots(state, { count }, isHost, rng) {
   for (let i = 1; i <= n; i++) {
     if (have.has(`bot-${i}`)) continue;
     const name = pool.pop() ?? `Bot ${i}${BOT_TAG}`; // pool used up: plain numbered name
-    bots.push({ id: `bot-${i}`, name, connected: true, role: null, alive: true, ready: false, revealed: false, potions: null });
+    // A personality for how the bot plays and talks. Public (it never depends on the role).
+    const persona = PERSONALITIES[Math.floor(rng() * PERSONALITIES.length)];
+    bots.push({ id: `bot-${i}`, name, connected: true, role: null, alive: true, ready: false, revealed: false, potions: null, persona });
   }
   bots.sort((x, y) => Number(x.id.slice(4)) - Number(y.id.slice(4)));
   state.players = [...humans, ...bots];
@@ -288,6 +296,7 @@ function startGame(state, _a, isHost, rng, fx) {
   state.vote = null;
   state.event = rollEvent(state.settings, rng);
   state.horseshoe = null;
+  state.chat = [];
   fx.push({ type: 'haptic' });
   return null;
 }
@@ -739,6 +748,24 @@ function nextPhase(state, _a, isHost, rng, fx) {
   }
 }
 
+// ---------- bot table talk ----------
+// A host-run bot posts one line. Only living bots, only in the day and while the vote is open, only with
+// smart bots on, and at most CHAT_PER_ROUND lines per bot per round. The line is public: every phone sees it.
+function botSay(state, { key, v, ids }, sender) {
+  if (!sender || !isBotId(sender.id)) return { code: 'forbidden', message: 'Only bots can talk here.' };
+  if (state.settings.dumbBots) return { code: 'forbidden', message: 'Only bots can talk here.' };
+  if (!sender.alive) return { code: 'dead', message: 'You cannot act.' };
+  const open = state.phase === PHASE.DAY || (state.phase === PHASE.VOTE && state.vote?.stage === 'voting');
+  if (!open) return { code: 'badPhase', message: 'Not in discussion.' };
+  if (!validChatLine(key, v, ids) || !ids.every((id) => byId(state, id))) return { code: 'badLine', message: 'Invalid target.' };
+  state.chat ??= [];
+  if (state.chat.filter((c) => c.by === sender.id && c.round === state.round).length >= CHAT_PER_ROUND) return { code: 'tooChatty', message: 'Too many lines this round.' };
+  state.chatSeq = (state.chatSeq ?? 0) + 1;
+  state.chat.push({ seq: state.chatSeq, round: state.round, by: sender.id, key, v, ids: [...ids] });
+  if (state.chat.length > CHAT_MAX) state.chat = state.chat.slice(-CHAT_MAX);
+  return null;
+}
+
 // ---------- end ----------
 function endGame(state, winner, fx, lastText) {
   state.winner = winner;
@@ -783,6 +810,7 @@ function playAgain(state, isHost) {
   state.history = [];
   state.event = null;
   state.horseshoe = null;
+  state.chat = [];
   state.players.forEach((p) => { p.role = null; p.alive = true; p.ready = false; p.revealed = false; p.potions = null; p.promoted = false; p.haunt = false; });
   return null;
 }

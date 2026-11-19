@@ -26,7 +26,7 @@ test('setBots: host only, lobby only, 0..MAX_BOTS, replaces the old bots', () =>
   let s = set(s0, 'p0', 7).state;
   assert.equal(s.players.length, 10);
   assert.deepEqual(s.players.slice(0, 3).map((p) => p.id), ['p0', 'p1', 'p2'], 'humans keep their seats');
-  assert.deepEqual({ ...s.players[3], name: '' }, { id: 'bot-1', name: '', connected: true, role: null, alive: true, ready: false, revealed: false, potions: null });
+  assert.deepEqual({ ...s.players[3], name: '', persona: '' }, { id: 'bot-1', name: '', connected: true, role: null, alive: true, ready: false, revealed: false, potions: null, persona: '' });
   const kept = s.players.slice(3, 5).map((p) => p.name);
   s = set(s, 'p0', 9).state;
   assert.deepEqual(s.players.slice(3, 5).map((p) => p.name), kept, 'existing bots keep their names when more are added');
