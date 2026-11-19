@@ -1,11 +1,15 @@
 import { h, playerList, kickControls } from '../dom.js';
-import { MIN_PLAYERS, COUNT_KEYS, MAX_BOTS, isBotId } from '../../game/setup.js';
+import { MIN_PLAYERS, COUNT_KEYS, COUNT_ROLES, MAX_BOTS, isBotId } from '../../game/setup.js';
 import { t, tr } from '../../i18n.js';
 import { formatRoomCode } from '../../config.js';
+import { roleSprite } from '../pixel.js';
 
-function stepper(label, value, onChange, min = 0, max = 15) {
+// Role name with its pixel sprite, for the role rows in the host's setup.
+const roleLabel = (key, label) => h('span', { class: 'rolelabel' }, roleSprite(COUNT_ROLES[key], { scale: 2 }), label);
+
+function stepper(label, value, onChange, min = 0, max = 15, key = null) {
   return h('div', { class: 'row' },
-    h('span', null, label),
+    key ? roleLabel(key, label) : h('span', null, label),
     h('div', { class: 'stepper' },
       h('button', { class: 'btn small', 'aria-label': t('lobby.fewer', { label }), disabled: value <= min, onClick: () => onChange(value - 1) }, '−'),
       h('span', { class: 'num' }, value),
@@ -75,12 +79,12 @@ export function lobbyScreen(view, ctx) {
                 s.noVillagers && h('p', null, t('lobby.noVillagersHint')))
             : h('p', { class: 'sub small' }, t('lobby.manualHint')),
           c && rows(
-            stepper(t('lobby.wolves'), c.wolves, (v) => setCounts('wolves', v), 0, Math.max(7, Math.ceil(n / 2))),
-            stepper(t('lobby.seer'), c.seer, (v) => setCounts('seer', v), c.apprentice, 3),
-            stepper(t('lobby.bodyguard'), c.bodyguard, (v) => setCounts('bodyguard', v), 0, 3),
+            stepper(t('lobby.wolves'), c.wolves, (v) => setCounts('wolves', v), 0, Math.max(7, Math.ceil(n / 2)), 'wolves'),
+            stepper(t('lobby.seer'), c.seer, (v) => setCounts('seer', v), c.apprentice, 3, 'seer'),
+            stepper(t('lobby.bodyguard'), c.bodyguard, (v) => setCounts('bodyguard', v), 0, 3, 'bodyguard'),
             ['wolfcub', 'hunter', 'witch', 'prince', 'diseased', 'apprentice', 'poltergeist', 'jester'].map((k) =>
-              stepper(t(`lobby.${k}`), c[k], (v) => setCounts(k, v), 0, k === 'apprentice' ? Math.min(3, c.seer) : 3)),
-            h('div', { class: 'row total' }, h('span', null, t('lobby.villagers')), h('span', { class: 'num' }, c.villagers))),
+              stepper(t(`lobby.${k}`), c[k], (v) => setCounts(k, v), 0, k === 'apprentice' ? Math.min(3, c.seer) : 3, k)),
+            h('div', { class: 'row total' }, roleLabel('villagers', t('lobby.villagers')), h('span', { class: 'num' }, c.villagers))),
           c && c.apprentice > 0 && h('p', { class: 'sub small' }, t('lobby.apprenticeHint')),
           !s.randomize && h('button', { class: 'btn small', onClick: () => set({ counts: null }) }, t('lobby.reset')),
           rows(botsRow(bots, (v) => ctx.setBots(v))),

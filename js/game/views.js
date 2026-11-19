@@ -45,6 +45,9 @@ export function viewFor(state, playerId) {
   const me = state.players.find((p) => p.id === playerId);
   if (!me) return null;
   const inGame = state.phase !== PHASE.LOBBY;
+  const settings = { ...state.settings, counts: effectiveCounts(state) };
+  // The bot type is the host's secret: only the host's view carries `dumbBots`, so no phone can read it.
+  if (me.id !== state.hostId) delete settings.dumbBots;
 
   const view = {
     phase: state.phase,
@@ -52,7 +55,7 @@ export function viewFor(state, playerId) {
     roomCode: state.roomCode,
     isHost: me.id === state.hostId,
     hostId: state.hostId,
-    settings: { ...state.settings, counts: effectiveCounts(state) },
+    settings,
     you: {
       id: me.id,
       name: me.name,
@@ -70,7 +73,6 @@ export function viewFor(state, playerId) {
       role: inGame ? (p.id === me.id ? p.role : publicRole(state, p)) : null,
       ...(inGame && p.revealed ? { revealed: true } : {}),
       ...(state.phase === PHASE.REVEAL ? { ready: p.ready } : {}),
-      ...(p.persona && !state.settings.dumbBots ? { persona: p.persona } : {}), // a bot's personality is public
     })),
     prompt: null,
     announce: state.lines.map((x) => x),
