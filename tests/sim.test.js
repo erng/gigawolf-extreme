@@ -41,9 +41,11 @@ class Sim {
     this.rng = createRng(seed);
     this.r = createRng(seed * 7919 + 13); // decisions
     this.n = n;
+    this.kr = createRng(seed * 31 + 7); // kick decisions: a separate stream, so the other sim choices stay as they were
+    this.kickGame = this.kr() < 0.25;
     this.steps = 0;
     this.stats = { deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0, jesterWins: 0, sickNights: 0, hauntOffers: 0, hauntVotes: 0, promotions: 0,
-      events: 0, horseshoes: 0, horseshoeSaves: 0, horseshoeWasted: 0 };
+      events: 0, horseshoes: 0, horseshoeSaves: 0, horseshoeWasted: 0, kicks: 0, kicksEndedGame: 0 };
     this.s = createState({ hostId: 'p0', roomCode: 'ABCD' });
     for (let i = 0; i < n; i++) this.do({ kind: 'join', by: i < 15 ? `p${i}` : `bot-${i}`, name: `P${i}` }); // seats past 15 are bots, as in the app
   }
@@ -63,7 +65,7 @@ class Sim {
   oracleStep(before, after) {
     if (before.phase === PHASE.LOBBY || after.phase === PHASE.LOBBY) return;
     const was = new Map(before.players.map((p) => [p.id, p]));
-    const died = after.players.filter((p) => was.get(p.id).alive && !p.alive);
+    const died = after.players.filter((p) => was.get(p.id).alive && !p.alive && !p.kicked); // a removed Seer promotes nobody
     const seerDeaths = died.filter((p) => was.get(p.id).role === 'seer').length;
     const survivingApprentices = after.players.filter((p) => p.alive && was.get(p.id).role === 'apprentice');
     const promoted = after.players.filter((p) => was.get(p.id).role === 'apprentice' && p.role === 'seer');
@@ -97,6 +99,8 @@ class Sim {
       assert.ok(players.every((p) => p.role), 'everyone has a role');
       assert.ok(s.shots.every((id) => !players.find((p) => p.id === id).alive), 'only dead hunters owe a shot');
       assert.ok(s.shots.every((id) => players.find((p) => p.id === id).role === 'hunter'));
+      assert.ok(s.shots.every((id) => !players.find((p) => p.id === id).kicked), 'a removed hunter owes no shot');
+      assert.ok(players.filter((p) => p.kicked).every((p) => !p.alive), 'removed players are out');
       if (s.phase !== PHASE.SHOT) assert.equal(s.shots.length, 0, 'no unresolved shots outside the shot phase');
       for (const p of players) {
         if (p.role === 'witch') assert.ok(p.potions && typeof p.potions.heal === 'boolean' && typeof p.potions.poison === 'boolean');
@@ -166,8 +170,28 @@ class Sim {
     return this.s;
   }
 
+  // The host removes a human now and then, in any phase. They may reconnect, but only as a spectator.
+  maybeKick() {
+    const s = this.s; const kr = this.kr;
+    if (!this.kickGame || s.phase === PHASE.LOBBY || s.phase === PHASE.GAMEOVER || kr() > 0.12) return;
+    const targets = s.players.filter((p) => p.id !== 'p0' && !p.id.startsWith('bot-') && !p.kicked);
+    if (!targets.length) return;
+    const t = pick(kr, targets);
+    this.stats.kicks++;
+    this.do({ kind: 'kick', by: 'p0', targetId: t.id });
+    assert.ok(!this.s.players.find((p) => p.id === t.id).alive, 'a removed player is out of the game');
+    if (this.s.phase === PHASE.GAMEOVER && s.phase !== PHASE.GAMEOVER) this.stats.kicksEndedGame++;
+    const back = reduce(this.s, { now: 0, kind: 'join', by: t.id, name: t.name }, this.rng);
+    assert.ok(!back.error, 'a removed phone can reconnect');
+    assert.equal(back.state.players.find((p) => p.id === t.id).alive, false, 'as a spectator, still out of the game');
+    assert.ok(reduce(this.s, { now: 0, kind: 'kick', by: 'p1', targetId: 'p2' }, this.rng).error, 'only the host can remove players');
+  }
+
   turn() {
-    const r = this.r; const s = this.s;
+    const r = this.r;
+    this.maybeKick();
+    if (this.s.phase === PHASE.GAMEOVER) return; // the removal ended the game
+    const s = this.s;
     switch (s.phase) {
       case PHASE.REVEAL: this.do({ kind: 'nextPhase', by: 'p0' }); break;
       case PHASE.NIGHT: this.night(); break;
@@ -295,16 +319,16 @@ test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, ()
       // Every announcement becomes an outcome card; only the suspicion line and the winner (shown on the game-over screen) stay plain text.
       for (const { text } of end.log) {
         const type = parseLine(text).type;
-        assert.ok(type !== 'info' || /^Most suspected: |^The (wolves win|village wins|Jester wins)!$|^The host ended the game early\.$/.test(text), `no card for: "${text}"`);
+        assert.ok(type !== 'info' || /^Most suspected: |^The (wolves win|village wins|Jester wins)!$|^The host ended the game early\.$| was removed by the host\./.test(text), `no card for: "${text}"`);
         cards[type] = (cards[type] ?? 0) + 1;
         // Every card has a sound.
         if (type !== 'info') for (const { name } of sfxPlan(parseLines([text]))) sounds[name] = (sounds[name] ?? 0) + 1;
         if (type !== 'info') assert.equal(sfxPlan(parseLines([text])).length, 1, `no sound for: "${text}"`);
       }
       for (const k of ['deaths', 'shots', 'doubleKills', 'heals', 'poisons', 'princeSaves', 'sickNights', 'hauntOffers', 'hauntVotes', 'promotions',
-        'events', 'horseshoes', 'horseshoeSaves', 'horseshoeWasted']) totals[k] += sim.stats[k];
+        'events', 'horseshoes', 'horseshoeSaves', 'horseshoeWasted', 'kicks', 'kicksEndedGame']) totals[k] = (totals[k] ?? 0) + sim.stats[k];
       // play again resets everything and a second game on the same state works
-      if (seed % 10 === 0) {
+      if (seed % 10 === 0 && sim.stats.kicks === 0) {
         sim.do({ kind: 'playAgain', by: 'p0' });
         assert.equal(sim.s.phase, PHASE.LOBBY);
         assert.ok(sim.s.players.every((p) => p.alive && p.role === null && p.potions === null && !p.revealed));
@@ -331,6 +355,7 @@ test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, ()
   const rate = totals.events / (totals.games - (totals.replays ?? 0));
   assert.ok(rate > 0.16 && rate < 0.24, `about 1 game in 5 gets an event (${(100 * rate).toFixed(1)}%)`);
   assert.ok(totals.horseshoes > 20 && totals.horseshoeSaves > 5 && totals.horseshoeWasted > 3, 'horseshoes were found, used and wasted on wolves');
+  assert.ok(totals.kicks > 50 && totals.kicksEndedGame > 3, `host removals happened in games (${totals.kicks}, ${totals.kicksEndedGame} ended the game)`);
   assert.ok(totals.village > 0 && totals.wolves > 0);
 });
 

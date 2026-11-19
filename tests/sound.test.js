@@ -19,12 +19,18 @@ test('host choices are kept across games', () => {
   assert.deepEqual(loadSoundPrefs(s, room('ABCDEFGH')), { music: true, narrator: false, effects: true }, 'host choice does not leak to playing');
 });
 
-test('a player choice lasts only for the room it was set in', () => {
+test('a player choice is kept across rooms', () => {
   const s = memStorage();
-  saveSoundPrefs(s, room('ABCDEFGH'), { music: true, narrator: false, effects: true });
-  assert.deepEqual(loadSoundPrefs(s, room('ABCDEFGH')), { music: true, narrator: false, effects: true });
-  assert.deepEqual(loadSoundPrefs(s, room('ZZZZYYYY')), { music: true, narrator: false, effects: true });
+  saveSoundPrefs(s, room('ABCDEFGH'), { music: false, narrator: true, effects: false });
+  assert.deepEqual(loadSoundPrefs(s, room('ABCDEFGH')), { music: false, narrator: true, effects: false });
+  assert.deepEqual(loadSoundPrefs(s, room('ZZZZYYYY')), { music: false, narrator: true, effects: false }, 'a new game keeps music off');
   assert.deepEqual(loadSoundPrefs(s, HOST), { music: true, narrator: false, effects: true }, 'player choice does not change host defaults');
+});
+
+test('a player choice saved by an older version (with a room code) still applies in any room', () => {
+  const s = memStorage();
+  s.set('gigawolf.sound.player', { roomCode: 'ABCDEFGH', music: false, narrator: false, effects: true });
+  assert.deepEqual(loadSoundPrefs(s, room('ZZZZYYYY')), { music: false, narrator: false, effects: true });
 });
 
 test('old host music mute carries over', () => {
@@ -38,7 +44,7 @@ test('effects are their own switch, and choices saved before effects existed get
   s.set('gigawolf.sound.host', { music: false, narrator: false });
   assert.deepEqual(loadSoundPrefs(s, HOST), { music: false, narrator: false, effects: true });
   s.set('gigawolf.sound.player', { roomCode: 'ABCDEFGH', music: true, narrator: true });
-  assert.deepEqual(loadSoundPrefs(s, room('ABCDEFGH')), { music: true, narrator: true, effects: false });
+  assert.deepEqual(loadSoundPrefs(s, room('ABCDEFGH')), { music: true, narrator: true, effects: true });
   saveSoundPrefs(s, HOST, { music: true, narrator: true, effects: false });
   assert.deepEqual(loadSoundPrefs(s, HOST), { music: true, narrator: true, effects: false }, 'muting effects leaves music and narrator alone');
 });
