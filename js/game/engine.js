@@ -2,13 +2,14 @@
 // reduce(state, action, rng) -> { state, effects, error? }
 //
 // Actions: { kind, by, ...payload, nonce? }
-//   join{name} setConnected{connected} leave settings{patch} startGame ready
+//   join{name} setConnected{connected} leave kick{targetId} settings{patch} startGame ready
 //   nightPick{targetId, targetId2?} startVote vote{targetId|'skip'} shoot{targetId} nextPhase playAgain
 //   Witch nightPick targetId is 'heal:<id>' | 'poison:<id>' | 'pass'.
 //
 // Effects: { type:'views' }            host should resend every player's view
 //          { type:'narrate', text }    host phone speaks this line
 //          { type:'haptic' }           phase change buzz
+//          { type:'drop', id }         host should hang up on this player (a stuck phone then reconnects fresh)
 import { ROLES, isWolf, isDecoy, teamOf, TEAM } from './roles.js';
 import { MAX_PLAYERS, MAX_HUMANS, MAX_BOTS, BOT_NAMES, BOT_TAG, isBotId, MIN_PLAYERS, COUNT_KEYS, presetFor, validate, roleList, fullCounts, randomCounts } from './setup.js';
 import { shuffle } from '../util/rng.js';
@@ -68,6 +69,7 @@ export function createState({ hostId, roomCode }) {
     log: [],                // { text }
     history: [],            // { kind: 'night'|'day'|'end', round, text }: full detail, only shown at game over
     nonces: {},             // playerId -> recent applied nonces
+    kickNotes: [],          // removal lines waiting for the next dawn / vote result
   };
 }
 
@@ -120,6 +122,7 @@ export function reduce(prev, action, rng) {
     case 'join': err = join(state, action); break;
     case 'setConnected': if (sender) sender.connected = !!action.connected; break;
     case 'leave': err = leave(state, action); break;
+    case 'kick': err = kick(state, action, isHost, rng, fx); break;
     case 'settings': err = settings(state, action, isHost); break;
     case 'setBots': err = setBots(state, action, isHost, rng); break;
     case 'startGame': err = startGame(state, action, isHost, rng, fx); break;
@@ -168,6 +171,55 @@ function leave(state, { by }) {
   return null;
 }
 
+// Host only, for a phone that is stuck or for abuse. Not part of normal play.
+// Lobby: the player is removed. In a game: they are eliminated quietly (no hunter shot, no cub revenge, no
+// Apprentice promotion), the win check runs, and the phase that was waiting on them carries on.
+// Either way the host drops their connection, and the phone may come back (a stuck phone reconnects fresh:
+// into the lobby, or into a game as a spectator). There is no ban.
+function kick(state, { targetId }, isHost, rng, fx) {
+  if (!isHost) return { code: 'forbidden', message: 'Only the host can remove players.' };
+  const p = byId(state, targetId);
+  if (!p) return { code: 'unknownPlayer', message: 'Unknown player.' };
+  if (p.id === state.hostId || isBotId(p.id)) return { code: 'forbidden', message: 'You cannot remove the host or a bot.' };
+  fx.push({ type: 'drop', id: p.id });
+  if (state.phase === PHASE.LOBBY) { state.players = state.players.filter((x) => x.id !== p.id); return null; }
+  if (state.phase === PHASE.GAMEOVER) return null; // nothing to remove: the game is over, the phone just reconnects
+  const wasAlive = p.alive;
+  p.alive = false; p.kicked = true; p.haunt = false;
+
+  const shooter = state.phase === PHASE.SHOT && state.shots[0] === p.id;
+  state.shots = state.shots.filter((id) => id !== p.id);
+  if (state.night) { delete state.night.picks[p.id]; delete state.night.picks2[p.id]; if (state.night.suspects) delete state.night.suspects[p.id]; }
+  const voting = state.phase === PHASE.VOTE && state.vote.stage === 'voting';
+  if (voting) { delete state.vote.votes[p.id]; state.vote.ghosts = (state.vote.ghosts ?? []).filter((id) => id !== p.id); }
+  hist(state, state.phase === PHASE.DAY || state.phase === PHASE.VOTE ? 'day' : 'night', `${p.name} (${ROLES[p.role].name}) was removed by the host.`);
+
+  if (wasAlive) {
+    const text = `${p.name} was removed by the host.${roleNote(state, p)}`;
+    const showNow = state.phase === PHASE.DAY || state.phase === PHASE.SHOT || (state.phase === PHASE.VOTE && !voting);
+    if (showNow) { say(state, text); fx.push({ type: 'narrate', text }); }
+    else (state.kickNotes ??= []).push(text);
+  }
+
+  if (shooter) { // the pending shot is gone: the next hunter shoots, or the game carries on
+    if (state.shots.length) announceShot(state, fx); else finishAfter(state, state.afterShot, fx, rng);
+    return null;
+  }
+  const winner = checkWinner(state);
+  if (state.phase === PHASE.VOTE && !voting) {
+    if (state.winner !== TEAM.JESTER) state.winner = winner;
+    return null;
+  }
+  if (winner) { state.shots = []; endGame(state, winner, fx, state.lines.join(' ')); return null; }
+  if (state.phase === PHASE.NIGHT && !state.night.noKill && state.night.victims == null && livingWolves(state).every((w) => w.id in state.night.picks)) {
+    state.night.victims = computeVictims(state, rng); // the kicked wolf was the last one still thinking
+  }
+  if (voting) {
+    const v = state.vote;
+    if (living(state).every((x) => x.id in v.votes) && (v.ghosts ?? []).every((id) => id in v.votes)) resolveVote(state, fx);
+  }
+  return null;
+}
 
 function settings(state, { patch }, isHost) {
   if (!isHost) return { code: 'forbidden', message: 'Only the host can change settings.' };
@@ -217,7 +269,7 @@ function startGame(state, _a, isHost, rng, fx) {
   state.players.forEach((p, i) => {
     p.role = roles[i]; p.alive = true; p.ready = false; p.revealed = false;
     p.potions = p.role === 'witch' ? { heal: true, poison: true } : null;
-    p.promoted = false; p.haunt = false;
+    p.promoted = false; p.haunt = false; delete p.kicked;
   });
   state.phase = PHASE.REVEAL;
   state.round = 0;
@@ -267,6 +319,12 @@ function promoteApprentices(state) {
     a.role = 'seer'; a.promoted = true;
     hist(state, state.phase === PHASE.NIGHT ? 'night' : 'day', `${a.name} (Seer's Apprentice) was promoted to Seer.`);
   }
+}
+
+// Removals that happened while the room was waiting (reveal, night, voting) are announced with the next news.
+function flushKickNotes(state) {
+  for (const text of state.kickNotes ?? []) say(state, text);
+  state.kickNotes = [];
 }
 
 function roleNote(state, p) {
@@ -453,6 +511,7 @@ function nightPick(state, { targetId, targetId2 }, sender, rng) {
 function resolveNight(state, rng, fx) {
   const n = state.night;
   state.lines = [];
+  flushKickNotes(state);
   const victims = n.victims ?? computeVictims(state, rng);
   const bg = state.players.find((p) => p.alive && p.role === 'bodyguard');
   const protectedId = bg ? n.picks[bg.id] ?? null : null;
@@ -576,14 +635,16 @@ function resolveVote(state, fx) {
   const votes = {};
   const counts = new Map();
   for (const p of living(state)) {
-    const t = state.vote.votes[p.id] ?? 'skip'; // no vote counts as Skip
+    let t = state.vote.votes[p.id] ?? 'skip'; // no vote counts as Skip
+    if (t !== 'skip' && !byId(state, t)?.alive) t = 'skip'; // the target was removed since
     votes[p.id] = t;
     counts.set(t, (counts.get(t) ?? 0) + 1);
   }
   // Haunt votes count like any other vote (public). A pass or no haunt adds nothing.
   const haunters = (state.vote.ghosts ?? []).map((id) => byId(state, id)).filter((g) => g && state.vote.votes[g.id] && state.vote.votes[g.id] !== 'pass');
   for (const g of haunters) {
-    const t = state.vote.votes[g.id];
+    let t = state.vote.votes[g.id];
+    if (t !== 'skip' && !byId(state, t)?.alive) t = 'skip';
     votes[g.id] = t;
     counts.set(t, (counts.get(t) ?? 0) + 1);
   }
@@ -593,6 +654,7 @@ function resolveVote(state, fx) {
   if (top.length === 1 && top[0] !== 'skip') eliminatedId = top[0];
 
   state.lines = [];
+  flushKickNotes(state);
   for (const p of [...living(state), ...haunters]) {
     const tv = votes[p.id];
     hist(state, 'day', `${who(p)}${p.alive ? '' : ' (haunting)'} voted ${tv === 'skip' ? 'to skip' : `for ${who(byId(state, tv))}`}${state.vote.votes[p.id] == null ? ' (no vote cast)' : ''}.`);
@@ -702,6 +764,8 @@ function endEarly(state, isHost, fx) {
 function playAgain(state, isHost) {
   if (!isHost) return { code: 'forbidden', message: 'Only the host can restart.' };
   if (state.phase !== PHASE.GAMEOVER) return { code: 'badPhase', message: 'Game is not over.' };
+  state.players.forEach((p) => { delete p.kicked; });
+  state.kickNotes = [];
   state.phase = PHASE.LOBBY;
   state.round = 0;
   state.night = null;

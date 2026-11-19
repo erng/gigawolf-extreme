@@ -1,5 +1,5 @@
 // Boot + screen routing. The UI only ever renders the view it is sent.
-import { h } from './ui/dom.js';
+import { h, kickControls } from './ui/dom.js';
 import { roleSprite } from './ui/pixel.js';
 import { Client, peerConnector } from './net/client.js';
 import { Host } from './net/host.js';
@@ -29,7 +29,7 @@ const $toast = document.getElementById('toast');
 const params = new URLSearchParams(location.search);
 
 const app = { client: null, host: null, view: null, status: null, error: null, prevKey: null, connecting: false, narrSeq: undefined };
-const ui = { pick: null, holding: false, key: null };
+const ui = { pick: null, holding: false, key: null, manage: false, kickAsk: null };
 
 const SESSION_KEY = 'gigawolf.session';
 const NAME_KEY = 'gigawolf.name';
@@ -171,7 +171,7 @@ function render() {
   // Reset per-phase UI state when the phase changes.
   const v = app.view;
   const key = v ? `${v.phase}:${v.round}` : 'home';
-  if (key !== ui.key) { ui.key = key; ui.pick = null; ui.picks = null; ui.mode = null; ui.confirmEnd = false; if (v?.phase !== 'reveal') ui.holding = false; }
+  if (key !== ui.key) { ui.key = key; ui.pick = null; ui.picks = null; ui.mode = null; ui.confirmEnd = false; ui.manage = false; ui.kickAsk = null; if (v?.phase !== 'reveal') ui.holding = false; }
 
   const scrollY = window.scrollY;
   $app.replaceChildren();
@@ -200,6 +200,25 @@ function render() {
       $app.append(h('p', { class: 'sub small yourole' }, roleSprite(v.you.role, { scale: 1.5 }), t('night.youAre', { role: t(`role.${v.you.role}`) })));
     }
     $app.append(h('button', { class: 'btn leave', onClick: () => { if (confirm(t('main.leaveConfirm'))) leave(); } }, t('main.leave')));
+    // Host only, while a game is running: remove a player (abuse, or a phone that is stuck). Kept out of the way.
+    if (v.isHost && v.phase !== 'lobby') {
+      $app.append(h('button', { class: 'btn small managebtn', onClick: () => { ui.manage = true; ui.kickAsk = null; render(); } }, t('host.manage')));
+      if (ui.manage) {
+        const close = () => { ui.manage = false; ui.kickAsk = null; render(); };
+        const others = v.players.filter((p) => p.id !== v.you.id && !p.kicked && !p.id.startsWith('bot-'));
+        $app.append(h('div', { class: 'sheet-backdrop', onClick: close }),
+          h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'manage-title' },
+            h('h3', { id: 'manage-title' }, t('host.manageTitle')),
+            h('p', { class: 'sub small' }, t('host.manageBody')),
+            others.length ? h('ul', { class: 'players', role: 'list' }, others.map((p) =>
+              h('li', { class: 'withaction' }, h('div', { class: `player${p.alive ? '' : ' dead'}` },
+                h('span', { class: `dot ${p.connected ? 'on' : 'off'}`, title: p.connected ? t('connected') : t('reconnecting') }),
+                h('span', { class: 'pname' }, p.name),
+                !p.alive && h('span', { class: 'tag' }, t('dead'))),
+                kickControls(p, ctx)))) : h('p', { class: 'sub' }, t('host.kickNone')),
+            h('button', { class: 'btn', onClick: close }, t('host.manageClose'))));
+      }
+    }
     // Host only, while a game is running: stop it early (red, behind a confirmation sheet at the bottom).
     if (v.isHost && v.phase !== 'lobby' && v.phase !== 'gameover') {
       $app.append(h('button', { class: 'btn danger endearly', onClick: () => { ui.confirmEnd = true; render(); } }, t('host.endEarly')));

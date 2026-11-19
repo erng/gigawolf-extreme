@@ -1,4 +1,4 @@
-import { h, playerList } from '../dom.js';
+import { h, playerList, kickControls } from '../dom.js';
 import { MIN_PLAYERS, COUNT_KEYS, MAX_BOTS, isBotId } from '../../game/setup.js';
 import { t, tr } from '../../i18n.js';
 import { formatRoomCode } from '../../config.js';
@@ -57,7 +57,9 @@ export function lobbyScreen(view, ctx) {
         try { if (navigator.share) await navigator.share({ url: link, title: 'Gigawolf Extreme' }); else { await navigator.clipboard.writeText(link); e.target.textContent = t('lobby.copied'); } } catch { /* cancelled */ }
       } }, t('lobby.share'))),
     h('h2', null, t('lobby.players', { n })),
-    playerList(bots > 0 ? { ...view, players: view.players.filter((p) => !isBotId(p.id)) } : view),
+    playerList(bots > 0 ? { ...view, players: view.players.filter((p) => !isBotId(p.id)) } : view, {
+      actions: host ? (p) => (p.id === view.you.id || isBotId(p.id) ? null : kickControls(p, ctx)) : null,
+    }),
     bots > 0 && h('p', { class: 'sub' }, t('lobby.botsList', { n: bots })),
     host
       ? h('section', { class: 'card settings' },

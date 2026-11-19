@@ -66,6 +66,7 @@ export function viewFor(state, playerId) {
       name: p.name,
       alive: p.alive,
       connected: p.connected,
+      ...(p.kicked ? { kicked: true } : {}),
       role: inGame ? (p.id === me.id ? p.role : publicRole(state, p)) : null,
       ...(inGame && p.revealed ? { revealed: true } : {}),
       ...(state.phase === PHASE.REVEAL ? { ready: p.ready } : {}),
@@ -78,7 +79,7 @@ export function viewFor(state, playerId) {
   // Host-only aggregate progress (never says who), so the host knows when to advance.
   if (view.isHost) {
     const alive = state.players.filter((p) => p.alive);
-    if (state.phase === PHASE.REVEAL) view.progress = { done: state.players.filter((p) => p.ready).length, total: state.players.length };
+    if (state.phase === PHASE.REVEAL) view.progress = { done: state.players.filter((p) => p.ready && !p.kicked).length, total: state.players.filter((p) => !p.kicked).length };
     if (state.phase === PHASE.NIGHT) view.progress = { done: alive.filter((p) => p.id in state.night.picks).length, total: alive.length };
     if (state.phase === PHASE.VOTE && state.vote.stage === 'voting') {
       // A haunting ghost is counted too: the vote is held for them, so the host must see why it is not done.

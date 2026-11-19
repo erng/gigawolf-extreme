@@ -220,10 +220,19 @@ export class Host {
     return r;
   }
 
+  // A phone the host removed: hang up. It reconnects on its own with a fresh connection.
+  _drop(id) {
+    const conn = this.conns.get(id);
+    if (!conn) return;
+    const t = setTimeout(() => { try { conn.close(); } catch {} }, 300);
+    t.unref?.();
+  }
+
   _afterApply(effects) {
     const lines = [];
     for (const e of effects) {
       if (e.type === 'narrate' && this.state.settings.narration) { lines.push(e.text); this.onNarrate(e.text); }
+      if (e.type === 'drop') this._drop(e.id);
     }
     if (lines.length) this.narration = { seq: (this.narration?.seq ?? 0) + 1, text: lines.join(' ') };
     this.bots.onChange();
