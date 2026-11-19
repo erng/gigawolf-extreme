@@ -79,6 +79,8 @@ export function finalLines(view) {
 // lines: view.announce. scope: changes every round and phase (e.g. "day:3").
 // opts.quiet: show the cards but play nothing (a phone that joins a finished game, or news it already saw).
 // opts.onDone: called once the full-screen moment has landed, or at once if there is none to wait for.
+// opts.handoff: instead of folding the cards into the screen, end the moment by handing straight over to
+// whatever onDone starts (the win moment), so the screen underneath is never shown in between.
 export function fxAnnounce(view, lines, scope, opts = {}) {
   const events = parseLines(lines);
   const fresh = [];
@@ -92,7 +94,7 @@ export function fxAnnounce(view, lines, scope, opts = {}) {
   }
   const big = fresh.filter((e) => e.type !== 'info');
   const motion = !reducedMotion() && typeof document !== 'undefined';
-  if (big.length && motion) takeover(view, big, scope);
+  if (big.length && motion) takeover(view, big, scope, !!opts.handoff);
   // With the full-screen cards each sound lands on its card; without them, one sound for the news.
   for (const s of motion ? sfxPlan(big) : sfxPlan(big).slice(0, 1).map((s) => ({ ...s, at: 0 }))) playSfx(s.name, s.at);
   if (opts.onDone) { if (current) current.after.push(opts.onDone); else opts.onDone(); }
@@ -124,7 +126,10 @@ function card(view, e, { big = false, index = 0 } = {}) {
     h('div', { class: 'fx-prop' }, prop, death && big && h('i', { class: 'fx-dust' }, h('b'), h('b'), h('b'), h('b'))),
     h('div', { class: 'fx-body' },
       h('div', { class: 'fx-kicker' }, kicker),
-      h('div', { class: 'fx-name' }, h('span', { class: 'fx-nm' }, e.name), you ? h('span', { class: 'fx-me' }, t('you')) : null),
+      h('div', { class: 'fx-name' }, h('span', { class: 'fx-nm' }, e.name), you ? h('span', { class: 'fx-me' }, t('you')) : null,
+        // The strike: an invisible copy of the name with a line through it, laid over the real one. It wraps
+        // exactly like the name, so every line gets its own strike, and it paints on top of the letters.
+        death && h('div', { class: 'fx-ov', 'aria-hidden': 'true' }, h('span', { class: 'fx-nm' }, e.name), you ? h('span', { class: 'fx-me' }, t('you')) : null)),
       e.role && h('div', { class: 'fx-role' }, roleSprite(e.role, { scale: 1.5 }), ROLE_LABEL[e.role]),
       e.jester && h('div', { class: 'fx-twistline' }, t('fx.jesterTwist'))),
     e.jester && big && h('i', { class: 'confetti', 'aria-hidden': 'true' },
@@ -136,13 +141,13 @@ function card(view, e, { big = false, index = 0 } = {}) {
 // Lives on <body>, so screen rebuilds don't cut it off. Lands on its own after the cards have played.
 const LAND_MS = 750;
 let current = null;
-function takeover(view, events, scope) {
+function takeover(view, events, scope, hand = false) {
   const carried = current?.after ?? []; // callbacks waiting on the one this replaces
   if (current) { clearTimeout(current.timer); current.remove(); }
   const calm = events.every((e) => !DEATHS.has(e.type) && e.type !== 'prince' && e.type !== 'jester');
   const caption = calm ? '' : events.every((e) => e.type === 'shot') ? t('fx.capShot')
     : scope.startsWith('vote') ? t('fx.capVote') : t('fx.capNight');
-  const el = h('div', { class: `fx-takeover${calm ? ' calm' : ''}${events.length > 2 ? ' many' : ''}`, role: 'presentation', onClick: () => land(el) },
+  const el = h('div', { class: `fx-takeover${calm ? ' calm' : ''}${events.length > 2 ? ' many' : ''}`, role: 'presentation', onClick: () => (hand ? handoff(el) : land(el)) },
     h('div', { class: 'tk-bg' }),
     h('div', { class: 'tk-stage' },
       caption && h('div', { class: 'tk-cap' }, caption),
@@ -150,7 +155,19 @@ function takeover(view, events, scope) {
   document.body.append(el);
   current = el;
   el.after = carried;
-  el.timer = setTimeout(() => land(el), calm ? 1300 + events.length * 1000 : 450 + events.length * 1000 + 1600);
+  el.timer = setTimeout(() => (hand ? handoff(el) : land(el)), calm ? 1300 + events.length * 1000 : 450 + events.length * 1000 + 1600);
+}
+
+// Ends the moment without showing the screen underneath: what onDone starts (the win moment) is added on
+// top of the cards first, and the cards are removed once it has faded in over them.
+const HANDOFF_MS = 650;
+function handoff(el) {
+  if (el.landing) return;
+  el.landing = true;
+  clearTimeout(el.timer);
+  for (const fn of el.after ?? []) { try { fn(); } catch { /* a callback must not stop the rest */ } }
+  const covered = document.querySelector('.mo'); // nothing is started with reduced motion: nothing to wait for
+  setTimeout(() => { el.remove(); if (current === el) current = null; }, covered ? HANDOFF_MS : 0);
 }
 
 // Each big card shrinks into its small card while the dark fades: the card's box moves onto the small

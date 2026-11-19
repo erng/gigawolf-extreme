@@ -197,11 +197,11 @@ Ambiguities in the plan, resolved with the simplest option.
 - **After the game**: nothing is removed, the phone just reconnects. On Play again everyone is a normal player.
 - **Tests**: `tests/kick.test.js` (each rule above, and the network path), and the random-game sim removes players in about a quarter of games, in any phase, and checks the board invariants, that nothing leaks and that a removed phone can only come back as a spectator.
 
-## The last deaths play before the win (v1.28.2)
+## The last deaths play before the win (v1.28.2, v1.28.3)
 
 - **Why**: when a dawn kill or a Hunter's last shot ended the game, the phones went straight to the game-over screen and the win moment. The death cards (grave, struck name, "Shot by X") only exist on the day, vote and dead screens, so nobody saw how it ended and had to read the history.
-- **Now**: on a game that has just ended on such a death, the cards play full-screen first, like any other news. They then fold into a "How it ended" list at the top of the game-over screen, and only then the win sound and the win moment start. A tap lands the cards sooner, as before.
-- **What is shown**: the deaths, hunter shots, Prince and Jester lines of that last dawn or shot chain. Suspicions, random events and "nobody died" are left out.
-- **Not replayed**: a game that ends straight out of a vote already showed its cards on the vote screen, so it gets the win at once and the list is just shown. A phone that joins or rejoins a finished game, and a game ended by the host, get no full-screen cards or win moment. Joining phones still see the "How it ended" list. With reduced motion there is no full-screen anything, and the win sound plays at once.
-- **Code**: `finalLines(view)` and the `quiet` and `onDone` options of `fxAnnounce` in `js/ui/fx.js`; `winSfx` in `js/ui/sfx.js`; the win is held back in `js/main.js` (`pendingWin`, `ctx.afterFinalCards`).
+- **Order**: on a game that has just ended on such a death: the cards play full-screen, like any other news; the win moment then fades in over them (with its sound); and only after it folds does the game-over screen show, with the roster. The screen is never visible between the cards and the win, so nothing is given away early. The cards hand straight over to the win moment instead of folding into the screen as other news does. A tap skips ahead to the win.
+- **What is shown**: the deaths, hunter shots, Prince and Jester lines of that last dawn or shot chain. Suspicions, random events and "nobody died" are left out. The game-over screen also keeps them as a "How it ended" list above the roster.
+- **Not replayed**: a game that ends straight out of a vote already showed its cards on the vote screen, so it gets the win at once and the list is just shown. A phone that joins or rejoins a finished game, and a game ended by the host, get no full-screen cards or win moment. With reduced motion there is no full-screen anything, and the win sound plays at once.
+- **Code**: `finalLines(view)` and the `quiet`, `onDone` and `handoff` options of `fxAnnounce` in `js/ui/fx.js`; `winSfx` in `js/ui/sfx.js`; the win is held back in `js/main.js` (`pendingWin`, `ctx.afterFinalCards`).
 - **Also in 1.28.1**: the strike on a dead player's name is drawn per line, so a name that wraps is struck on every line.

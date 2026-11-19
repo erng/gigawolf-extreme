@@ -152,9 +152,10 @@ label.row.toggle { flex-direction: row; gap: 12px; color: var(--text); font-size
 .fx-body { position: relative; z-index: 1; min-width: 0; flex: 1; }
 .fx-kicker { font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #fca5a5; }
 .fx-name { position: relative; display: inline-block; font-size: 1.9rem; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
-/* The strike is a background on the inline name, not a box over it, so every wrapped line gets its own. */
-.fx-nm { --sh: 3px; }
-.fx-death .fx-nm { background: linear-gradient(rgba(239,68,68,.85), rgba(239,68,68,.85)) no-repeat 0 55% / 100% var(--sh); padding: 0 4px; margin: 0 -4px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+/* The strike is an invisible copy of the name with a line through it, laid over the real name (see fx.js). */
+.fx-ov { position: absolute; inset: 0; color: transparent; pointer-events: none; }
+.fx-ov .fx-me { color: transparent; }
+.fx-ov .fx-nm { text-decoration: line-through; text-decoration-color: rgba(239,68,68,.85); text-decoration-thickness: 3px; }
 .fx-me { font-size: 1rem; font-weight: 600; color: var(--muted); }
 .fx-role { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-weight: 700; color: var(--muted); }
 .fx-role .sprite { width: 24px; height: 24px; }
@@ -188,7 +189,7 @@ label.row.toggle { flex-direction: row; gap: 12px; color: var(--text); font-size
 .fx-big .fx-body { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .fx-big .fx-kicker { font-size: .9rem; }
 .fx-big .fx-name { font-size: clamp(2.6rem, 13vw, 3.4rem); font-weight: 900; }
-.fx-big.fx-death .fx-nm { --sh: 5px; background-position: 0 54%; }
+.fx-big.fx-death .fx-ov .fx-nm { text-decoration-thickness: 5px; }
 .fx-big .fx-role { justify-content: center; font-size: 1.15rem; }
 .fx-big .fx-role .sprite { width: 32px; height: 32px; }
 .fx-big .fx-text { font-size: 2rem; }
@@ -200,7 +201,7 @@ label.row.toggle { flex-direction: row; gap: 12px; color: var(--text); font-size
 .fx-big.fx-death::before { content: ""; position: absolute; inset: 0; background: #ef4444; opacity: 0; animation: fx-flash .6s both; animation-delay: calc(var(--at) + .42s); }
 .fx-big.fx-death .fx-prop > .sprite { animation: fx-drop .75s cubic-bezier(.4,0,1,1) both; animation-delay: var(--at); }
 .fx-big.fx-death .fx-body { animation: fx-rise .45s both; animation-delay: calc(var(--at) + .5s); }
-.fx-big.fx-death .fx-nm { animation: fx-strike .35s ease-out both; animation-delay: calc(var(--at) + 1.05s); }
+.fx-big.fx-death .fx-ov { animation: fx-strike .35s ease-out both; animation-delay: calc(var(--at) + 1.05s); }
 .fx-big:is(.fx-prince, .fx-jester) .fx-prop > .sprite { animation: fx-pop .6s both; animation-delay: var(--at); }
 .fx-big:is(.fx-prince, .fx-jester) .fx-body { animation: fx-rise .45s both; animation-delay: calc(var(--at) + .4s); }
 .fx-big:is(.fx-tie, .fx-spared) .fx-prop > .sprite { animation: fx-pop .6s both; animation-delay: var(--at); }
@@ -213,7 +214,7 @@ label.row.toggle { flex-direction: row; gap: 12px; color: var(--text); font-size
 @keyframes fx-drop { 0% { opacity: 0; transform: translateY(-150%); } 8% { opacity: 1; } 56% { transform: translateY(0); } 70% { transform: translateY(-14%); } 84% { transform: translateY(0); } 92% { transform: translateY(-4%); } 100% { transform: none; } }
 @keyframes fx-shake { 0%, 100% { transform: none; } 20% { transform: translate(-6px, 2px); } 40% { transform: translate(5px, -2px); } 60% { transform: translate(-3px, 1px); } 80% { transform: translate(2px, 0); } }
 @keyframes fx-flash { 0% { opacity: 0; } 15% { opacity: .5; } 100% { opacity: 0; } }
-@keyframes fx-strike { from { background-size: 0% var(--sh); } }
+@keyframes fx-strike { from { clip-path: inset(-4px 100% -4px -4px); } to { clip-path: inset(-4px -4px -4px -4px); } }
 @keyframes fx-rise { from { opacity: 0; transform: translateY(10px); } }
 @keyframes fx-sunrise { from { opacity: 0; transform: translateY(60%); } }
 @keyframes fx-pop { 0% { opacity: 0; transform: scale(.2); } 70% { transform: scale(1.15); } 100% { transform: none; } }
