@@ -14,6 +14,7 @@ export function nightScreen(view, ctx) {
   const seerCard = priv.seerResult && h('div', { class: 'card result' },
     t('night.isA', { name: nameOf(priv.seerResult.targetId) }), h('strong', null, priv.seerResult.isWolf ? t('night.werewolf') : t('night.notWerewolf')));
   const promoted = priv.promoted && h('div', { class: 'card result' }, t('role.promoted'));
+  const horseshoe = priv.horseshoe && !priv.horseshoe.used && h('p', { class: 'sub' }, t('horseshoe.held'));
   const head = [h('div', { class: 'phase' }, t('night.title', { n: view.round })), h('h2', { class: 'prompt' }, tr(prompt.text))];
 
   if (prompt.kind === 'witch') return witchNight(view, ctx, head);
@@ -32,6 +33,7 @@ export function nightScreen(view, ctx) {
     ...head,
     two ? multiList(view, prompt, selectedMany, done, tags, onPick) : list,
     promoted,
+    horseshoe,
     seerCard,
     done
       ? h('p', { class: 'sub' }, t('night.confirmed'))

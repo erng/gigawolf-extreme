@@ -267,6 +267,28 @@ export function roleSprite(role, { scale = 4 } = {}) {
 
 // Props for announcement cards (not roles): same grid format.
 const PROPS = {
+  // Random events
+  horseshoe: {
+    pal: { o: '#4a3410', S: '#e2b33c', s: '#a87d1c', w: '#fff1b8', n: '#2b2f3a' },
+    grid: [
+      '................',
+      '..ooo......ooo..',
+      '.oSwo......oSwo.',
+      '.oSno......onSo.',
+      '.oSSo......oSSo.',
+      '.oSSo......oSSo.',
+      '.oSno......onSo.',
+      '.oSSso....osSSo.',
+      '.oSSSo....oSSSo.',
+      '..oSSso..osSSo..',
+      '..oSnSSooSSnSo..',
+      '...oSSSSSSSSo...',
+      '....ooSSSSoo....',
+      '......oooo......',
+      '................',
+      '................',
+    ],
+  },
   grave: {
     pal: { o: '#2b2f3a', G: '#a3abbd', g: '#7c8496', k: '#4b5162', d: '#3f8f4a', D: '#6b4528' },
     grid: [

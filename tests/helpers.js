@@ -13,9 +13,10 @@ export function lobby(n, rng = createRng(1)) {
 
 // Start a game, then force roles (by index) for deterministic tests.
 // roles: array of role ids, length n. Skips the reveal -> night 1.
+// Random events are off unless the test turns them on, so a rule test is never changed by one.
 export function game(roles, { settings, rng = createRng(1) } = {}) {
   let s = lobby(roles.length, rng);
-  if (settings) s = reduce(s, { kind: 'settings', by: 'p0', patch: settings, now: T0 }, rng).state;
+  s = reduce(s, { kind: 'settings', by: 'p0', patch: { randomEvents: false, ...settings }, now: T0 }, rng).state;
   s = reduce(s, { kind: 'startGame', by: 'p0', now: T0 }, rng).state;
   s.players.forEach((p, i) => { p.role = roles[i]; p.potions = p.role === 'witch' ? { heal: true, poison: true } : null; });
   for (const p of s.players) s = reduce(s, { kind: 'ready', by: p.id, now: T0 }, rng).state;

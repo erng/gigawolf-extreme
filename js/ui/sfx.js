@@ -8,7 +8,7 @@
 // phone first turns effects on.
 import { APP_VERSION } from '../config.js';
 
-export const SOUNDS = ['gameStart', 'nightfall', 'voteCall', 'nightDeath', 'calm', 'voteOut', 'tie', 'shot', 'spared', 'prince', 'jester', 'villageWin', 'wolvesWin'];
+export const SOUNDS = ['gameStart', 'nightfall', 'voteCall', 'nightDeath', 'calm', 'voteOut', 'tie', 'shot', 'spared', 'prince', 'jester', 'villageWin', 'wolvesWin', 'event'];
 const VOLUME = 0.8;
 const TOO_LATE_MS = 600; // a sound that loads after its moment has passed is skipped, not played late
 const SPEECH_GAP_MS = 250; // quiet beat between the last sound and the spoken line

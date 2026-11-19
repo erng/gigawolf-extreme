@@ -42,6 +42,7 @@ const LOG_BUS = Math.log(0.15); // a wolf voting for a teammate
 
 export const DEFAULTS = {
   n: 8, muPub: 0.25, muPriv: 0.35, reveal: false, event: null, eventChance: 0.5,
+  eventDay: null, // when set, the event happens on exactly this day (1 = the morning after the first night)
   alpha: { letterW: 1, letterC: 1, whisper: 1, lwNight: 1, lwVote: 1 }, // listener trust (likelihood ratios)
   calib: null, // when set, collect { type, isWolf, prior } for every pointing signal
 };
@@ -148,8 +149,10 @@ export function playGame(opts, seed) {
     pubAdd((h) => (inH(h, c) ? 0 : (inH(h, a) === inH(h, b)) !== same ? LOG_EPS : 0));
   }
 
+  const votedOut = new Set();                // dead by vote (a mix of both teams), for restlessVoted
   function kill(j, cause) {
     alive[j] = false;
+    if (cause === 'vote') votedOut.add(j);
     if (cause === 'night') hard(j, false);
     if (o.reveal) { hard(j, isW(j)); if (j === seerIdx) seerKnownDead = true; }
     if (lastWordsArmed && (ev === 'lastwords' || (ev === 'lastwordsVote' && cause === 'vote'))) {
@@ -237,7 +240,8 @@ export function playGame(opts, seed) {
   }
 
   function vote() {
-    const ghosts = todayEvent && ev === 'seance' ? [...Array(n).keys()].filter((j) => !alive[j]) : [];
+    const ghosts = todayEvent && (ev === 'seance' || ev === 'restless') ? [...Array(n).keys()].filter((j) => !alive[j])
+      : todayEvent && ev === 'restlessVoted' ? [...votedOut] : []; // variant: only the voted-out dead rise
     const voters = shuffle(r, [...livingIdx(), ...ghosts]);
     const bloc = frameTarget();
     const tally = new Map(); const votes = [];
@@ -276,7 +280,7 @@ export function playGame(opts, seed) {
 
   function rollEvent() {
     todayEvent = false; mayor = null; silenced = null;
-    if (!ev || fired || er() >= o.eventChance) return;
+    if (!ev || fired || (o.eventDay != null && st.days !== o.eventDay) || er() >= o.eventChance) return;
     const liv = livingIdx(); const wl = liv.filter(isW).length;
     const close = wl >= liv.length - wl - 1;
     if (ev === 'mayor' && (liv.length < 6 || close)) return;

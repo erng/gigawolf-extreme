@@ -119,6 +119,13 @@ export function viewFor(state, playerId) {
     if (me.promoted) priv.promoted = true; // told privately that the Seer died and they took over
   }
 
+  // Lucky horseshoe: only its holder learns they have it, and only if it can work (never told on a wolf).
+  // `fresh` marks the day it was found or used, so the phone shows the news on that day only.
+  const hs = state.horseshoe;
+  if (hs && hs.id === me.id && !isWolf(me.role)) {
+    priv.horseshoe = { used: hs.used, fresh: state.phase === PHASE.DAY && (hs.used ? hs.usedRound === state.round : hs.round === state.round) };
+  }
+
   if (state.phase === PHASE.NIGHT) {
     priv.submitted = me.id in state.night.picks;
     priv.pick = state.night.picks[me.id] ?? null;

@@ -105,6 +105,11 @@ const TH = {
   'witch.victims': 'คืนนี้หมาป่าเล็งไว้: {names}', 'witch.heal': 'ชุบชีวิต {name}', 'witch.noVictim': 'คืนนี้ไม่มีใครโดนงับ (หรือเธอไม่มียาชุบแล้ว)',
   'witch.poison': 'ใช้ยาพิษ', 'witch.confirmPoison': 'วางยาเลย', 'witch.pass': 'ไม่ใช้ยาคืนนี้',
   'night.pickTwo': 'เลือก 2 คน',
+  'fx.event': 'เหตุการณ์สุ่ม',
+  'lobby.randomEvents': 'เหตุการณ์สุ่ม',
+  'horseshoe.found': 'คนที่เจอคือเธอ! เกือกม้านำโชคกันหมาป่างับเธอได้ 1 ครั้ง จะบอกทุกคนหรือเก็บเงียบไว้ก็ได้',
+  'horseshoe.held': 'เธอมีเกือกม้านำโชค: กันหมาป่างับได้ 1 ครั้ง',
+  'horseshoe.used': 'เมื่อคืนหมาป่ามางับเธอ แต่เกือกม้านำโชคช่วยไว้ได้ ตอนนี้หมดฤทธิ์แล้วนะ',
 };
 
 // Engine / host strings: [regex, replacer]. Applied globally so combined narration lines work.
@@ -115,6 +120,11 @@ const ROLE_NAMES = ['Wolf Cub', 'Werewolf', 'Villager', 'Seer', "Seer's Apprenti
 const andTh = (s) => s.replace(/ and /g, ' และ ');
 const note = (s) => s.replace(/ They were a ([\w ]+)\./g, (_, r) => ` (เขาคือ${roleTh(r)} นะจ๊ะ)`);
 const TR = [
+  // Random events (history lines first: they carry "Name (Role)").
+  [/(.+?) found the lucky horseshoe, but wolves are never attacked, so it did nothing\./g, (_, n) => `${n} เจอเกือกม้านำโชค แต่หมาป่าไม่เคยโดนงับ เลยไม่มีผลอะไร`],
+  [/(.+?) found the lucky horseshoe\./g, (_, n) => `${n} เจอเกือกม้านำโชค`],
+  [/(.+?) was attacked but the lucky horseshoe saved them\./g, (_, n) => `${n} โดนงับ แต่เกือกม้านำโชคช่วยไว้ได้`],
+  [/Someone found a lucky horseshoe\./g, () => 'มีคนเจอเกือกม้านำโชค!'],
   // End-of-game history (full detail). These run first: they match English role names in "Name (Role)" and
   // some phrases (e.g. "died: shot by") would otherwise be caught by the looser rules below.
   [/The Diseased Villager was killed by the wolves: the wolves cannot kill tomorrow night\./g, () => 'ชาวบ้านป่วยโดนหมาป่างับ: คืนพรุ่งนี้ฝูงท้องเสีย งับใครไม่ได้'],
@@ -312,4 +322,9 @@ const EN = {
   'witch.victims': 'The wolves are going for: {names}', 'witch.heal': 'Save {name}', 'witch.noVictim': 'Nobody is targeted tonight (or no heal potion left).',
   'witch.poison': 'Use poison', 'witch.confirmPoison': 'Poison them', 'witch.pass': 'Use no potion tonight',
   'night.pickTwo': 'Pick two',
+  'fx.event': 'Random event',
+  'lobby.randomEvents': 'Random events',
+  'horseshoe.found': 'It was you! The lucky horseshoe blocks one wolf attack on you. Tell everyone, or keep it quiet.',
+  'horseshoe.held': 'You have the lucky horseshoe: it blocks one wolf attack.',
+  'horseshoe.used': 'The wolves came for you last night. Your lucky horseshoe saved you. It is used up now.',
 };

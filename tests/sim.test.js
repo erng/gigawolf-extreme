@@ -42,7 +42,8 @@ class Sim {
     this.r = createRng(seed * 7919 + 13); // decisions
     this.n = n;
     this.steps = 0;
-    this.stats = { deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0, jesterWins: 0, sickNights: 0, hauntOffers: 0, hauntVotes: 0, promotions: 0 };
+    this.stats = { deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0, jesterWins: 0, sickNights: 0, hauntOffers: 0, hauntVotes: 0, promotions: 0,
+      events: 0, horseshoes: 0, horseshoeSaves: 0, horseshoeWasted: 0 };
     this.s = createState({ hostId: 'p0', roomCode: 'ABCD' });
     for (let i = 0; i < n; i++) this.do({ kind: 'join', by: i < 15 ? `p${i}` : `bot-${i}`, name: `P${i}` }); // seats past 15 are bots, as in the app
   }
@@ -129,6 +130,11 @@ class Sim {
       const ghostNow = s.phase === PHASE.VOTE && s.vote.stage === 'voting' && s.vote.ghosts.includes(me.id);
       if (!me.alive && s.phase !== PHASE.SHOT && !(s.phase === PHASE.VOTE && s.vote.ghosts?.includes(me.id) && s.vote.stage === 'voting')) assert.equal(v.prompt, null, 'dead players get no prompt');
       if (v.prompt?.haunt) assert.ok(!me.alive && me.role === 'poltergeist' && ghostNow, 'only a haunting ghost sees the haunt prompt');
+      // Lucky horseshoe: only its non-wolf holder is told, and nobody else learns anything about it.
+      const hs = s.horseshoe;
+      assert.equal(!!v.you.private.horseshoe, !!hs && hs.id === me.id && !isWolf(me.role), 'only the holder knows about the horseshoe');
+      if (!(hs && hs.id === me.id)) assert.ok(!/horseshoe/.test(JSON.stringify({ ...v, log: [], announce: [], history: [] })), 'no horseshoe detail outside the public line');
+      assert.ok(!('event' in v) && !/"fired"/.test(JSON.stringify(v)), 'the coming event is never sent');
       if (me.role === 'apprentice') assert.equal(v.you.private.seerLog, undefined);
       if (me.promoted) assert.equal(me.role, 'seer');
     }
@@ -144,11 +150,19 @@ class Sim {
     if (counts) this.do({ kind: 'settings', by: 'p0', patch: { counts } });
     if (r() < 0.3) this.do({ kind: 'settings', by: 'p0', patch: { revealOnDeath: false } });
     this.do({ kind: 'startGame', by: 'p0' });
+    const ev = this.s.event;
+    if (ev) this.stats.events++;
     for (const p of this.s.players) if (r() < 0.9) this.do({ kind: 'ready', by: p.id });
     while (this.s.phase !== PHASE.GAMEOVER) {
       assert.ok(this.steps < 3000, 'game did not terminate');
       this.turn();
     }
+    const hs = this.s.horseshoe;
+    if (hs) {
+      this.stats.horseshoes++;
+      if (isWolf(this.s.players.find((p) => p.id === hs.id).role)) { this.stats.horseshoeWasted++; assert.equal(hs.used, false, 'a wolf never uses it'); }
+    }
+    if (ev && ev.fired) assert.ok(this.s.history.some((e) => /lucky horseshoe/.test(e.text)), 'a fired event is in the history');
     return this.s;
   }
 
@@ -207,7 +221,16 @@ class Sim {
     const doubleKill = this.s.night.doubleKill;
     const noKill = this.s.night.noKill;
     const deadBefore = new Set(this.s.players.filter((p) => !p.alive).map((p) => p.id));
+    const hsBefore = this.s.horseshoe && !this.s.horseshoe.used ? this.s.horseshoe.id : null;
+    const histBefore = this.s.history.length;
     this.do({ kind: 'nextPhase', by: 'p0' });
+    if (hsBefore && this.s.horseshoe.used) {
+      this.stats.horseshoeSaves++;
+      const holder = this.s.players.find((p) => p.id === hsBefore);
+      const night = this.s.history.slice(histBefore).map((e) => e.text);
+      assert.ok(night.some((t) => t.startsWith(`${holder.name} (`) && /lucky horseshoe saved them/.test(t)), 'the horseshoe is only spent on a wolf attack on its holder');
+      assert.ok(night.some((t) => /^The wolves' victims?: /.test(t) && t.includes(holder.name)));
+    }
     const killed = this.s.players.filter((p) => !p.alive && !deadBefore.has(p.id)).length;
     // wolves kill at most 1 (2 on a revenge night), the witch poison adds at most 1 per witch, a hunter at most 1 per hunter
     const witches = this.s.players.filter((p) => p.role === 'witch').length;
@@ -257,7 +280,8 @@ setLang('th');
 
 test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, () => {
   const cards = {}; const sounds = {};
-  const totals = { games: 0, village: 0, wolves: 0, jester: 0, deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0, sickNights: 0, hauntOffers: 0, hauntVotes: 0, promotions: 0 };
+  const totals = { games: 0, village: 0, wolves: 0, jester: 0, deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0, sickNights: 0, hauntOffers: 0, hauntVotes: 0, promotions: 0,
+    events: 0, horseshoes: 0, horseshoeSaves: 0, horseshoeWasted: 0 };
   for (let n = 5; n <= 15; n++) {
     for (let seed = 1; seed <= SEEDS; seed++) {
       const sim = new Sim(seed * 100 + n, n);
@@ -277,7 +301,8 @@ test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, ()
         if (type !== 'info') for (const { name } of sfxPlan(parseLines([text]))) sounds[name] = (sounds[name] ?? 0) + 1;
         if (type !== 'info') assert.equal(sfxPlan(parseLines([text])).length, 1, `no sound for: "${text}"`);
       }
-      for (const k of ['deaths', 'shots', 'doubleKills', 'heals', 'poisons', 'princeSaves', 'sickNights', 'hauntOffers', 'hauntVotes', 'promotions']) totals[k] += sim.stats[k];
+      for (const k of ['deaths', 'shots', 'doubleKills', 'heals', 'poisons', 'princeSaves', 'sickNights', 'hauntOffers', 'hauntVotes', 'promotions',
+        'events', 'horseshoes', 'horseshoeSaves', 'horseshoeWasted']) totals[k] += sim.stats[k];
       // play again resets everything and a second game on the same state works
       if (seed % 10 === 0) {
         sim.do({ kind: 'playAgain', by: 'p0' });
@@ -285,13 +310,13 @@ test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, ()
         assert.ok(sim.s.players.every((p) => p.alive && p.role === null && p.potions === null && !p.revealed));
         assert.equal(sim.s.cubDied, false); assert.deepEqual(sim.s.shots, []);
         sim.playGame();
-        totals.games++;
+        totals.games++; totals.replays = (totals.replays ?? 0) + 1; // stats of the replay are not counted
       }
     }
   }
   console.log('sim totals', JSON.stringify(totals), 'cards', JSON.stringify(cards));
-  for (const type of ['night', 'vote', 'shot', 'calm', 'tie', 'prince', 'spared']) assert.ok(cards[type] > 3, `${type} cards happened`);
-  for (const name of ['nightDeath', 'voteOut', 'shot', 'calm', 'tie', 'prince', 'spared']) assert.ok(sounds[name] > 3, `${name} sound happened`);
+  for (const type of ['night', 'vote', 'shot', 'calm', 'tie', 'prince', 'spared', 'horseshoe']) assert.ok(cards[type] > 3, `${type} cards happened`);
+  for (const name of ['nightDeath', 'voteOut', 'shot', 'calm', 'tie', 'prince', 'spared', 'event']) assert.ok(sounds[name] > 3, `${name} sound happened`);
   if (totals.jester > 0) assert.ok(sounds.jester > 0, 'jester sound happened');
   // The sim must actually exercise the new mechanics, or it proves nothing.
   assert.ok(totals.shots > 20, 'hunter shots happened');
@@ -302,6 +327,10 @@ test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, ()
   assert.ok(totals.promotions > 3, 'apprentices were promoted');
   assert.ok(totals.princeSaves > 3, 'prince survived votes');
   assert.ok(totals.jester > 3, 'jester won sometimes');
+  // Random events: about 1 game in 5, and each part of both events must actually happen.
+  const rate = totals.events / (totals.games - (totals.replays ?? 0));
+  assert.ok(rate > 0.16 && rate < 0.24, `about 1 game in 5 gets an event (${(100 * rate).toFixed(1)}%)`);
+  assert.ok(totals.horseshoes > 20 && totals.horseshoeSaves > 5 && totals.horseshoeWasted > 3, 'horseshoes were found, used and wasted on wolves');
   assert.ok(totals.village > 0 && totals.wolves > 0);
 });
 

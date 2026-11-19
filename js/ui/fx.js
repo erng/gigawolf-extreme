@@ -24,9 +24,11 @@ const RULES = [
   [/^(.+?) was the Jester!$/, (m) => ({ type: 'jester', name: m[1], role: 'jester' })],
   [/^(.+?) lowered the (?:bow|gun)\.$/, (m) => ({ type: 'spared', name: m[1] })],
   [new RegExp(`^(.+?) shot (.+?)\\.${REVEAL}$`), (m) => ({ type: 'shot', by: m[1], name: m[2], role: roleOf(m[3]) })],
+  [/^Someone found a lucky horseshoe\.$/, () => ({ type: 'horseshoe' })],
 ];
 const DEATHS = new Set(['night', 'vote', 'shot']);
-const SFX = { night: 'nightDeath', vote: 'voteOut', shot: 'shot', calm: 'calm', tie: 'tie', prince: 'prince', jester: 'jester', spared: 'spared' };
+const SFX = { night: 'nightDeath', vote: 'voteOut', shot: 'shot', calm: 'calm', tie: 'tie', prince: 'prince', jester: 'jester', spared: 'spared', horseshoe: 'event' };
+const EVENTS = { horseshoe: 'horseshoe' }; // random-event card -> its picture
 const CARD_MS = (i) => 450 + i * 1000; // when big card i starts (its --d)
 const GRAVE_LANDS_MS = 420;             // fx-drop reaches the ground at 56% of .75s
 const CONFETTI = Array.from({ length: 14 }, (_, i) => ['#f472b6', '#facc15', '#60a5fa', '#4ade80'][i % 4]);
@@ -92,6 +94,13 @@ function card(view, e, { big = false, index = 0 } = {}) {
   const cls = ['fx', `fx-${e.type}`, death && 'fx-death', you && 'fx-you', e.jester && 'fx-twist', big && 'fx-big fx-play'].filter(Boolean).join(' ');
   const attrs = { class: cls, 'data-fxkey': e.key, style: `--d:${big ? CARD_MS(index) : 0}ms`, 'aria-label': tr(e.text) };
   if (e.type === 'info') return h('div', attrs, h('div', { class: 'fx-text' }, tr(e.text)));
+  if (EVENTS[e.type]) { // a random event: picture, "Random event", then the line
+    return h('div', { ...attrs, class: `${cls} fx-event` },
+      h('div', { class: 'fx-prop' }, propSprite(EVENTS[e.type], { scale: 4 })),
+      h('div', { class: 'fx-body' },
+        h('div', { class: 'fx-kicker' }, t('fx.event')),
+        h('div', { class: 'fx-text' }, tr(e.text))));
+  }
   if (e.type === 'calm' || e.type === 'tie' || e.type === 'spared') {
     return h('div', attrs,
       h('div', { class: 'fx-prop' }, propSprite(e.type === 'calm' ? 'sun' : e.type === 'tie' ? 'scales' : 'bowdown', { scale: 4 })),
@@ -128,7 +137,7 @@ function takeover(view, events, scope) {
       events.map((e, i) => card(view, e, { big: true, index: i }))));
   document.body.append(el);
   current = el;
-  el.timer = setTimeout(() => land(el), calm ? 2300 : 450 + events.length * 1000 + 1600);
+  el.timer = setTimeout(() => land(el), calm ? 1300 + events.length * 1000 : 450 + events.length * 1000 + 1600);
 }
 
 // Each big card shrinks into its small card while the dark fades: the card's box moves onto the small

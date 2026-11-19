@@ -9,6 +9,7 @@ export function dayScreen(view, ctx) {
     h('div', { class: 'phase' }, t('day.title', { n: view.round })),
     fxAnnounce(view, view.announce?.length ? view.announce : [last], `day:${view.round}`),
     view.you.private.promoted && h('div', { class: 'card result' }, t('role.promoted')),
+    view.you.private.horseshoe?.fresh && h('div', { class: 'card result' }, t(view.you.private.horseshoe.used ? 'horseshoe.used' : 'horseshoe.found')),
     h('p', { class: 'sub' }, t('day.sub')),
     playerList(view),
     hostAdvance(view, ctx),

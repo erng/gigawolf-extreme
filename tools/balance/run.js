@@ -11,8 +11,9 @@ const alpha = trust === 'gullible' ? GULLIBLE : alphaCal[reveal ? 'reveal' : 'hi
 const res = {};
 for (const n of [6, 8, 10, 12]) for (const ev of EVENTS) {
   let v = 0, days = 0, fired = 0;
+  const [name, day] = ev.split('@'); // "horseshoe@2": the event on day 2 (default: day 1)
   for (let s = 1; s <= N; s++) {
-    const g = playGame({ n, muPub, muPriv, reveal, alpha, event: ev === 'base' ? null : ev, eventChance: 1 }, s * 104729 + n);
+    const g = playGame({ n, muPub, muPriv, reveal, alpha, event: name === 'base' ? null : name, eventChance: 1, eventDay: day ? Number(day) : null }, s * 104729 + n);
     if (g.win === 'village') v++; days += g.days; if (g.fired) fired++;
   }
   (res[ev] ??= {})[n] = { village: v / N, days: days / N, fired: fired / N, N };

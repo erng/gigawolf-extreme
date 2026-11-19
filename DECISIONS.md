@@ -110,7 +110,7 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Timing**: a death sounds as its grave lands, each card's sound on its own card, so two night deaths are two hits a second apart. With reduced motion, one sound for the news. Nightfall and the winner sound only on a real change of phase: a phone that joins or reconnects mid-phase stays quiet.
 - **Jester**: voting out the Jester plays the Jester sound on the vote card (twist or role shown) and nothing more on the game-over screen, since it is the same moment. (Changed in 1.25.0: the Jester sound now plays again on the game-over screen when the Jester wins.)
 - **Web Audio**: a sound starts when a view arrives, long after the last tap, which phones only allow from an audio context started by a tap. The context starts from the Host or Join tap, or the next tap anywhere. Files load only once a phone turns effects on. A sound that finishes loading after its moment is skipped, never played late. On iPhone, effects play through the silent switch, like the music.
-- **Reserved**: `tools/sfx/reserved/dread.mp3` ("Two-note dread") is kept for future random events.
+- **Reserved**: `tools/sfx/reserved/dread.mp3` ("Two-note dread") is kept for future random events. (Used since v1.27.0 as `assets/sfx/event.mp3`.)
 - **Tests**: `tests/sfx.test.js` (each card's sound and timing, Jester once, phase sounds, every file exists), `tests/sound.test.js` (the effects switch and old saved choices); the random-game sim checks that every card it produces has a sound and that each sound comes up.
 
 ## Narration trim and speech after sound (v1.22.0)
@@ -166,3 +166,17 @@ Ambiguities in the plan, resolved with the simplest option.
 
 - **Removed from the host's lobby**: Village suspicions, Bodyguard can protect self and Narration. Suspicions and Bodyguard self-protect were on by default and nobody had a reason to turn them off; narration is already a per-phone button in the tools row. The engine settings `suspicions`, `bodyguardSelfProtect` and `narration` stay, always at their defaults (on), so the game rules and the engine tests are unchanged.
 - **Sound defaults**: music and sound effects are on and narrator is off, for the host and for players. Choices people already saved are kept. Phones still need a tap before audio can start, as before.
+
+## Random events (v1.27.0, setting `randomEvents`, on by default)
+
+- **How often**: about 1 game in 5 (`EVENT_CHANCE` = 0.2) gets a random event, rolled in secret at Start. Lucky Horseshoe is the only one so far. The roll and the coming event stay on the host (`state.event`) and are never in a view, so nobody knows one is coming until its dawn. The host can turn random events off in Other options. The lobby does not state the odds.
+- **When**: at the start of a day, after the dawn news and before the suspicion line, on dawn 1 or 2. If the game ends at that dawn, or ended before it, the event never happens.
+- **Card and sound**: the dawn line becomes a "Random event" card with a pixel horseshoe and the event sound, `assets/sfx/event.mp3`, the "Two-note dread" that was kept in `tools/sfx/reserved/`. Same rules as every other card: every phone gets the same thing.
+- **Lucky Horseshoe**: dawn says "Someone found a lucky horseshoe." A random living player holds it, wolves included. It blocks one wolf attack that would have killed its holder, then it is gone. Choices:
+  - **On a wolf it is wasted, and nobody is told**, the wolf included. If wolves were told, they would know any claimer is bluffing. So wolves always have to guess whether a loud claimer is real.
+  - **The holder is told privately** (`you.private.horseshoe`): a note on the day screen the day it is found, a reminder under their night prompt while it is unused, and a note the day it saves them. Claiming it or keeping quiet is up to them.
+  - **The save looks like any quiet night**: "Nobody died." Nobody else learns it was the horseshoe (as with the Bodyguard). The full detail is in the game-over history.
+  - **Order**: the Bodyguard and the Witch's heal go first; the horseshoe is only spent when the attack would otherwise kill. It does not stop the Witch's poison or a vote.
+- **Restless Dead, cut**: proposed as Séance (every dead player gets a haunt vote at the next vote, reusing the Graveyard Voter's `vote.ghosts`). Built and measured, then cut: on dawn 2 or 3 it moved the village win rate by up to +10 points at 8 players, because night victims are never wolves, so the dead lean village. Numbers are in `tools/balance/README.md`.
+- **Balance** (`tools/balance/`, 20,000 games per cell, 6/8/10/12 players, low/mid/high skill): Lucky Horseshoe moves the village win rate by +1.0 to +2.9 points per occurrence if the holder stays quiet, and by about 0 if the holder claims (the wolves then leave them alone).
+- **Tests**: `tests/events.test.js` (the roll, the rules, secrecy, the switch, the card, sound and Thai). The random-game sim checks the event rate, that the horseshoe is found, used and wasted on wolves, that only the holder learns anything, and that the coming event is never sent.
