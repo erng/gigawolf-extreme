@@ -72,6 +72,11 @@ export function phaseSfx(prev, next) {
   if (next.phase === 'reveal') return 'gameStart';
   if (next.phase === 'night') return 'nightfall';
   if (next.phase === 'vote') return 'voteCall';
-  if (next.phase === 'gameover') return { village: 'villageWin', wolves: 'wolvesWin', jester: 'jester' }[next.winner] ?? null;
+  if (next.phase === 'gameover') return winSfx(next);
   return null;
+}
+
+// The sound for a team's win, or null when nobody won (the host ended the game).
+export function winSfx(view) {
+  return { village: 'villageWin', wolves: 'wolvesWin', jester: 'jester' }[view.winner] ?? null;
 }

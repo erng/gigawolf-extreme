@@ -10,8 +10,9 @@ import { refetchAll } from './util/refresh.js';
 import { keepAwake, releaseAwake } from './util/wakelock.js';
 import { speak } from './ui/narrator.js';
 import { enterRoom, leaveRoom, refreshSoundLabels, setSoundPhase } from './ui/sound.js';
-import { playSfx, phaseSfx } from './ui/sfx.js';
+import { playSfx, phaseSfx, winSfx } from './ui/sfx.js';
 import { playMoment } from './ui/moments.js';
+import { finalLines } from './ui/fx.js';
 import { APP_VERSION, normalizeRoomCode } from './config.js';
 import { homeScreen } from './ui/screens/home.js';
 import { lobbyScreen } from './ui/screens/lobby.js';
@@ -83,13 +84,25 @@ function sayNarration(view) {
   app.narrSeq = seq;
 }
 
-function onViewChange(prev, next) {
-  const sfx = phaseSfx(prev, next);
+// The win (sound and full-screen moment) for a game that has just ended on a death the phones have not
+// shown yet, such as a dawn kill or a Hunter's last shot. It waits for those cards to play out first;
+// the game-over screen starts it once they have landed (ctx.afterFinalCards).
+function playWin(view) {
+  const sfx = winSfx(view);
   if (sfx) playSfx(sfx);
+  if (['wolves', 'village', 'jester'].includes(view.winner)) playMoment(view.winner, view);
+}
+
+function onViewChange(prev, next) {
+  // A game that ends straight out of a vote already showed its cards on the vote screen.
+  const win = !!prev && prev.phase !== next.phase && next.phase === 'gameover' && ['wolves', 'village', 'jester'].includes(next.winner);
+  app.pendingWin = win && prev.phase !== 'vote' && finalLines(next).length ? next : null;
+  const sfx = phaseSfx(prev, next);
+  if (sfx && !app.pendingWin) playSfx(sfx);
   // Full-screen moments on a phase change seen live (not on the first view after joining or rejoining).
   if (prev && prev.phase !== next.phase) {
     if (next.phase === 'night') playMoment('nightfall', next);
-    if (next.phase === 'gameover' && ['wolves', 'village', 'jester'].includes(next.winner)) playMoment(next.winner, next);
+    if (win && !app.pendingWin) playMoment(next.winner, next);
   }
   const key = `${next.phase}:${next.round}:${next.you.alive}`;
   if (key !== app.prevKey) {
@@ -157,6 +170,9 @@ const ctx = {
   ui,
   send: (kind, extra) => app.client?.send(kind, extra),
   rerender: () => render(),
+  // Game over: true while the win is waiting for the last deaths to play (see playWin).
+  finalCardsLive: () => !!app.pendingWin,
+  afterFinalCards: () => { const v = app.pendingWin; app.pendingWin = null; if (v) playWin(v); },
   setBots: (n) => app.host?.setBots(n), // host only: bots run inside the host's page
   hold(on) {
     ui.holding = on;

@@ -63,7 +63,7 @@ const TH = {
   'host.kick': 'เตะออก', 'host.kickConfirm': 'เตะเลย', 'host.kickCancel': 'ยกเลิก', 'host.kickNone': 'ยังไม่มีผู้เล่นให้จัดการ', 'removed': 'ถูกเตะออก',
   'host.endEarly': 'ปิดเกมก่อนจบ', 'host.endEarlyTitle': 'ปิดเกมเลยไหม?',
   'host.endEarlyBody': 'เกมจะจบตรงนี้ ไม่มีใครชนะ ทุกคนจะเห็นบทบาทของทุกคน', 'host.endEarlyConfirm': 'ปิดเกมเลย', 'host.endEarlyCancel': 'เล่นต่อ',
-  'over.happened': 'ย้อนดูว่าใครหักหลังใคร', 'over.again': 'เล่นอีกตา!', 'over.waiting': 'รอเจ้าของห้องเปิดตาใหม่…',
+  'over.last': 'ช่วงสุดท้ายของเกม', 'over.happened': 'ย้อนดูว่าใครหักหลังใคร', 'over.again': 'เล่นอีกตา!', 'over.waiting': 'รอเจ้าของห้องเปิดตาใหม่…',
   // host bar
   'host.startNight': 'เริ่มกลางคืน', 'host.endNight': 'ฟ้าสางแล้ว: จบคืน', 'host.startVote': 'เริ่มโหวต',
   'host.next': 'ต่อไป', 'host.endVote': 'ปิดโหวตเลย',
@@ -288,7 +288,7 @@ const EN = {
   'host.kick': 'Remove', 'host.kickConfirm': 'Yes, remove', 'host.kickCancel': 'Cancel', 'host.kickNone': 'No other players to manage.', 'removed': 'removed',
   'host.endEarly': 'End game early', 'host.endEarlyTitle': 'End the game now?',
   'host.endEarlyBody': 'The game stops here with no winner, and everyone sees all the roles.', 'host.endEarlyConfirm': 'End game', 'host.endEarlyCancel': 'Keep playing',
-  'over.happened': 'What happened', 'over.again': 'Play again', 'over.waiting': 'Waiting for the host to start another game…',
+  'over.last': 'How it ended', 'over.happened': 'What happened', 'over.again': 'Play again', 'over.waiting': 'Waiting for the host to start another game…',
   'host.startNight': 'Start night', 'host.endNight': 'Dawn: end the night', 'host.startVote': 'Start vote',
   'host.next': 'Next', 'host.endVote': 'End vote now',
   'host.ready': 'ready', 'host.confirmedW': 'confirmed', 'host.votedW': 'voted', 'host.waitingOn': 'Still to vote',
