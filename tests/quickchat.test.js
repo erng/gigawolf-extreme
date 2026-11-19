@@ -4,8 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { reduce, PHASE } from '../js/game/engine.js';
 import { viewFor } from '../js/game/views.js';
-import { CHAT, CHAT_PER_ROUND, HUMAN_KEYS, PERSONALITIES } from '../js/game/chat.js';
-import { BotMind } from '../js/bots/mind.js';
+import { CHAT, CHAT_PER_ROUND, DAY_BEFORE_KEYS, HUMAN_KEYS, PERSONALITIES, humanKeys, validOnRound } from '../js/game/chat.js';
+import { BotMind, DAY_BEFORE_ACCUSE } from '../js/bots/mind.js';
 import { CLIENT_ACTION_KINDS, validate } from '../js/net/protocol.js';
 import { PROTOCOL_VERSION } from '../js/config.js';
 import { Host } from '../js/net/host.js';
@@ -18,8 +18,9 @@ import { lobby, T0 } from './helpers.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Host p0 (a human) plus bots bot-1.., roles forced by seat, through night 1 to day 1.
-function day(roles, settings = {}) {
+// Host p0 (a human) plus bots bot-1.., roles forced by seat. Day 1 by default, after The Day Before (day 0) and
+// night 1; with { dayZero: true } it stops at The Day Before.
+function day(roles, settings = {}, { dayZero = false } = {}) {
   const rng = createRng(5);
   let s = lobby(1, rng);
   const step = (a) => { const r = reduce(s, { now: T0, ...a }, rng); if (r.error) throw new Error(r.error.message); s = r.state; return r; };
@@ -27,9 +28,13 @@ function day(roles, settings = {}) {
   step({ kind: 'settings', by: 'p0', patch: { randomEvents: false, ...settings } });
   step({ kind: 'startGame', by: 'p0' });
   s.players.forEach((p, i) => { p.role = roles[i]; p.potions = p.role === 'witch' ? { heal: true, poison: true } : null; });
-  step({ kind: 'nextPhase', by: 'p0' });
-  step({ kind: 'nextPhase', by: 'p0' });
+  step({ kind: 'nextPhase', by: 'p0' }); // reveal -> The Day Before
+  if (!dayZero) {
+    step({ kind: 'nextPhase', by: 'p0' }); // -> night 1
+    step({ kind: 'nextPhase', by: 'p0' }); // dawn: nobody picked, nobody died
+  }
   assert.equal(s.phase, PHASE.DAY);
+  assert.equal(s.round, dayZero ? 0 : 1);
   const g = { get s() { return s; }, set s(v) { s = v; }, rng };
   g.say = (by, key, v, ids) => reduce(s, { kind: 'say', by, key, v, ids, now: T0 }, rng);
   g.botSay = (by, key, v, ids) => reduce(s, { kind: 'botSay', by, key, v, ids, now: T0 }, rng);
@@ -226,11 +231,11 @@ test('whole games with a person posting lines every day finish with no rejected 
     while (h.view.players.length < 6 + i) await sleep(2);
     client.send('startGame');
     while (h.view.phase !== 'reveal') await sleep(2);
-    let dayAt = 0; let said = 0; const mine = new Set(); // the host's own lines, collected as they appear (old lines drop off the feed)
+    let dayAt = 0; let said = 0; const all = new Map(); const mine = new Set(); // the host's own lines, collected as they appear (old lines drop off the feed)
     const deadline = Date.now() + 60000;
     while (h.view.phase !== 'gameover') {
       if (Date.now() > deadline) throw new Error(`stuck in ${h.view.phase}`);
-      for (const c of host.state.chat ?? []) if (c.by === 'hostplayer') mine.add(c.seq);
+      for (const c of host.state.chat ?? []) { all.set(c.seq, c); if (c.by === 'hostplayer') mine.add(c.seq); }
       const v = h.view; const p = v.prompt;
       if (v.phase === 'reveal') { if (!v.players.find((x) => x.id === v.you.id).ready) client.send('ready'); if (v.progress.done === v.progress.total) client.send('nextPhase'); }
       else if (v.phase === 'night') {
@@ -243,7 +248,7 @@ test('whole games with a person posting lines every day finish with no rejected 
           const key = HUMAN_KEYS[said % HUMAN_KEYS.length];
           if (others.length) { client.send('say', { key, variant: 0, ids: CHAT[key].ids ? [others[said % others.length].id] : [] }); said++; }
         }
-        if (Date.now() - dayAt > 150) { dayAt = 0; client.send('startVote'); }
+        if (Date.now() - dayAt > 150) { dayAt = 0; client.send(v.round === 0 ? 'nextPhase' : 'startVote'); } // day 0 has no vote: the host starts night 1
       } else if (v.phase === 'vote') { if (v.voteResult) client.send('nextPhase'); else if (p?.kind === 'vote' && !p.done) client.send('vote', { targetId: 'skip' }); else if (v.progress && v.progress.done >= v.progress.total) client.send('nextPhase'); }
       else if (v.phase === 'shot') { if (p?.kind === 'shoot') client.send('shoot', { targetId: p.targets[0] }); else if (v.isHost) client.send('nextPhase'); }
       await sleep(6);
@@ -251,6 +256,9 @@ test('whole games with a person posting lines every day finish with no rejected 
     assert.ok(h.view.winner);
     if (said > 0) await sleep(20);
     for (const c of host.state.chat ?? []) if (c.by === 'hostplayer') mine.add(c.seq);
+    for (const c of host.state.chat ?? []) all.set(c.seq, c);
+    const day0 = [...all.values()].filter((c) => c.round === 0);
+    assert.ok(day0.every((c) => DAY_BEFORE_KEYS.includes(c.key)), `day 0 lines: ${day0.map((c) => c.key)}`);
     // The host may die in the first night and never get a day to talk in: then there is nothing to check.
     assert.ok(said === 0 || mine.size > 0, 'the human lines are in the feed');
     // Only tooChatty (the human spamming past the cap) and phase races (a line sent as the day ends) are allowed.
@@ -311,4 +319,100 @@ test('an answer to a person may use a bot\'s spare line, ordinary talk may not',
   }
   assert.equal(ordinary, 0);
   assert.ok(spare >= 20, `a named bot answered ${spare}/40`);
+});
+
+// The Day Before (day 0): people can talk, and bots start far fewer accusations from nothing.
+test('quick chat works on day 0, which has its own line allowance', () => {
+  const g = day(ROLES, {}, { dayZero: true });
+  for (let i = 0; i < CHAT_PER_ROUND; i++) g.s = g.say('p0', 'vouch', 0, ['bot-2']).state;
+  assert.equal(g.say('p0', 'vouch', 0, ['bot-2']).error?.code, 'tooChatty');
+  assert.deepEqual([...new Set(g.s.chat.map((c) => c.round))], [0]);
+  assert.equal(viewFor(g.s, 'bot-3').chat.length, CHAT_PER_ROUND, 'the bots see them');
+  // Day 1 starts a clean allowance.
+  g.s = reduce(g.s, { kind: 'nextPhase', by: 'p0', now: T0 }, g.rng).state;
+  g.s = reduce(g.s, { kind: 'nextPhase', by: 'p0', now: T0 }, g.rng).state;
+  assert.equal(g.s.round, 1);
+  assert.ok(!g.say('p0', 'vouch', 0, ['bot-2']).error);
+});
+
+test('on day 0 bots start about a quarter of the accusations they start on day 1', () => {
+  const rate = (g) => {
+    let accuse = 0; let total = 0;
+    for (const persona of PERSONALITIES) {
+      for (const viewer of ['bot-1', 'bot-2', 'bot-3', 'bot-4']) {
+        for (let seed = 1; seed <= 150; seed++) {
+          const l = new BotMind(viewer, persona, createRng(seed * 7 + 3)).talk(viewFor(g.s, viewer), 'day');
+          total++;
+          if (l?.key === 'accuse') accuse++;
+        }
+      }
+    }
+    return accuse / total;
+  };
+  const d0 = rate(day(ROLES, {}, { dayZero: true }));
+  const d1 = rate(day(ROLES));
+  assert.ok(d1 > 0.1, `day 1 accusation rate ${d1}`);
+  assert.ok(d0 < d1 * 0.5, `day 0 ${d0} vs day 1 ${d1}`);
+  assert.ok(d0 > 0, 'day 0 still has some, since people do open with a hunch');
+  assert.equal(DAY_BEFORE_ACCUSE, 0.25);
+});
+
+// Leak check: the day 0 rate is the same for every role, so it says nothing about who has a power.
+test('the day 0 accusation rate is the same for every non-wolf role', () => {
+  const roles = ['villager', 'seer', 'bodyguard', 'witch', 'hunter', 'prince', 'diseased', 'apprentice', 'poltergeist'];
+  for (const persona of PERSONALITIES) {
+    for (let seed = 1; seed <= 60; seed++) {
+      const said = roles.map((role) => {
+        const g = day(['villager', 'werewolf', 'villager', role, 'villager', 'villager', 'villager'], {}, { dayZero: true });
+        const m = new BotMind('bot-3', persona, createRng(seed));
+        return JSON.stringify([m.talk(viewFor(g.s, 'bot-3'), 'day'), m.talk(viewFor(g.s, 'bot-3'), 'day')]);
+      });
+      assert.equal(new Set(said).size, 1, `${persona} seed ${seed}: ${said.join(' | ')}`);
+    }
+  }
+});
+
+// Audit: every line that makes no sense before the first night is refused there, and never offered or chosen.
+test('day 0: lines that lean on a death, a vote or a Seer result are refused for bots and people', () => {
+  const refused = Object.keys(CHAT).filter((k) => !DAY_BEFORE_KEYS.includes(k));
+  assert.deepEqual(refused.sort(), ['bait', 'claimClean', 'claimWolf', 'counter', 'detective', 'gotOne', 'oops', 'reportClean', 'reportWolf', 'rip', 'voteFor', 'voteSkip']);
+  const ids = (key) => Array.from({ length: CHAT[key].ids }, (_, i) => ['bot-2', 'bot-3'][i]);
+  for (const key of Object.keys(CHAT)) {
+    const g = day(ROLES, {}, { dayZero: true });
+    const want = DAY_BEFORE_KEYS.includes(key) ? null : 'badLine';
+    assert.equal(g.botSay('bot-1', key, 0, ids(key)).error?.code ?? null, want, `botSay ${key} on day 0`);
+    if (HUMAN_KEYS.includes(key)) assert.equal(g.say('p0', key, 0, ids(key)).error?.code ?? null, want, `say ${key} on day 0`);
+    // From day 1 on, the same lines are fine again (the day phase is open).
+    const d1 = day(ROLES);
+    assert.equal(d1.botSay('bot-1', key, 0, ids(key)).error ?? null, null, `botSay ${key} on day 1`);
+  }
+  assert.deepEqual(humanKeys(0), ['accuse', 'agree', 'vouch', 'defend']);
+  assert.deepEqual(humanKeys(1), [...HUMAN_KEYS]);
+  assert.ok(validOnRound('voteSkip', 3) && !validOnRound('voteSkip', 0));
+});
+
+test('day 0: a bot of any role and personality only says lines that make sense there', () => {
+  const roles = ['villager', 'werewolf', 'seer', 'jester', 'witch', 'hunter', 'bodyguard'];
+  const seen = new Set();
+  for (const role of roles) {
+    for (const persona of PERSONALITIES) {
+      for (let seed = 1; seed <= 60; seed++) {
+        const g = day(['villager', 'werewolf', 'villager', role, 'villager', 'villager', 'villager'], {}, { dayZero: true });
+        // Table talk to react to, and the bot under fire, so defend and agree paths run too.
+        g.s = g.say('p0', 'accuse', 0, ['bot-3']).state;
+        g.s = g.botSay('bot-1', 'accuse', 1, ['bot-4']).state;
+        const m = new BotMind('bot-3', persona, createRng(seed));
+        for (const moment of ['day', 'reply', 'day', 'reply', 'day']) {
+          const l = m.talk(viewFor(g.s, 'bot-3'), moment);
+          if (!l) continue;
+          seen.add(l.key);
+          assert.ok(DAY_BEFORE_KEYS.includes(l.key), `${role} ${persona} seed ${seed} said ${l.key} on day 0`);
+        }
+        const m2 = new BotMind('bot-4', persona, createRng(seed));
+        const l2 = m2.talk(viewFor(g.s, 'bot-4'), 'day');
+        if (l2) assert.ok(DAY_BEFORE_KEYS.includes(l2.key), `${l2.key} on day 0`);
+      }
+    }
+  }
+  for (const k of ['accuse', 'defend']) assert.ok(seen.has(k), `bots never said ${k} on day 0`);
 });

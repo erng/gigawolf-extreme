@@ -15,7 +15,7 @@
 import { ROLES, isWolf, isDecoy, teamOf, TEAM } from './roles.js';
 import { MAX_PLAYERS, MAX_HUMANS, MAX_BOTS, BOT_NAMES, BOT_TAG, isBotId, MIN_PLAYERS, COUNT_KEYS, presetFor, validate, roleList, fullCounts, randomCounts } from './setup.js';
 import { shuffle } from '../util/rng.js';
-import { CHAT_MAX, CHAT_PER_ROUND, HUMAN_KEYS, PERSONALITIES, validChatLine } from './chat.js';
+import { CHAT_MAX, CHAT_PER_ROUND, HUMAN_KEYS, PERSONALITIES, validChatLine, validOnRound } from './chat.js';
 
 export const PHASE = Object.freeze({
   LOBBY: 'lobby', REVEAL: 'reveal', NIGHT: 'night', DAY: 'day', VOTE: 'vote', SHOT: 'shot', GAMEOVER: 'gameover',
@@ -415,6 +415,16 @@ function fireEvent(state, rng) {
   if (at < 0) state.lines.push(text); else state.lines.splice(at, 0, text);
 }
 
+// ---------- the day before ----------
+// After the reveal the table talks once before the first night (round 0, phase day). Nobody has died, nothing
+// is announced and there is no vote; the host starts night 1 when the talk is done. Bots talk as on any day.
+function startDayBefore(state, fx) {
+  state.phase = PHASE.DAY;
+  state.round = 0;
+  state.lines = [];
+  fx.push({ type: 'haptic' });
+}
+
 // ---------- night ----------
 function startNight(state, fx) {
   state.round += 1;
@@ -608,6 +618,7 @@ function recordNight(state, n, victims, protectedId, bg, healed, poisoned, dead,
 function startVote(state, _a, _sender, isHost, fx) {
   if (!isHost) return { code: 'forbidden', message: 'Only the host can start the vote.' };
   if (state.phase !== PHASE.DAY) return { code: 'badPhase', message: 'Not in discussion.' };
+  if (state.round === 0) return { code: 'badPhase', message: 'There is no vote before the first night.' };
   beginVote(state, fx);
   return null;
 }
@@ -725,7 +736,10 @@ function nextShot(state, fx, rng) {
 function nextPhase(state, _a, isHost, rng, fx) {
   if (!isHost) return { code: 'forbidden', message: 'Only the host can continue.' };
   switch (state.phase) {
-    case PHASE.REVEAL: startNight(state, fx); return null;
+    case PHASE.REVEAL: startDayBefore(state, fx); return null;
+    case PHASE.DAY:
+      if (state.round === 0) { startNight(state, fx); return null; } // end of The Day Before
+      return { code: 'badPhase', message: 'Nothing to continue.' };
     case PHASE.NIGHT: resolveNight(state, rng, fx); return null;
     case PHASE.SHOT: {
       const h = byId(state, state.shots[0]);
@@ -760,6 +774,7 @@ function botSay(state, { key, v, ids }, sender) {
   const open = state.phase === PHASE.DAY || (state.phase === PHASE.VOTE && state.vote?.stage === 'voting');
   if (!open) return { code: 'badPhase', message: 'Not in discussion.' };
   if (!validChatLine(key, v, ids) || !ids.every((id) => byId(state, id))) return { code: 'badLine', message: 'Invalid target.' };
+  if (!validOnRound(key, state.round)) return { code: 'badLine', message: 'That line makes no sense before the first night.' };
   state.chat ??= [];
   if (state.chat.filter((c) => c.by === sender.id && c.round === state.round).length >= CHAT_PER_ROUND) return { code: 'tooChatty', message: 'Too many lines this round.' };
   state.chatSeq = (state.chatSeq ?? 0) + 1;
@@ -777,6 +792,7 @@ function humanSay(state, { key, v, ids }, sender) {
   const open = state.phase === PHASE.DAY || (state.phase === PHASE.VOTE && state.vote?.stage === 'voting');
   if (!open) return { code: 'badPhase', message: 'Not in discussion.' };
   if (!HUMAN_KEYS.includes(key) || !validChatLine(key, v, ids)) return { code: 'badLine', message: 'Invalid line.' };
+  if (!validOnRound(key, state.round)) return { code: 'badLine', message: 'That line makes no sense before the first night.' };
   // A line names living players other than the speaker, and never the same player twice.
   if (!ids.every((id) => id !== sender.id && byId(state, id)?.alive) || new Set(ids).size !== ids.length) return { code: 'badLine', message: 'Invalid target.' };
   state.chat ??= [];

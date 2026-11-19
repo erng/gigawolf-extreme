@@ -4,7 +4,7 @@
 // The menu is the same for every role and every table, so it never shows who has a power or what the bots are.
 import { h } from './dom.js';
 import { t } from '../i18n.js';
-import { CHAT, CHAT_PER_ROUND, HUMAN_KEYS } from '../game/chat.js';
+import { CHAT, CHAT_PER_ROUND, humanKeys } from '../game/chat.js';
 import { BOT_TAG } from '../game/setup.js';
 
 const short = (name) => (name?.endsWith(BOT_TAG) ? name.slice(0, -BOT_TAG.length) : name ?? '?');
@@ -59,7 +59,7 @@ export function saySheet(view, ctx) {
     // Step 1: pick a sentence.
     body = [
       h('p', { class: 'sub small say-left' }, t('chat.sayLeft', { n: left })),
-      h('ul', { class: 'say-list' }, HUMAN_KEYS.map((key) => {
+      h('ul', { class: 'say-list' }, humanKeys(view.round).map((key) => {
         const needsName = CHAT[key].ids === 1;
         const disabled = left === 0 || (needsName && !others.length);
         return h('li', null, h('button', {

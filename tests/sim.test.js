@@ -45,7 +45,7 @@ class Sim {
     this.kickGame = this.kr() < 0.25;
     this.steps = 0;
     this.stats = { deaths: 0, shots: 0, doubleKills: 0, heals: 0, poisons: 0, princeSaves: 0, jesterWins: 0, sickNights: 0, hauntOffers: 0, hauntVotes: 0, promotions: 0,
-      events: 0, horseshoes: 0, horseshoeSaves: 0, horseshoeWasted: 0, kicks: 0, kicksEndedGame: 0 };
+      events: 0, horseshoes: 0, horseshoeSaves: 0, horseshoeWasted: 0, kicks: 0, kicksEndedGame: 0, dayBefore: 0 };
     this.s = createState({ hostId: 'p0', roomCode: 'ABCD' });
     for (let i = 0; i < n; i++) this.do({ kind: 'join', by: i < 15 ? `p${i}` : `bot-${i}`, name: `P${i}` }); // seats past 15 are bots, as in the app
   }
@@ -195,7 +195,16 @@ class Sim {
     switch (s.phase) {
       case PHASE.REVEAL: this.do({ kind: 'nextPhase', by: 'p0' }); break;
       case PHASE.NIGHT: this.night(); break;
-      case PHASE.DAY: this.do({ kind: 'startVote', by: 'p0' }); break;
+      case PHASE.DAY:
+        if (this.s.round === 0) { // The Day Before: nobody has died, nothing is announced, there is no vote
+          this.stats.dayBefore++;
+          assert.ok(this.s.players.every((p) => p.alive || p.kicked), 'nobody dies before the first night');
+          assert.equal(this.s.lines.filter((l) => !/ was removed by the host\./.test(l)).length, 0, 'nothing is announced before the first night');
+          assert.equal(reduce(this.s, { now: 0, kind: 'startVote', by: 'p0' }, this.rng).error?.code, 'badPhase', 'no vote before the first night');
+          this.do({ kind: 'nextPhase', by: 'p0' });
+          if (this.s.phase !== PHASE.GAMEOVER) { assert.equal(this.s.phase, PHASE.NIGHT); assert.equal(this.s.round, 1); }
+        } else this.do({ kind: 'startVote', by: 'p0' });
+        break;
       case PHASE.VOTE: this.voting(); break;
       case PHASE.SHOT: {
         const hunter = s.players.find((p) => p.id === s.shots[0]);
@@ -326,7 +335,7 @@ test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, ()
         if (type !== 'info') assert.equal(sfxPlan(parseLines([text])).length, 1, `no sound for: "${text}"`);
       }
       for (const k of ['deaths', 'shots', 'doubleKills', 'heals', 'poisons', 'princeSaves', 'sickNights', 'hauntOffers', 'hauntVotes', 'promotions',
-        'events', 'horseshoes', 'horseshoeSaves', 'horseshoeWasted', 'kicks', 'kicksEndedGame']) totals[k] = (totals[k] ?? 0) + sim.stats[k];
+        'events', 'horseshoes', 'horseshoeSaves', 'horseshoeWasted', 'kicks', 'kicksEndedGame', 'dayBefore']) totals[k] = (totals[k] ?? 0) + sim.stats[k];
       // play again resets everything and a second game on the same state works
       if (seed % 10 === 0 && sim.stats.kicks === 0) {
         sim.do({ kind: 'playAgain', by: 'p0' });
@@ -356,6 +365,7 @@ test(`headless sim: ${SEEDS} random games per player count, 5 to 15 players`, ()
   assert.ok(rate > 0.16 && rate < 0.24, `about 1 game in 5 gets an event (${(100 * rate).toFixed(1)}%)`);
   assert.ok(totals.horseshoes > 20 && totals.horseshoeSaves > 5 && totals.horseshoeWasted > 3, 'horseshoes were found, used and wasted on wolves');
   assert.ok(totals.kicks > 50 && totals.kicksEndedGame > 3, `host removals happened in games (${totals.kicks}, ${totals.kicksEndedGame} ended the game)`);
+  assert.ok(totals.dayBefore > 100, `The Day Before was played (${totals.dayBefore})`);
   assert.ok(totals.village > 0 && totals.wolves > 0);
 });
 

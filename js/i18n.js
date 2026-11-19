@@ -47,6 +47,7 @@ const TH = {
   'night.isA': '{name} คือ ', 'night.confirmed': 'โอเค ล็อกแล้ว รอเจ้าของห้องจบคืนนะ…', 'night.confirm': 'ยืนยัน',
   'night.youAre': 'เธอคือ{role}', 'night.pick': 'เป้าหมายของ {name}',
   // day / vote / dead / gameover
+  'day.title0': 'วันก่อนหน้า', 'day.sub0': 'ยังไม่มีใครตาย และยังไม่มีโหวต คุยกันก่อนได้เลย พร้อมเมื่อไรให้โฮสต์เริ่มกลางคืน', 'host.startTalk': 'เริ่มคุยกัน',
   'day.title': 'วันที่ {n}', 'day.sub': 'ได้เวลาเม้าท์! ใครกันที่เป็นหมาป่า? ใครตอแหลก็จับให้ได้',
   'vote.result': 'ผลโหวต', 'vote.title': 'โหวต', 'vote.skip': 'ข้ามไปก่อน (ไม่เอาใครออก)', 'vote.skipName': 'ข้าม',
   'vote.waitHost': 'รอเจ้าของห้องกดไปต่อ…', 'vote.locked': 'ล็อกโหวตแล้ว รอคนที่ยังลังเลอยู่…', 'vote.confirm': 'ยืนยันโหวต ไม่ถอยนะ',
@@ -296,6 +297,7 @@ const EN = {
   'night.title': 'Night {n}', 'night.werewolf': 'a Werewolf', 'night.notWerewolf': 'Not a werewolf',
   'night.isA': '{name} is ', 'night.confirmed': 'Confirmed. Waiting for the host to end the night…', 'night.confirm': 'Confirm',
   'night.youAre': 'You are the {role}.',
+  'day.title0': 'The Day Before', 'day.sub0': 'Nobody has died yet and there is no vote. Talk it over, then the host starts the night.', 'host.startTalk': 'Start discussion',
   'day.title': 'Day {n}', 'day.sub': 'Discuss. Who is a werewolf?',
   'vote.result': 'Vote result', 'vote.title': 'Vote', 'vote.skip': 'Skip (no elimination)', 'vote.skipName': 'Skip',
   'vote.waitHost': 'Waiting for the host to continue…', 'vote.locked': 'Vote locked in. Waiting for everyone…', 'vote.confirm': 'Confirm vote',
