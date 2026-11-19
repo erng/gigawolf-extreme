@@ -9,7 +9,7 @@ import { storage } from './util/storage.js';
 import { refetchAll } from './util/refresh.js';
 import { keepAwake, releaseAwake } from './util/wakelock.js';
 import { speak, speakChat } from './ui/narrator.js';
-import { chatAuthor, chatText } from './ui/talk.js';
+import { chatAuthor, chatText, talkSheet } from './ui/talk.js';
 import { enterRoom, leaveRoom, refreshSoundLabels, setSoundPhase } from './ui/sound.js';
 import { playSfx, phaseSfx, winSfx } from './ui/sfx.js';
 import { playMoment } from './ui/moments.js';
@@ -226,6 +226,8 @@ function render() {
     if (v.you.role && ['night', 'day', 'vote', 'shot'].includes(v.phase)) {
       $app.append(h('p', { class: 'sub small yourole' }, roleSprite(v.you.role, { scale: 1.5 }), t('night.youAre', { role: t(`role.${v.you.role}`) })));
     }
+    // The whole round's bot talk, when its "All" button opened it (null otherwise).
+    $app.append(...(talkSheet(v, ctx) ?? []));
     $app.append(h('button', { class: 'btn leave', onClick: () => { if (confirm(t('main.leaveConfirm'))) leave(); } }, t('main.leave')));
     // Host only, while a game is running: remove a player (abuse, or a phone that is stuck). Kept out of the way.
     if (v.isHost && v.phase !== 'lobby') {

@@ -12,7 +12,7 @@ export function dayScreen(view, ctx) {
     view.you.private.promoted && h('div', { class: 'card result' }, t('role.promoted')),
     view.you.private.horseshoe?.fresh && h('div', { class: 'card result' }, t(view.you.private.horseshoe.used ? 'horseshoe.used' : 'horseshoe.found')),
     h('p', { class: 'sub' }, t('day.sub')),
-    talkFeed(view),
+    talkFeed(view, ctx),
     playerList(view),
     hostAdvance(view, ctx),
   );

@@ -13,7 +13,7 @@ export function deadScreen(view, ctx) {
     // Dawn news (including your own death) gets the same cards as the living see.
     view.phase === 'day' && view.announce?.length ? fxAnnounce(view, view.announce, `day:${view.round}`) : null,
     hostAdvance(view, ctx),
-    (view.phase === 'day' || (view.phase === 'vote' && !view.voteResult)) && talkFeed(view, { short: view.phase === 'vote' }),
+    talkFeed(view, ctx, { latest: view.phase === 'vote' ? 2 : 3 }),
     playerList(view),
     h('h3', null, t('dead.log')),
     h('ul', { class: 'log' }, view.log.length ? view.log.map((l) => h('li', null, tr(l.text))) : h('li', null, t('dead.nothing'))),

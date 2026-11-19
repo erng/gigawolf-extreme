@@ -113,7 +113,7 @@ const TH = {
   'horseshoe.held': 'เธอมีเกือกม้านำโชค: กันหมาป่างับได้ 1 ครั้ง',
   'horseshoe.used': 'เมื่อคืนหมาป่ามางับเธอ แต่เกือกม้านำโชคช่วยไว้ได้ ตอนนี้หมดฤทธิ์แล้วนะ',
   // Bot table talk (js/game/chat.js): {a} and {b} are player names.
-  'chat.title': 'วงเม้าท์', 'chat.empty': 'ยังเงียบกันอยู่…', 'chat.newLines': 'มีข้อความใหม่ ↓', 'lobby.dumbBots': 'บอทโง่ (สุ่มมั่ว ไม่พูด)', 'lobby.dumbBotsHint': 'บอทฉลาดจำได้ว่าเกิดอะไรขึ้น สงสัยคน คุยกัน และโหวตตามเหตุผล บอทแต่ละตัวมีนิสัยต่างกัน',
+  'chat.title': 'วงเม้าท์', 'chat.empty': 'ยังเงียบกันอยู่…', 'chat.newLines': 'มีข้อความใหม่ ↓', 'chat.seeAll': 'วงเม้าท์ทั้งหมด ({n})', 'chat.close': 'ปิด', 'lobby.dumbBots': 'บอทโง่ (สุ่มมั่ว ไม่พูด)', 'lobby.dumbBotsHint': 'บอทฉลาดจำได้ว่าเกิดอะไรขึ้น สงสัยคน คุยกัน และโหวตตามเหตุผล บอทแต่ละตัวมีนิสัยต่างกัน',
   'persona.sheep': 'ตามน้ำ', 'persona.hothead': 'ใจร้อน', 'persona.quiet': 'เงียบๆ', 'persona.detective': 'นักสืบ',
   'chat.rip.0': 'RIP {a} จะคิดถึงนะ 😢', 'chat.rip.1': 'ไม่นะ! ทำไมต้องเป็น {a}!', 'chat.rip.2': '{a} ไม่สมควรโดนแบบนี้เลย', 'chat.rip.3': 'ใครใจร้ายทำ {a} ได้ลงคอ?!',
   'chat.accuse.0': 'เราไม่ไว้ใจ {a} เลย', 'chat.accuse.1': '{a} ทำตัวแปลกๆ นะ', 'chat.accuse.2': 'สัญชาตญาณบอกว่า {a} คือหมาป่า', 'chat.accuse.3': 'มีใครสังเกต {a} บ้างไหม 👀',
@@ -358,7 +358,7 @@ const EN = {
   'horseshoe.held': 'You have the lucky horseshoe: it blocks one wolf attack.',
   'horseshoe.used': 'The wolves came for you last night. Your lucky horseshoe saved you. It is used up now.',
   // Bot table talk (js/game/chat.js): {a} and {b} are player names.
-  'chat.title': 'Table talk', 'chat.empty': 'Quiet so far…', 'chat.newLines': 'New lines ↓', 'lobby.dumbBots': 'Dumb bots (random, silent)', 'lobby.dumbBotsHint': 'Smart bots remember what happened, suspect people, talk and vote with reasons. Each one has its own personality.',
+  'chat.title': 'Table talk', 'chat.empty': 'Quiet so far…', 'chat.newLines': 'New lines ↓', 'chat.seeAll': 'Full discussion ({n})', 'chat.close': 'Close', 'lobby.dumbBots': 'Dumb bots (random, silent)', 'lobby.dumbBotsHint': 'Smart bots remember what happened, suspect people, talk and vote with reasons. Each one has its own personality.',
   'persona.sheep': 'Sheep', 'persona.hothead': 'Hothead', 'persona.quiet': 'Quiet', 'persona.detective': 'Detective',
   'chat.rip.0': 'RIP {a}. You will be missed. 😢', 'chat.rip.1': 'Noooo, not {a}!', 'chat.rip.2': '{a} didn\'t deserve that.', 'chat.rip.3': 'Who would hurt {a}?!',
   'chat.accuse.0': 'I don\'t trust {a}.', 'chat.accuse.1': '{a} is acting really weird.', 'chat.accuse.2': 'My gut says {a} is a wolf.', 'chat.accuse.3': 'Has anyone else noticed {a}? 👀',
