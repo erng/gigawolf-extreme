@@ -113,7 +113,7 @@ function card(view, e, { big = false, index = 0 } = {}) {
     h('div', { class: 'fx-prop' }, prop, death && big && h('i', { class: 'fx-dust' }, h('b'), h('b'), h('b'), h('b'))),
     h('div', { class: 'fx-body' },
       h('div', { class: 'fx-kicker' }, kicker),
-      h('div', { class: 'fx-name' }, e.name, you ? h('span', { class: 'fx-me' }, t('you')) : null),
+      h('div', { class: 'fx-name' }, h('span', { class: 'fx-nm' }, e.name), you ? h('span', { class: 'fx-me' }, t('you')) : null),
       e.role && h('div', { class: 'fx-role' }, roleSprite(e.role, { scale: 1.5 }), ROLE_LABEL[e.role]),
       e.jester && h('div', { class: 'fx-twistline' }, t('fx.jesterTwist'))),
     e.jester && big && h('i', { class: 'confetti', 'aria-hidden': 'true' },
