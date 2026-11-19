@@ -1,6 +1,6 @@
 {
   "name": "gigawolf-extreme",
-  "version": "1.29.0",
+  "version": "1.29.1",
   "private": true,
   "type": "module",
   "scripts": { "test": "node --test tests/" }

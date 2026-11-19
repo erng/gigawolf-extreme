@@ -93,7 +93,7 @@ test('every table-talk line exists in English and Thai, and fills in its names',
         }
       }
       for (const p of PERSONALITIES) assert.notEqual(t(`persona.${p}`), `persona.${p}`);
-      for (const k of ['chat.title', 'chat.empty', 'lobby.dumbBots', 'lobby.dumbBotsHint']) assert.notEqual(t(k), k);
+      for (const k of ['chat.title', 'chat.empty', 'chat.newLines', 'chat.seeAll', 'chat.close', 'lobby.dumbBots', 'lobby.dumbBotsHint']) assert.notEqual(t(k), k);
     }
     setLang('th');
     for (const key of Object.keys(CHAT)) assert.notEqual(t(`chat.${key}.0`, { a: 'A', b: 'B' }), (setLang('en'), t(`chat.${key}.0`, { a: 'A', b: 'B' })), (setLang('th'), `${key} not translated`));
