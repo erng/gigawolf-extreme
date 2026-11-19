@@ -20,6 +20,7 @@ export function game(roles, { settings, rng = createRng(1) } = {}) {
   s = reduce(s, { kind: 'startGame', by: 'p0', now: T0 }, rng).state;
   s.players.forEach((p, i) => { p.role = roles[i]; p.potions = p.role === 'witch' ? { heal: true, poison: true } : null; });
   for (const p of s.players) s = reduce(s, { kind: 'ready', by: p.id, now: T0 }, rng).state;
+  s = reduce(s, { kind: 'nextPhase', by: 'p0' }, rng).state; // host starts The Day Before
   s = reduce(s, { kind: 'nextPhase', by: 'p0' }, rng).state; // host starts the night
   if (s.phase !== PHASE.NIGHT) throw new Error('expected night, got ' + s.phase);
   return { s, rng };

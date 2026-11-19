@@ -23,6 +23,7 @@ function botDay(roles, settings = {}) {
   step({ kind: 'settings', by: 'p0', patch: { randomEvents: false, ...settings } });
   step({ kind: 'startGame', by: 'p0' });
   s.players.forEach((p, i) => { p.role = roles[i]; p.potions = p.role === 'witch' ? { heal: true, poison: true } : null; });
+  step({ kind: 'nextPhase', by: 'p0' }); // The Day Before
   step({ kind: 'nextPhase', by: 'p0' }); // night 1
   step({ kind: 'nextPhase', by: 'p0' }); // dawn: nobody picked, nobody died
   assert.equal(s.phase, PHASE.DAY);
@@ -235,7 +236,7 @@ async function play(bots, settings) {
     else if (v.phase === 'night') {
       if (p && !p.done && v.you.alive) client.send('nightPick', { targetId: p.kind === 'witch' ? 'pass' : p.required ? p.targets[0] : null, ...(p.picks === 2 ? { targetId2: p.targets[1] } : {}) });
       else if (v.progress.done >= v.progress.total) client.send('nextPhase');
-    } else if (v.phase === 'day') { if (!dayAt) dayAt = Date.now(); if (Date.now() - dayAt > 150) { dayAt = 0; client.send('startVote'); } }
+    } else if (v.phase === 'day') { if (!dayAt) dayAt = Date.now(); if (Date.now() - dayAt > 150) { dayAt = 0; client.send(v.round === 0 ? 'nextPhase' : 'startVote'); } }
     else if (v.phase === 'vote') { if (v.voteResult) client.send('nextPhase'); else if (p?.kind === 'vote' && !p.done) client.send('vote', { targetId: 'skip' }); else if (v.progress && v.progress.done >= v.progress.total) client.send('nextPhase'); }
     else if (v.phase === 'shot') { if (p?.kind === 'shoot') client.send('shoot', { targetId: p.targets[0] }); else if (v.isHost) client.send('nextPhase'); }
     await sleep(6);

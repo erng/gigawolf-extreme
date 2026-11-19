@@ -55,7 +55,7 @@ async function playGame({ n, counts, seed }) {
       if (v.progress.done === v.progress.total) once(`dawn${r}`, () => client.send('nextPhase'));
     } else if (v.phase === 'day') {
       await sleep(3);
-      once(`day${r}`, () => client.send('startVote'));
+      once(`day${r}`, () => client.send(r === 0 ? 'nextPhase' : 'startVote'));
     } else if (v.phase === 'vote') {
       if (v.voteResult) once(`res${r}`, () => client.send('nextPhase'));
       else if (!v.you.alive && p?.haunt && !p.done) once(`h${r}`, () => client.send('vote', { targetId: pick([...p.targets, 'skip', 'pass']) }));

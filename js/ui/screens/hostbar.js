@@ -13,9 +13,9 @@ export function hostAdvance(view, ctx) {
   const go = (label, kind = 'nextPhase', green = false) =>
     h('button', { class: `btn primary hostbtn${green ? ' green' : ''}${blocking ? ' nudge' : ''}${premature ? ' premature' : ''}`, onClick: () => ctx.send(kind) }, label);
   switch (view.phase) {
-    case 'reveal': return go(`${t('host.startNight')}${pr(t('host.ready'))}`);
+    case 'reveal': return go(`${t('host.startTalk')}${pr(t('host.ready'))}`);
     case 'night': return go(`${t('host.endNight')}${pr(t('host.confirmedW'))}`);
-    case 'day': return go(t('host.startVote'), 'startVote', true);
+    case 'day': return view.round === 0 ? go(t('host.startNight')) : go(t('host.startVote'), 'startVote', true);
     case 'shot': return go(t('host.skipShot'));
     case 'vote': {
       if (view.voteResult) return go(t('host.next'));

@@ -5,6 +5,16 @@ import { fxAnnounce } from '../fx.js';
 import { talkFeed } from '../talk.js';
 
 export function dayScreen(view, ctx) {
+  // Round 0: the talk before the first night. Nobody has died, nothing is announced and there is no vote.
+  if (view.round === 0) {
+    return h('main', { class: 'screen day' },
+      h('div', { class: 'phase' }, t('day.title0')),
+      h('p', { class: 'sub' }, t('day.sub0')),
+      talkFeed(view, ctx),
+      playerList(view),
+      hostAdvance(view, ctx),
+    );
+  }
   const last = view.log.at(-1)?.text ?? '';
   return h('main', { class: 'screen day' },
     h('div', { class: 'phase' }, t('day.title', { n: view.round })),

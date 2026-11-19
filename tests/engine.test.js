@@ -70,10 +70,14 @@ test('reveal: night starts only when the host advances (even if not everyone is 
   assert.equal(s.phase, PHASE.REVEAL, 'all ready does not auto-start');
   assert.equal(reduce(s, { kind: 'nextPhase', by: 'p2' }, rng).error.code, 'forbidden');
   s = reduce(s, { kind: 'nextPhase', by: 'p0' }, rng).state;
+  assert.equal(s.phase, PHASE.DAY, 'the reveal leads to The Day Before');
+  assert.equal(s.round, 0);
+  assert.equal(reduce(s, { kind: 'nextPhase', by: 'p2' }, rng).error.code, 'forbidden');
+  s = reduce(s, { kind: 'nextPhase', by: 'p0' }, rng).state;
   assert.equal(s.phase, PHASE.NIGHT);
   assert.equal(s.round, 1);
   const idle = reduce(lobby(5, rng), { kind: 'startGame', by: 'p0', now: T0 }, rng).state;
-  assert.equal(reduce(idle, { kind: 'nextPhase', by: 'p0' }, rng).state.phase, PHASE.NIGHT);
+  assert.equal(reduce(idle, { kind: 'nextPhase', by: 'p0' }, rng).state.phase, PHASE.DAY);
 });
 
 test('wolves kill the target; non-wolves cannot be targeted wrongly', () => {
