@@ -8,7 +8,8 @@ import { t, tr, getLang, setLang } from './i18n.js';
 import { storage } from './util/storage.js';
 import { refetchAll } from './util/refresh.js';
 import { keepAwake, releaseAwake } from './util/wakelock.js';
-import { speak } from './ui/narrator.js';
+import { speak, speakChat } from './ui/narrator.js';
+import { chatAuthor, chatText } from './ui/talk.js';
 import { enterRoom, leaveRoom, refreshSoundLabels, setSoundPhase } from './ui/sound.js';
 import { playSfx, phaseSfx, winSfx } from './ui/sfx.js';
 import { playMoment } from './ui/moments.js';
@@ -71,8 +72,9 @@ function wire(client) {
     app.view = view;
     render();
     sayNarration(view); // after render: the screen schedules its sounds, and speech waits for them
+    sayChat(view);
   };
-  client.onWelcome = () => { app.connecting = false; app.narrSeq = undefined; };
+  client.onWelcome = () => { app.connecting = false; app.narrSeq = undefined; app.chatSeq = undefined; };
 }
 
 // Narration rides on views as { seq, text }. The first view after (re)connecting only records the
@@ -82,6 +84,15 @@ function sayNarration(view) {
   const seq = n?.seq ?? 0;
   if (n && app.narrSeq !== undefined && seq !== app.narrSeq) speak(n.text);
   app.narrSeq = seq;
+}
+
+// Bot table talk is spoken too (with narration on), newest line only, each bot in its own voice.
+// Like narration, the first view after (re)connecting only records where the talk is.
+function sayChat(view) {
+  const last = view.chat?.at(-1);
+  const seq = last?.seq ?? 0;
+  if (last && app.chatSeq !== undefined && seq > app.chatSeq) speakChat(`${chatAuthor(view, last)}: ${chatText(view, last)}`, Number(last.by.slice(4)) || 0);
+  app.chatSeq = seq;
 }
 
 // The win (sound and full-screen moment) for a game that has just ended on a death the phones have not

@@ -20,7 +20,7 @@ python3 -m http.server 8080      # or: npx serve
 # open http://localhost:8080
 ```
 
-The host can add up to 20 bots from the lobby (Bots row), or with `?bots=4` on the host's URL, e.g. `http://localhost:8080/?bots=4`. Bots run inside the host's page.
+The host can add up to 20 bots from the lobby (Bots row), or with `?bots=4` on the host's URL, e.g. `http://localhost:8080/?bots=4`. Bots run inside the host's page. They play with reasons and talk in a "Table talk" feed; the lobby's "Dumb bots" switch makes them random and silent instead.
 `localhost` and GitHub Pages (HTTPS) both work for WebRTC; plain `http://<lan-ip>` does not.
 
 ## Tests

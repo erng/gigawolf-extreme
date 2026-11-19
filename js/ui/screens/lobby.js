@@ -85,6 +85,8 @@ export function lobbyScreen(view, ctx) {
           !s.randomize && h('button', { class: 'btn small', onClick: () => set({ counts: null }) }, t('lobby.reset')),
           rows(botsRow(bots, (v) => ctx.setBots(v))),
           bots > 0 && h('p', { class: 'sub small' }, t('lobby.botsHint')),
+          bots > 0 && rows(toggle(t('lobby.dumbBots'), !!s.dumbBots, (v) => set({ dumbBots: v }))),
+          bots > 0 && !s.dumbBots && h('p', { class: 'sub small' }, t('lobby.dumbBotsHint')),
           h('h3', null, t('lobby.options')),
           rows(
             toggle(t('lobby.revealOnDeath'), s.revealOnDeath, (v) => set({ revealOnDeath: v })),
