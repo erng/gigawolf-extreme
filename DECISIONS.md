@@ -180,3 +180,9 @@ Ambiguities in the plan, resolved with the simplest option.
 - **Restless Dead, cut**: proposed as Séance (every dead player gets a haunt vote at the next vote, reusing the Graveyard Voter's `vote.ghosts`). Built and measured, then cut: on dawn 2 or 3 it moved the village win rate by up to +10 points at 8 players, because night victims are never wolves, so the dead lean village. Numbers are in `tools/balance/README.md`.
 - **Balance** (`tools/balance/`, 20,000 games per cell, 6/8/10/12 players, low/mid/high skill): Lucky Horseshoe moves the village win rate by +1.0 to +2.9 points per occurrence if the holder stays quiet, and by about 0 if the holder claims (the wolves then leave them alone).
 - **Tests**: `tests/events.test.js` (the roll, the rules, secrecy, the switch, the card, sound and Thai). The random-game sim checks the event rate, that the horseshoe is found, used and wasted on wolves, that only the holder learns anything, and that the coming event is never sent.
+
+## Sound choices persist (v1.27.1)
+
+- **Bug**: a player's Music, Narrator and Effects choices were saved only for the room they were set in, so every new game reset them and the music came back on.
+- **Now**: a phone's choices are saved in localStorage and kept across games, for the host and for players. Host and player keep separate saved choices, so a host's settings still do not leak to playing. Choices saved by older versions (with a room code) apply in any room. A choice saved before effects existed gets the default for it (on).
+- **Supersedes** the "for that room" and "a player's for that room" lines in the Sound effects (v1.21.0) and Music only in the lobby (v1.22.2) sections.
