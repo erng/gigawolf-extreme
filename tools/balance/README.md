@@ -25,6 +25,8 @@ node tools/balance/quick.js 8 2000 horseshoe          # one number: players, gam
 node tools/balance/run.js mid hidden calibrated 20000 out.json base,horseshoe,seance
 node tools/balance/report.js out.json                 # change vs the no-event baseline, per table size
 node tools/balance/calibrate.js                       # rewrites alpha.json (see below)
+node tools/balance/muted.js mid 20000 out.json        # muted players: skill, games per cell, output file
+node tools/balance/mutedreport.js out.json            # muted vs talking death rates (see "Muted players")
 ```
 
 `run.js` arguments, in order:
@@ -99,3 +101,37 @@ Takeaways:
   wolves fake the clue made Rumor worse, because the fakers get caught.
 - Hiding who voted for whom helps wolves. That also goes for the existing hide-votes setting.
 - Every effect shrinks as players get better.
+
+## Muted players (2026-11-19)
+
+Question: do players who can't talk die more often than players who can? `muted.js` mutes seats `0..m-1`
+(their roles are random) and compares them with the talkers in the same games, 20,000 games per cell at
+6, 8, 10 and 12 players and all three skill levels, role reveal off. A muted player gives no day tells and
+never claims Seer or counterclaims, but still hears everything. Two kinds:
+
+- **silent**: still reasons and votes like anyone (a human with no quick chat);
+- **dumb**: also votes at random and picks Seer checks and Bodyguard guards at random (what `dumbBots` does).
+
+Difference between a muted villager and a talking villager, in points of death rate over the whole game:
+
+| Muted | Night death | Vote death | Total |
+|---|---|---|---|
+| 1 silent | −2 to −10 | −2 to −7 | −6 to −14 |
+| 1 dumb | 0 to −11 | +3 to +11 at 8+ players, −1 to −6 at 6 | −6 to +2 |
+| half the table silent | −2 to −15 | −4 to −12 | −11 to −20 |
+
+Verdict: **a silent player does not die more, they die less.** Talkers' clean tells make them the player the table
+trusts most, and wolves kill that player at night half the time. A muted player has no tells, so wolves
+skip them. Dumb villagers are voted out more at 8+ players because their belief stays at the prior while
+clean talkers drop below it, but they are killed less at night, so the total is flat or lower.
+
+Dumb wolves are voted out much more: +15 to +22 points over talking wolves at 8, 10 and 12 players (+1 to +5 at 6), because they break the wolf bloc.
+
+Effect on the village win rate (points vs nobody muted): 1 silent −2.1 to −5.1; 1 dumb −4.8 to −9.2; half the
+table silent −10 to −22; half the table dumb −22 to −45. Muted players give the table less to read, and that
+costs the village more than the wolves.
+
+What the sim cannot show:
+- Real tables may read silence as suspicious. The model treats silence as no information, so it cannot make muted players die more for that reason.
+- It models Bayesian players for everyone. It cannot say whether the smart bots (`js/bots/mind.js`) are too strong against humans; that needs real games or a model of the bot's own reads.
+- The table treats a dumb bot's random vote like any human vote (wolves rarely vote teammates).

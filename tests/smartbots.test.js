@@ -29,18 +29,31 @@ function botDay(roles, settings = {}) {
   return { get s() { return s; }, set s(v) { s = v; }, rng, say: (by, key, v, ids) => reduce(s, { kind: 'botSay', by, key, v, ids, now: T0 }, rng) };
 }
 
-test('setBots gives every bot a public personality; dumb bots hide it', () => {
+test('setBots gives every bot a personality; no view shows it', () => {
   const rng = createRng(4);
   const s = reduce(lobby(2, rng), { kind: 'setBots', by: 'p0', count: 12, now: T0 }, rng).state;
   const bots = s.players.filter((p) => isBotId(p.id));
   assert.ok(bots.every((p) => PERSONALITIES.includes(p.persona)));
   assert.ok(new Set(bots.map((p) => p.persona)).size > 1, 'a mix of personalities');
   assert.ok(s.players.filter((p) => !isBotId(p.id)).every((p) => !p.persona), 'humans have none');
-  const v = viewFor(s, 'p1');
-  assert.ok(v.players.filter((p) => isBotId(p.id)).every((p) => p.persona));
+  assert.ok(viewFor(s, 'p0').players.every((p) => !p.persona), 'not even the host sees tags');
   const dumb = reduce(s, { kind: 'settings', by: 'p0', patch: { dumbBots: true }, now: T0 }, rng).state;
   assert.equal(dumb.settings.dumbBots, true);
-  assert.ok(viewFor(dumb, 'p1').players.every((p) => !p.persona));
+  assert.ok(viewFor(dumb, 'p0').players.every((p) => !p.persona));
+  assert.equal(viewFor(dumb, 'p0').settings.dumbBots, true, 'the host still sees the switch');
+});
+
+test('the bot type never reaches a player view, smart or dumb', () => {
+  const rng = createRng(5);
+  const s = reduce(lobby(3, rng), { kind: 'setBots', by: 'p0', count: 6, now: T0 }, rng).state;
+  for (const dumbBots of [false, true]) {
+    const st = reduce(s, { kind: 'settings', by: 'p0', patch: { dumbBots }, now: T0 }, rng).state;
+    for (const id of ['p1', 'p2']) {
+      const v = viewFor(st, id);
+      assert.equal('dumbBots' in v.settings, false, 'no bot-type setting');
+      assert.ok(v.players.every((p) => !p.persona), 'no personality tags');
+    }
+  }
 });
 
 test('botSay: only living bots, only in the day or an open vote, valid lines only, a per-round cap', () => {

@@ -36,7 +36,6 @@ export function playerList(view, { selectable = [], selected = null, onPick, tag
       !p.alive && h('span', { class: 'tag' }, p.kicked ? t('removed') : t('dead')),
       p.role && (showRole || !p.alive || p.revealed) && roleSprite(p.role, { scale: 2 }),
       p.role && (showRole || !p.alive || p.revealed) && h('span', { class: 'tag role' }, ROLE_LABEL[p.role]),
-      p.persona && p.alive && h('span', { class: 'tag persona' }, t(`persona.${p.persona}`)),
       (tags[p.id] ?? []).map((t) => h('span', { class: 'tag wolf' }, t)),
     );
     const extra = actions ? actions(p) : null;

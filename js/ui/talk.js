@@ -20,9 +20,10 @@ export function chatText(view, c) {
   return t(`chat.${c.key}.${c.v}`, args);
 }
 
-// Is there talk to show? Only with smart bots, in the day and while the vote is open.
+// Is there talk to show? Only once someone has spoken (smart bots do, dumb bots never do), in the day and
+// while the vote is open. It never looks at the bot type, so an empty box can't give dumb bots away.
 export function talkOn(view) {
-  return !view.settings?.dumbBots && view.players.some((p) => p.persona)
+  return (view.chat?.length ?? 0) > 0
     && (view.phase === 'day' || (view.phase === 'vote' && !view.voteResult));
 }
 

@@ -45,6 +45,10 @@ export const DEFAULTS = {
   eventDay: null, // when set, the event happens on exactly this day (1 = the morning after the first night)
   alpha: { letterW: 1, letterC: 1, whisper: 1, lwNight: 1, lwVote: 1 }, // listener trust (likelihood ratios)
   calib: null, // when set, collect { type, isWolf, prior } for every pointing signal
+  // Muted players (seats 0..muted-1, so their roles are random): they give no day "tells", never claim Seer or
+  // counterclaim, but still hear everything. muteMode 'silent' = they still reason and vote like anyone;
+  // 'dumb' = what dumbBots do in the game: random votes, random Seer checks and Bodyguard guards.
+  muted: 0, muteMode: 'silent',
 };
 
 export function playGame(opts, seed) {
@@ -57,6 +61,9 @@ export function playGame(opts, seed) {
   const roles = shuffle(r, [...Array(W).fill('wolf'), 'seer', 'bg', ...Array(n - W - 2).fill('vil')]);
   const isW = (j) => roles[j] === 'wolf';
   const alive = Array(n).fill(true);
+  const isMuted = (j) => j < o.muted;
+  const isDumb = (j) => isMuted(j) && o.muteMode === 'dumb';
+  const deaths = [];                        // [player, cause, day], for the muted-vs-talking comparison
   const lp = new Float64Array(H);           // public log-weights over wolf sets
   const priv = Array.from({ length: n }, () => new Float64Array(n)); // private separable log-LR
   const rumorPriv = Array.from({ length: n }, () => []); // [a, b, same]
@@ -152,6 +159,7 @@ export function playGame(opts, seed) {
   const votedOut = new Set();                // dead by vote (a mix of both teams), for restlessVoted
   function kill(j, cause) {
     alive[j] = false;
+    deaths.push([j, cause, st.days]);
     if (cause === 'vote') votedOut.add(j);
     if (cause === 'night') hard(j, false);
     if (o.reveal) { hard(j, isW(j)); if (j === seerIdx) seerKnownDead = true; }
@@ -181,13 +189,14 @@ export function playGame(opts, seed) {
     }
     if (alive[seerIdx]) {
       const c = livingIdx().filter((j) => j !== seerIdx && !checks.has(j));
-      if (c.length) { const t = day === 0 ? pickOne(r, c) : argmaxOf(marginal(seerIdx), c); checks.set(t, isW(t)); }
+      if (c.length) { const t = day === 0 || isDumb(seerIdx) ? pickOne(r, c) : argmaxOf(marginal(seerIdx), c); checks.set(t, isW(t)); }
     }
     const bg = roles.indexOf('bg');
     let protect = null;
     if (alive[bg]) {
       const c = livingIdx().filter((j) => j !== lastProtect);
-      const claim = seerClaimants.filter((j) => alive[j]);
+      const claim = isDumb(bg) ? [] : seerClaimants.filter((j) => alive[j]);
+      if (isDumb(bg)) protect = pickOne(r, c);
       if (claim.length) { const m = marginal(bg); const best = argminOf(m, claim); if (c.includes(best)) protect = best; }
       if (protect == null) protect = c.includes(bg) && r() < 0.35 ? bg : pickOne(r, c);
     }
@@ -210,7 +219,7 @@ export function playGame(opts, seed) {
   // ---------- day ----------
   function tells() {
     for (const j of livingIdx()) {
-      if (j === silenced) continue;
+      if (j === silenced || isMuted(j)) continue;
       const s = o.muPub * (isW(j) ? 1 : 0) + gauss(r);
       const l = o.muPub * s - o.muPub * o.muPub / 2;
       pubAdd((h) => (inH(h, j) ? l : 0));
@@ -223,7 +232,7 @@ export function playGame(opts, seed) {
   }
 
   function seerClaims() {
-    if (!alive[seerIdx] || silenced === seerIdx) return;
+    if (!alive[seerIdx] || silenced === seerIdx || isMuted(seerIdx)) return;
     const foundWolf = [...checks].some(([j, w]) => w && alive[j]);
     const pm = marginal(null); const liv = livingIdx();
     const threatened = argmaxOf(pm, liv) === seerIdx;
@@ -234,7 +243,7 @@ export function playGame(opts, seed) {
     claimFrom(seerClaimants, seerIdx, first);
     for (const [j, w] of checks) if (!announced.has(j)) { announced.add(j); seerStatement(seerIdx, j, w); }
     if (first && r() < 0.5) { // a wolf counterclaims and accuses the real Seer
-      const wolves = liv.filter((j) => isW(j) && j !== silenced);
+      const wolves = liv.filter((j) => isW(j) && j !== silenced && !isMuted(j));
       if (wolves.length) { st.counter = 1; const c = pickOne(r, wolves); claimFrom(seerClaimants, c, true); seerStatement(c, seerIdx, true); }
     }
   }
@@ -249,7 +258,10 @@ export function playGame(opts, seed) {
     const mine = new Map();
     for (const v of voters) {
       let t;
-      if (isW(v)) {
+      if (isDumb(v)) {
+        const c = livingIdx().filter((j) => j !== v);
+        t = c.length ? pickOne(r, c) : null;
+      } else if (isW(v)) {
         t = bloc;
         if (open && tally.size) {
           const max = Math.max(...tally.values()); const leaders = [...tally].filter(([, c]) => c === max).map(([j]) => j);
@@ -367,5 +379,5 @@ export function playGame(opts, seed) {
     if ((win = winner())) break;
     if (day > 40) { win = 'stall'; break; }
   }
-  return { win, days: day, fired, eventDay: st.eventDay, blocked: st.blocked, st };
+  return { win, days: day, fired, eventDay: st.eventDay, blocked: st.blocked, st, deaths, wolf: roles.map((x) => x === 'wolf') };
 }
