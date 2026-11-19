@@ -413,6 +413,16 @@ function fireEvent(state, rng) {
   if (at < 0) state.lines.push(text); else state.lines.splice(at, 0, text);
 }
 
+// ---------- the day before ----------
+// After the reveal the table talks once before the first night (round 0, phase day). Nobody has died, nothing
+// is announced and there is no vote; the host starts night 1 when the talk is done. Bots talk as on any day.
+function startDayBefore(state, fx) {
+  state.phase = PHASE.DAY;
+  state.round = 0;
+  state.lines = [];
+  fx.push({ type: 'haptic' });
+}
+
 // ---------- night ----------
 function startNight(state, fx) {
   state.round += 1;
@@ -606,6 +616,7 @@ function recordNight(state, n, victims, protectedId, bg, healed, poisoned, dead,
 function startVote(state, _a, _sender, isHost, fx) {
   if (!isHost) return { code: 'forbidden', message: 'Only the host can start the vote.' };
   if (state.phase !== PHASE.DAY) return { code: 'badPhase', message: 'Not in discussion.' };
+  if (state.round === 0) return { code: 'badPhase', message: 'There is no vote before the first night.' };
   beginVote(state, fx);
   return null;
 }
@@ -723,7 +734,10 @@ function nextShot(state, fx, rng) {
 function nextPhase(state, _a, isHost, rng, fx) {
   if (!isHost) return { code: 'forbidden', message: 'Only the host can continue.' };
   switch (state.phase) {
-    case PHASE.REVEAL: startNight(state, fx); return null;
+    case PHASE.REVEAL: startDayBefore(state, fx); return null;
+    case PHASE.DAY:
+      if (state.round === 0) { startNight(state, fx); return null; } // end of The Day Before
+      return { code: 'badPhase', message: 'Nothing to continue.' };
     case PHASE.NIGHT: resolveNight(state, rng, fx); return null;
     case PHASE.SHOT: {
       const h = byId(state, state.shots[0]);

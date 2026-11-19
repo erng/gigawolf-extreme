@@ -95,7 +95,7 @@ async function runBotGame(botCount, settings = {}) {
     const v = h.view; const p = v.prompt;
     if (v.phase === 'reveal') { if (!v.players.find((x) => x.id === v.you.id).ready) h.client.send('ready'); if (v.progress.done === v.progress.total) h.client.send('nextPhase'); }
     else if (v.phase === 'night') { if (p && !p.done && v.you.alive) h.client.send('nightPick', { targetId: p.required ? p.targets[0] : null }); else if (v.progress.done >= v.progress.total - 0) h.client.send('nextPhase'); }
-    else if (v.phase === 'day') h.client.send('startVote');
+    else if (v.phase === 'day') h.client.send(v.round === 0 ? 'nextPhase' : 'startVote');
     else if (v.phase === 'vote') { if (v.voteResult) h.client.send('nextPhase'); else if (p?.kind === 'vote' && !p.done) h.client.send('vote', { targetId: 'skip' }); else if (v.progress && v.progress.done >= v.progress.total) h.client.send('nextPhase'); }
     else if (v.phase === 'shot') { if (v.prompt?.kind === 'shoot') h.client.send('shoot', { targetId: p.targets[0] }); else if (v.isHost) h.client.send('nextPhase'); }
     await sleep(25);

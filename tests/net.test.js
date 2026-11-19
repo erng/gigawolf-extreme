@@ -89,6 +89,8 @@ async function toFirstNight(h, a) {
   h.client.send('ready'); a.client.send('ready');
   await until(() => h.view.progress && h.view.progress.done === h.view.progress.total);
   h.client.send('nextPhase');
+  await until(() => h.view.phase === 'day' && a.view.phase === 'day'); // The Day Before
+  h.client.send('nextPhase');
   await until(() => h.view.phase === 'night' && a.view.phase === 'night');
 }
 
@@ -147,7 +149,7 @@ async function fullGame(net, h, n) {
       if (v.phase === 'night') h.client.send('nightPick', { targetId: p.required ? p.targets[0] : null });
       if (v.phase === 'vote') h.client.send('vote', { targetId: 'skip' });
     }
-    if (v.phase === 'day') h.client.send('startVote');
+    if (v.phase === 'day') h.client.send(v.round === 0 ? 'nextPhase' : 'startVote');
     if (v.phase === 'vote' && v.voteResult) h.client.send('nextPhase');
   }, 5);
   try { await until(() => h.view.phase === 'gameover', 60000); } finally { clearInterval(hostPlay); }
@@ -192,6 +194,8 @@ test('host can advance past a player who never acts', async () => {
   h.client.send('startGame');
   await until(() => h.view.phase === 'reveal');
   // the idle player never readies; the host moves on anyway
+  h.client.send('nextPhase');
+  await until(() => h.view.phase === 'day');
   h.client.send('nextPhase');
   await until(() => h.view.phase === 'night');
   h.client.send('nextPhase'); // ...and ends the night without the idle player's pick
