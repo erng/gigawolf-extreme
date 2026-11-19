@@ -5,6 +5,7 @@
 //   join{name} setConnected{connected} leave kick{targetId} settings{patch} startGame ready
 //   nightPick{targetId, targetId2?} startVote vote{targetId|'skip'} shoot{targetId} nextPhase playAgain
 //   botSay{key, v, ids} (host-run bots only: a table-talk line, see js/game/chat.js)
+//   say{key, v, ids} (a living human's table-talk line from the Say sheet, see HUMAN_KEYS in js/game/chat.js)
 //   Witch nightPick targetId is 'heal:<id>' | 'poison:<id>' | 'pass'.
 //
 // Effects: { type:'views' }            host should resend every player's view
@@ -14,7 +15,7 @@
 import { ROLES, isWolf, isDecoy, teamOf, TEAM } from './roles.js';
 import { MAX_PLAYERS, MAX_HUMANS, MAX_BOTS, BOT_NAMES, BOT_TAG, isBotId, MIN_PLAYERS, COUNT_KEYS, presetFor, validate, roleList, fullCounts, randomCounts } from './setup.js';
 import { shuffle } from '../util/rng.js';
-import { CHAT_MAX, CHAT_PER_ROUND, PERSONALITIES, validChatLine } from './chat.js';
+import { CHAT_MAX, CHAT_PER_ROUND, HUMAN_KEYS, PERSONALITIES, validChatLine } from './chat.js';
 
 export const PHASE = Object.freeze({
   LOBBY: 'lobby', REVEAL: 'reveal', NIGHT: 'night', DAY: 'day', VOTE: 'vote', SHOT: 'shot', GAMEOVER: 'gameover',
@@ -140,6 +141,7 @@ export function reduce(prev, action, rng) {
     case 'playAgain': err = playAgain(state, isHost); break;
     case 'endEarly': err = endEarly(state, isHost, fx); break;
     case 'botSay': err = botSay(state, action, sender); break;
+    case 'say': err = humanSay(state, action, sender); break;
     default: err = { code: 'badAction', message: `Unknown action ${action.kind}` };
   }
   if (err) return { state: prev, effects: [], error: err };
@@ -758,6 +760,25 @@ function botSay(state, { key, v, ids }, sender) {
   const open = state.phase === PHASE.DAY || (state.phase === PHASE.VOTE && state.vote?.stage === 'voting');
   if (!open) return { code: 'badPhase', message: 'Not in discussion.' };
   if (!validChatLine(key, v, ids) || !ids.every((id) => byId(state, id))) return { code: 'badLine', message: 'Invalid target.' };
+  state.chat ??= [];
+  if (state.chat.filter((c) => c.by === sender.id && c.round === state.round).length >= CHAT_PER_ROUND) return { code: 'tooChatty', message: 'Too many lines this round.' };
+  state.chatSeq = (state.chatSeq ?? 0) + 1;
+  state.chat.push({ seq: state.chatSeq, round: state.round, by: sender.id, key, v, ids: [...ids] });
+  if (state.chat.length > CHAT_MAX) state.chat = state.chat.slice(-CHAT_MAX);
+  return null;
+}
+
+// A living human posts one preset line from the Say sheet. It lands in the same public feed as bot talk and
+// is stored in the same shape, so a bot reads it exactly like a bot's line. The result never depends on the
+// bot setting (smart or dumb) or on the sender's role: nothing here can give either away.
+function humanSay(state, { key, v, ids }, sender) {
+  if (!sender || isBotId(sender.id) || sender.kicked) return { code: 'forbidden', message: 'Only players can talk here.' };
+  if (!sender.alive) return { code: 'dead', message: 'You cannot act.' };
+  const open = state.phase === PHASE.DAY || (state.phase === PHASE.VOTE && state.vote?.stage === 'voting');
+  if (!open) return { code: 'badPhase', message: 'Not in discussion.' };
+  if (!HUMAN_KEYS.includes(key) || !validChatLine(key, v, ids)) return { code: 'badLine', message: 'Invalid line.' };
+  // A line names living players other than the speaker, and never the same player twice.
+  if (!ids.every((id) => id !== sender.id && byId(state, id)?.alive) || new Set(ids).size !== ids.length) return { code: 'badLine', message: 'Invalid target.' };
   state.chat ??= [];
   if (state.chat.filter((c) => c.by === sender.id && c.round === state.round).length >= CHAT_PER_ROUND) return { code: 'tooChatty', message: 'Too many lines this round.' };
   state.chatSeq = (state.chatSeq ?? 0) + 1;

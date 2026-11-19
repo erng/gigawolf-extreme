@@ -19,7 +19,7 @@ export const PERSONA = Object.freeze({
   quiet:     { talk: 0.3,  accuse: 0.3,  agree: 0.2,  follow: 0.5, noise: 0.8, skip: 0.35, claim: 0.6, speed: 1.5 },
   detective: { talk: 0.7,  accuse: 0.6,  agree: 0.25, follow: 0.4, noise: 0.4, skip: 0.12, claim: 0.9, speed: 1 },
 });
-const LINES_PER_ROUND = 3; // the engine allows 4; a mind keeps one spare
+const LINES_PER_ROUND = 3; // the engine allows 4; a mind keeps one spare, for answering a person late
 const CLAIM_KEYS = new Set(['claimWolf', 'claimClean', 'reportWolf', 'reportClean', 'counter']);
 const POINT_KEYS = new Set(['accuse', 'agree', 'claimWolf', 'reportWolf', 'counter']);
 
@@ -249,9 +249,10 @@ export class BotMind {
   // ---------- table talk ----------
   // A line to say now, or null. moment: 'day' (talking while the day is on), 'reply' (reacting to a line
   // that just appeared), or 'vote' (handled by voteLine).
-  talk(view, moment = 'day') {
+  // spare: an answer to a person's line may use the one line a mind keeps back (the engine allows one more).
+  talk(view, moment = 'day', spare = false) {
     this.observe(view);
-    if (!view.you.alive || this.day.said >= LINES_PER_ROUND) return null;
+    if (!view.you.alive || this.day.said >= LINES_PER_ROUND + (spare ? 1 : 0)) return null;
     if (view.phase !== 'day' && !(view.phase === 'vote' && !view.voteResult)) return null;
     const l = (moment === 'reply' ? this.reply() : this.dayLine());
     if (l) this.day.said++;

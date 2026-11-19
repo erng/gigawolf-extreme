@@ -195,6 +195,7 @@ export class Host {
     if (data.targetId !== undefined) action.targetId = data.targetId;
     if (data.targetId2 !== undefined) action.targetId2 = data.targetId2;
     if (data.patch) action.patch = data.patch;
+    if (data.kind === 'say') { action.key = data.key; action.v = data.variant; action.ids = data.ids; } // `v` on the wire is the protocol version
     this.apply(action, conn);
   }
 

@@ -3,6 +3,7 @@
 import { h } from './dom.js';
 import { t } from '../i18n.js';
 import { BOT_TAG } from '../game/setup.js';
+import { sayChip } from './quickchat.js';
 
 const SEER = new Set(['claimWolf', 'claimClean', 'reportWolf', 'reportClean', 'counter']);
 const short = (name) => (name?.endsWith(BOT_TAG) ? name.slice(0, -BOT_TAG.length) : name ?? '?');
@@ -35,8 +36,10 @@ function bubble(view, c, isNew) {
 // On the screen: only the latest few lines, so the page stays short and nothing scrolls inside it.
 // "All n" opens the whole round in a sheet (talkSheet), the only thing that scrolls while it is open.
 export function talkFeed(view, ctx, { latest = 3 } = {}) {
-  if (!talkOn(view)) return null;
-  const lines = (view.chat ?? []).filter((c) => c.round === view.round);
+  const chip = sayChip(view, ctx); // the small "Say…" control; null when you can't talk now (dead, night, vote over)
+  if (!talkOn(view) && !chip) return null;
+  const on = talkOn(view);
+  const lines = on ? (view.chat ?? []).filter((c) => c.round === view.round) : [];
   if (shown.round !== view.round) shown = { round: view.round, seq: 0 };
   const seen = shown.seq;
   shown.seq = Math.max(seen, lines.at(-1)?.seq ?? 0);
@@ -44,10 +47,12 @@ export function talkFeed(view, ctx, { latest = 3 } = {}) {
   return h('section', { class: 'talk', 'aria-label': t('chat.title') },
     h('div', { class: 'talk-head' },
       h('h3', null, t('chat.title')),
-      lines.length > latest && h('button', { type: 'button', class: 'talk-all', onClick: open }, t('chat.seeAll', { n: lines.length }))),
+      h('div', { class: 'talk-btns' },
+        lines.length > latest && h('button', { type: 'button', class: 'talk-all', onClick: open }, t('chat.seeAll', { n: lines.length })),
+        chip)),
     lines.length
       ? h('ol', { class: 'bubbles inline', 'aria-live': 'polite' }, lines.slice(-latest).map((c) => bubble(view, c, c.seq > seen)))
-      : h('p', { class: 'sub small' }, t('chat.empty')));
+      : !chip && h('p', { class: 'sub small' }, t('chat.empty'))); // with the Say chip the empty line is dropped, to save space
 }
 
 // The whole round in a bottom sheet (main.js adds it on top of the screen while ctx.ui.talkOpen).

@@ -1,6 +1,6 @@
 import { PROTOCOL_VERSION } from '../config.js';
 
-export const CLIENT_ACTION_KINDS = ['ready', 'nightPick', 'shoot', 'vote', 'startVote', 'nextPhase', 'startGame', 'settings', 'playAgain', 'endEarly', 'kick'];
+export const CLIENT_ACTION_KINDS = ['ready', 'nightPick', 'shoot', 'vote', 'startVote', 'nextPhase', 'startGame', 'settings', 'playAgain', 'endEarly', 'kick', 'say'];
 // Errors after which retrying cannot help.
 export const FATAL_ERRORS = ['gameStarted', 'roomFull', 'badName', 'badVersion'];
 
@@ -39,6 +39,8 @@ export function validate(x) {
       if (x.targetId != null && typeof x.targetId !== 'string') return 'bad target';
       if (x.targetId2 != null && typeof x.targetId2 !== 'string') return 'bad target';
       if (x.nonce != null && typeof x.nonce !== 'string') return 'bad nonce';
+      // A line's wording is `variant` on the wire: `v` is the protocol version of every message.
+      if (x.kind === 'say' && !(typeof x.key === 'string' && x.key.length <= 24 && Number.isInteger(x.variant) && Array.isArray(x.ids) && x.ids.length <= 2 && x.ids.every((i) => typeof i === 'string'))) return 'bad line';
       if (x.kind === 'settings' && (typeof x.patch !== 'object' || x.patch === null)) return 'bad patch';
       return null;
     case 'ping': case 'pong': return null;
